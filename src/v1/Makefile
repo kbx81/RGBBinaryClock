@@ -24,11 +24,11 @@ SRCS   = $(filter-out RGBBinaryClock.cpp, $(wildcard *.cpp))
 
 OBJS   += $(SRCS:.cpp=.o)
 
-OPENCM3_DIR=../../../libopencm3
+OPENCM3_DIR=../../../../libopencm3
 # LDSCRIPT = $(OPENCM3_DIR)/lib/stm32/f0/stm32f04xz6.ld
 LDSCRIPT = $(OPENCM3_DIR)/lib/stm32/f0/stm32f07xzb.ld
 # LDFLAGS += -Wl,--Map=$(BINARY).map
 
 CXXSTD		= -std=c++11
 
-include ../../../libopencm3.target.mk
+include ../../../../libopencm3.target.mk

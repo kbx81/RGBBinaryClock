@@ -36,13 +36,9 @@ namespace Hardware {
   //
   void     refresh();
 
-  // Turns the beeper on or off
-  //
-  void     beep(const bool state);
-
-  // Check if the beeper is on or off
-  //
-  bool     beepState();
+  // Generates a tone of frequency for duration milliseconds
+  //  Returns true if tone was activated
+  bool     tone(const uint16_t frequency, const uint16_t duration);
 
   // Check a button
   //
