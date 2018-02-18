@@ -78,7 +78,8 @@ P 5200 5800
 F 0 "SW1" H 5250 5900 50  0000 L CNN
 F 1 "SW_Push" H 5200 5740 50  0000 C CNN
 F 2 "Buttons_Switches_SMD:SW_SPST_KMR2" H 5200 6000 50  0001 C CNN
-F 3 "" H 5200 6000 50  0001 C CNN
+F 3 "https://www.ckswitches.com/media/1479/kmr2.pdf" H 5200 6000 50  0001 C CNN
+F 4 "KMR221G LFS" H 5200 5800 60  0001 C CNN "Part Number"
 	1    5200 5800
 	1    0    0    -1  
 $EndComp
@@ -199,7 +200,8 @@ P 1750 1450
 F 0 "Y2" H 1750 1600 50  0000 C CNN
 F 1 "8 MHz" H 1750 1300 50  0000 C CNN
 F 2 "Crystals:Crystal_SMD_5032-4pin_5.0x3.2mm" H 1750 1450 50  0001 C CNN
-F 3 "" H 1750 1450 50  0001 C CNN
+F 3 "http://www.abracon.com/Resonators/abm3b.pdf" H 1750 1450 50  0001 C CNN
+F 4 "ABM3B-8.000MHZ-10-1UT" H 1750 1450 60  0001 C CNN "Part Number"
 	1    1750 1450
 	-1   0    0    1   
 $EndComp
@@ -227,7 +229,8 @@ P 2500 6200
 F 0 "LED26" H 2500 6425 50  0000 C CNN
 F 1 "LED_Dual_AACC" H 2500 5950 50  0000 C CNN
 F 2 "LEDs:LED_Cree-PLCC4_3.2x2.8mm_CCW" H 2530 6200 50  0001 C CNN
-F 3 "" H 2530 6200 50  0001 C CNN
+F 3 "https://www.vcclite.com/product/led-smt-1206-1-72-1v-20ma-redgreen-2k/" H 2530 6200 50  0001 C CNN
+F 4 "CMD1522SRUGCTR8" H 2500 6200 60  0001 C CNN "Part Number"
 	1    2500 6200
 	0    1    1    0   
 $EndComp
@@ -238,7 +241,7 @@ P 3200 6800
 F 0 "Q3" V 3250 6550 50  0000 L CNN
 F 1 "2N7002" V 3150 6400 50  0000 L CNN
 F 2 "TO_SOT_Packages_SMD:SOT-23" H 3400 6725 50  0001 L CIN
-F 3 "" H 3200 6800 50  0001 L CNN
+F 3 "https://www.diodes.com/assets/Datasheets/ds11303.pdf" H 3200 6800 50  0001 L CNN
 	1    3200 6800
 	0    -1   1    0   
 $EndComp
@@ -249,7 +252,7 @@ P 3100 6300
 F 0 "Q2" V 3150 6050 50  0000 L CNN
 F 1 "2N7002" V 3050 5900 50  0000 L CNN
 F 2 "TO_SOT_Packages_SMD:SOT-23" H 3300 6225 50  0001 L CIN
-F 3 "" H 3100 6300 50  0001 L CNN
+F 3 "https://www.diodes.com/assets/Datasheets/ds11303.pdf" H 3100 6300 50  0001 L CNN
 	1    3100 6300
 	0    -1   1    0   
 $EndComp
@@ -330,7 +333,8 @@ P 5300 1000
 F 0 "Q5" V 5250 800 50  0000 L CNN
 F 1 "Q_Photo_NPN" V 5500 750 50  0000 L CNN
 F 2 "LEDs:LED_D5.0mm" H 5500 1100 50  0001 C CNN
-F 3 "" H 5300 1000 50  0001 C CNN
+F 3 "https://www.vishay.com/docs/84768/tept5600.pdf" H 5300 1000 50  0001 C CNN
+F 4 "TEPT5600" V 5300 1000 60  0001 C CNN "Part Number"
 	1    5300 1000
 	0    1    1    0   
 $EndComp
@@ -431,7 +435,8 @@ P 1150 6000
 F 0 "BZ1" H 1300 6050 50  0000 L CNN
 F 1 "Buzzer" H 1300 5950 50  0000 L CNN
 F 2 "Buzzers_Beepers:Buzzer_12x9.5RM7.6" V 1125 6100 50  0001 C CNN
-F 3 "" V 1125 6100 50  0001 C CNN
+F 3 "https://product.tdk.com/en/search/sw_piezo/sw_piezo/em-buzzer/info?part_no=SD1614TT-B1" V 1125 6100 50  0001 C CNN
+F 4 "TDK SD1614TT-B1" H 1150 6000 60  0001 C CNN "Part Number"
 	1    1150 6000
 	-1   0    0    -1  
 $EndComp
@@ -442,7 +447,7 @@ P 1150 6900
 F 0 "Q1" H 1350 6975 50  0000 L CNN
 F 1 "2N7002" H 1350 6900 50  0000 L CNN
 F 2 "TO_SOT_Packages_SMD:SOT-23" H 1350 6825 50  0001 L CIN
-F 3 "" H 1150 6900 50  0001 L CNN
+F 3 "https://www.diodes.com/assets/Datasheets/ds11303.pdf" H 1150 6900 50  0001 L CNN
 	1    1150 6900
 	1    0    0    -1  
 $EndComp
@@ -479,7 +484,8 @@ P 9350 6100
 F 0 "P1" H 9350 6400 50  0000 C CNN
 F 1 "STM32_SWD_USART" H 9350 5800 50  0000 C CNN
 F 2 "Pin_Headers:Pin_Header_Straight_2x05_Pitch1.27mm_SMD" H 9350 4900 60  0001 C CNN
-F 3 "" H 9350 4900 60  0000 C CNN
+F 3 "https://www.harwin.com/products/M50-3600542R/" H 9350 4900 60  0000 C CNN
+F 4 "M50-3600542R" H 9350 6100 60  0001 C CNN "Part Number"
 	1    9350 6100
 	1    0    0    -1  
 $EndComp
@@ -739,7 +745,8 @@ P 900 1450
 F 0 "Y1" H 900 1600 50  0000 C CNN
 F 1 "32.768 KHz" H 900 1300 50  0000 C CNN
 F 2 "Crystals:Crystal_SMD_3215-2pin_3.2x1.5mm" H 900 1450 50  0001 C CNN
-F 3 "" H 900 1450 50  0001 C CNN
+F 3 "https://www.ecsxtal.com/store/pdf/ECX-.327-CDX-1293.pdf" H 900 1450 50  0001 C CNN
+F 4 "ECX-.327-CDX-1293" H 900 1450 60  0001 C CNN "Part Number"
 	1    900  1450
 	-1   0    0    1   
 $EndComp
@@ -780,7 +787,8 @@ P 4350 1100
 F 0 "RV1" V 4175 1100 50  0000 C CNN
 F 1 "100K" V 4250 1100 50  0000 C CNN
 F 2 "Potentiometers:Potentiometer_Trimmer_Vishay_TS53YJ" H 4350 1100 50  0001 C CNN
-F 3 "" H 4350 1100 50  0001 C CNN
+F 3 "http://www.bourns.com/docs/Product-Datasheets/TC33.PDF" H 4350 1100 50  0001 C CNN
+F 4 "TC33X-2-104E" V 4350 1100 60  0001 C CNN "Part Number"
 	1    4350 1100
 	0    1    1    0   
 $EndComp
@@ -817,7 +825,7 @@ P 3300 7300
 F 0 "Q4" V 3350 7050 50  0000 L CNN
 F 1 "2N7002" V 3250 6900 50  0000 L CNN
 F 2 "TO_SOT_Packages_SMD:SOT-23" H 3500 7225 50  0001 L CIN
-F 3 "" H 3300 7300 50  0001 L CNN
+F 3 "https://www.diodes.com/assets/Datasheets/ds11303.pdf" H 3300 7300 50  0001 L CNN
 	1    3300 7300
 	0    -1   1    0   
 $EndComp
@@ -839,7 +847,7 @@ P 1850 6200
 F 0 "LED25" H 1850 6475 50  0000 C CNN
 F 1 "LED_RGB_COMMON_ANODE" H 1850 5925 50  0000 C CNN
 F 2 "LEDs:LED_D5.0mm-4" H 1875 6350 60  0001 C CNN
-F 3 "" H 1875 6350 60  0000 C CNN
+F 3 "https://www.adafruit.com/product/302" H 1875 6350 60  0001 C CNN
 	1    1850 6200
 	0    1    1    0   
 $EndComp
@@ -854,7 +862,7 @@ Wire Wire Line
 	1500 4000 2100 4000
 Connection ~ 4350 1400
 Wire Wire Line
-	4600 1400 4350 1400
+	4200 1400 4600 1400
 Wire Wire Line
 	4350 1250 4350 1450
 Wire Wire Line
@@ -1263,7 +1271,7 @@ P 5900 3800
 F 0 "U1" H 2200 5625 50  0000 L BNN
 F 1 "STM32F072CBTx" H 9600 5625 50  0000 R BNN
 F 2 "Housings_QFP:LQFP-48_7x7mm_Pitch0.5mm" H 9600 5575 50  0001 R TNN
-F 3 "" H 5900 3800 50  0001 C CNN
+F 3 "http://www.st.com/content/ccc/resource/technical/document/datasheet/cd/46/43/83/22/d3/40/c8/DM00090510.pdf/files/DM00090510.pdf/jcr:content/translations/en.DM00090510.pdf" H 5900 3800 50  0001 C CNN
 	1    5900 3800
 	1    0    0    -1  
 $EndComp
@@ -1284,4 +1292,27 @@ F 3 "" H 1850 5800 50  0001 C CNN
 	1    1850 5800
 	1    0    0    -1  
 $EndComp
+Wire Wire Line
+	4200 1100 4200 1400
+$Comp
+L D D1
+U 1 1 5A8915C5
+P 1400 6150
+F 0 "D1" H 1400 6250 50  0000 C CNN
+F 1 "1N4148" H 1400 6050 50  0000 C CNN
+F 2 "Diodes_SMD:D_SOD-123" H 1400 6150 50  0001 C CNN
+F 3 "https://www.diodes.com/assets/Datasheets/ds30086.pdf" H 1400 6150 50  0001 C CNN
+	1    1400 6150
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	1400 6000 1400 5900
+Connection ~ 1400 5900
+Wire Wire Line
+	1400 6300 1400 6450
+Wire Wire Line
+	1400 6450 1250 6450
+Connection ~ 1250 6450
+Text Notes 2000 5800 0    60   ~ 0
+Install LED25 *OR* LED26\nDO NOT INSTALL BOTH
 $EndSCHEMATC

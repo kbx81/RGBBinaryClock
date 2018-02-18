@@ -1,46 +1,41 @@
-"Source:","/Users/kburzinski/Documents/KiCad/kbxBinaryClock/kbxBinaryClock.sch"
-"Date:","Monday, November 20, 2017 'PMt' 11:23:22 PM"
-"Tool:","Eeschema 4.0.7"
-"Generator:","/private/var/folders/tm/jfsjdk7d1bnd_fx9pvsh5cd00000gn/T/AppTranslocation/C17AED73-B1EF-4737-B434-17FC508C7210/d/kicad.app/Contents/SharedSupport/plugins/bom_csv_grouped_by_value_with_fp.py"
-"Component Count:","117"
-"Ref","Qnty","Value","Cmp name","Footprint","Description","Vendor"
-"BT1, ","1","CR2032","Battery_Cell","Battery_Holders:Keystone_103_1x20mm-CoinCell","single battery cell",""
-"BZ1, ","1","Buzzer","Buzzer","Buzzers_Beepers:Buzzer_12x9.5RM7.6","Buzzer, polar",""
-"C2, C1, C6, C7, C8, C14, C15, C16, C18, C20, C21, ","11","100 nF","C","Capacitors_SMD:C_0805","Unpolarized capacitor",""
-"C3, C4, ","2","10 pF","C","Capacitors_SMD:C_0805","Unpolarized capacitor",""
-"C5, ","1","10 nF","C","Capacitors_SMD:C_0805","Unpolarized capacitor",""
-"C9, ","1","1 ÂµF","C","Capacitors_SMD:C_0805","Unpolarized capacitor",""
-"C10, C11, ","2","4.7 ÂµF","C","Capacitors_SMD:C_0805","Unpolarized capacitor",""
-"C12, C13, ","2","47 nF","C","Capacitors_SMD:C_0805","Unpolarized capacitor",""
-"C17, ","1","100 ÂµF","CP","Capacitors_SMD:CP_Elec_5x5.3","Polarised capacitor",""
-"C19, ","1","10 ÂµF","C","Capacitors_SMD:C_0805","Unpolarized capacitor",""
-"D1, ","1","LED_Dual_AACC","LED_Dual_AACC","LEDs:LED_Cree-PLCC4_3.2x2.8mm_CCW","LED dual, 4-pin",""
-"D2, ","1","S3A","DIODE","Diodes_SMD:D_SMC","",""
-"F1, ","1","~2A","Polyfuse","Fuse_Holders_and_Fuses:Fuse_SMD2920","resettable fuse, polymeric positive temperature coefficient (PPTC)",""
-"J1, ","1","Jack-DC","Jack-DC","kbxCustoms:BARREL_JACK","DCÂ Barrel Jack",""
-"J2, ","1","Conn_01x06","Conn_01x06","Pin_Headers:Pin_Header_Straight_1x06_Pitch2.54mm","Generic connector, single row, 01x06",""
-"J3, ","1","Conn_02x03_Odd_Even","Conn_02x03_Odd_Even","Pin_Headers:Pin_Header_Straight_2x03_Pitch2.54mm","Generic connector, double row, 02x03, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers)",""
-"LED24, LED23, LED22, LED21, LED20, LED19, LED18, LED17, LED16, LED15, LED14, LED13, LED12, LED11, LED10, LED9, LED8, LED7, LED6, LED5, LED4, LED3, LED2, LED1, ","24","LED_RGB_COMMON_ANODE","LED_RGB_COMMON_ANODE","LEDs:LED_D5.0mm-4","",""
-"P1, ","1","STM32_SWD_USART","STM32_SWD_USART","Pin_Headers:Pin_Header_Straight_2x05_Pitch1.27mm_SMD","",""
-"Q2, Q3, Q1, ","3","2N7002","2N7002","TO_SOT_Packages_SMD:SOT-23","50V Vds, 0.22 A Id, N-channel MOSFET, SOT-23",""
-"Q4, ","1","Q_Photo_NPN","Q_Photo_NPN","LEDs:LED_D5.0mm","Phototransistor NPN, 2-pin (C=1, E=2)",""
-"Q10, Q9, Q8, Q7, Q6, Q5, ","6","Q_NPN_BCE","Q_NPN_BCE","TO_SOT_Packages_SMD:SOT-23","Transistor NPN (general)",""
-"R2, R8, R1, R37, R38, R31, R26, R21, R15, R16, R17, R36, R33, ","13","10K","R","Resistors_SMD:R_0805","Resistor",""
-"R6, R7, R3, ","3","1M","R","Resistors_SMD:R_0805","Resistor",""
-"R9, R10, R11, R12, R13, R14, R5, R4, R23, R27, R28, R32, R18, R22, ","14","1K","R","Resistors_SMD:R_0805","Resistor",""
-"R29, R24, R19, ","3","4K7","R","Resistors_SMD:R_0805","Resistor",""
-"R30, R25, R20, ","3","24K6","R","Resistors_SMD:R_0805","Resistor",""
-"R35, R34, ","2","3K3","R","Resistors_SMD:R_0805","Resistor",""
-"SW1, ","1","SW_Push","SW_Push","Buttons_Switches_SMD:SW_SPST_KMR2","Push button switch, generic, two pins",""
-"TP1, ","1","TouchPad1","Conn_01x01","TouchPads:TouchPad1","Generic connector, single row, 01x01",""
-"TP2, ","1","TouchPad2","Conn_01x01","TouchPads:TouchPad1","Generic connector, single row, 01x01",""
-"TP3, ","1","TouchPad3","Conn_01x01","TouchPads:TouchPad1","Generic connector, single row, 01x01",""
-"TP4, ","1","TouchPad4","Conn_01x01","TouchPads:TouchPad1","Generic connector, single row, 01x01",""
-"TP5, ","1","TouchPad5","Conn_01x01","TouchPads:TouchPad1","Generic connector, single row, 01x01",""
-"TP6, ","1","TouchPad6","Conn_01x01","TouchPads:TouchPad1","Generic connector, single row, 01x01",""
-"U1, ","1","STM32F042C6Tx","STM32F042C6Tx","Housings_QFP:LQFP-48_7x7mm_Pitch0.5mm","Core: ARM Cortex-M0 Package: LQFP48 Flash: 16KB Ram: 6KB Frequency: 48MHz Voltage: 2..3.6V IO-pins: 38",""
-"U2, U3, U4, ","3","TLC5947","TLC5947","Housings_SSOP:HTSSOP-32_6.1x11mm_Pitch0.65mm_ThermalPad","",""
-"U5, ","1","LD1117S33TR","LD1117S33TR_SOT223","TO_SOT_Packages_SMD:TO-252-2","1A Low Dropout regulator, positive, 1.5V fixed output, SOT-223",""
-"U6, ","1","DS3231","DS3231","Housings_SOIC:SOIC-16W_7.5x10.3mm_Pitch1.27mm","Extremely Accurate I2C-Integrated RTC/TCXO/Crystal SOIC-16",""
-"U7, ","1","MAX485E","MAX485E","Housings_SOIC:SOIC-8_3.9x4.9mm_Pitch1.27mm","Half duplex RS-485/RS-422, 2.5 Mbps, Â±15kV electro-static discharge (ESD) protection, no slew-rate, with low-power shutdown, with receiver/driver enable, 32 receiver drive kapacitity, DIP-8 and SOIC-8",""
-"Y1, ","1","8 MHz","Crystal","Crystals:Crystal_SMD_5032-4pin_5.0x3.2mm","Two pin crystal",""
+Ref,Qnty,Value,Cmp name,Footprint,Description,Vendor
+"BT1, ",1,CR2032,Battery_Cell,Battery_Holders:Keystone_103_1x20mm-CoinCell,single battery cell,
+"BZ1, ",1,Buzzer,Buzzer,Buzzers_Beepers:Buzzer_12x9.5RM7.6,"Buzzer, polar",
+"C1, C2, ",2,12.5 pF,C,Capacitors_SMD:C_0805,Unpolarized capacitor,
+"C3, C4, ",2,10 pF,C,Capacitors_SMD:C_0805,Unpolarized capacitor,
+"C5, C6, C8, C9, C10, C17, C18, C19, C21, C23, C26, C25, C24, ",13,100 nF,C,Capacitors_SMD:C_0805,Unpolarized capacitor,
+"C7, ",1,10 nF,C,Capacitors_SMD:C_0805,Unpolarized capacitor,
+"C11, ",1,1 åµF,C,Capacitors_SMD:C_0805,Unpolarized capacitor,
+"C12, C13, ",2,4.7 åµF,C,Capacitors_SMD:C_0805,Unpolarized capacitor,
+"C14, C15, C16, ",3,47 nF,C,Capacitors_SMD:C_0805,Unpolarized capacitor,
+"C20, ",1,100 åµF,CP,Capacitors_SMD:CP_Elec_8x10,Polarised capacitor,
+"C22, ",1,10 åµF,C,Capacitors_SMD:C_0805,Unpolarized capacitor,
+"D1, ",1,1N4148,D,Diodes_SMD:D_SOD-123,Diode,
+"D2, ",1,S3A,DIODE,Diodes_SMD:D_SMC,,
+"F1, ",1,~2A,Polyfuse,Fuse_Holders_and_Fuses:Fuse_SMD2920,"resettable fuse, polymeric positive temperature coefficient (PPTC)",
+"J1, ",1,GS3,GS3,Connectors:GS3,3-pin jumper/solder bridge,
+"J2, ",1,Jack-DC,Jack-DC,kbxCustoms:BARREL_JACK,DCåÊBarrel Jack,
+"J3, ",1,Conn_01x06,Conn_01x06,Pin_Headers:Pin_Header_Straight_1x06_Pitch2.54mm,"Generic connector, single row, 01x06",
+"J4, ",1,Conn_02x03_Odd_Even,Conn_02x03_Odd_Even,Pin_Headers:Pin_Header_Straight_2x03_Pitch2.54mm,"Generic connector, double row, 02x03, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers)",
+"LED25, LED1, LED2, LED3, LED4, LED5, LED6, LED7, LED8, LED9, LED10, LED11, LED12, LED13, LED14, LED15, LED16, LED17, LED18, LED19, LED20, LED21, LED22, LED23, LED24, ",25,LED_RGB_COMMON_ANODE,LED_RGB_COMMON_ANODE,LEDs:LED_D5.0mm-4,,
+"LED26, ",1,LED_Dual_AACC,LED_Dual_AACC,LEDs:LED_Cree-PLCC4_3.2x2.8mm_CCW,"LED dual, 4-pin",
+"P1, ",1,STM32_SWD_USART,STM32_SWD_USART,Pin_Headers:Pin_Header_Straight_2x05_Pitch1.27mm_SMD,,
+"Q3, Q2, Q1, Q4, ",4,2N7002,2N7002,TO_SOT_Packages_SMD:SOT-23,"50V Vds, 0.22 A Id, N-channel MOSFET, SOT-23",
+"Q5, ",1,Q_Photo_NPN,Q_Photo_NPN,LEDs:LED_D5.0mm,"Phototransistor NPN, 2-pin (C=1, E=2)",
+"Q11, Q10, Q9, Q8, Q7, Q6, ",6,Q_NPN_BCE,Q_NPN_BCE,TO_SOT_Packages_SMD:SOT-23,Transistor NPN (general),
+"R5, R6, R9, R1, R7, ",5,1M,R,Resistors_SMD:R_0805,Resistor,
+"R10, R11, R12, R13, R14, R15, R3, R2, R4, R27, R31, R32, R36, R22, R26, ",15,1K,R,Resistors_SMD:R_0805,Resistor,
+"R19, R16, R17, R18, R8, R35, R30, R25, R20, R21, R37, R39, R38, ",13,10K,R,Resistors_SMD:R_0805,Resistor,
+"R33, R28, R23, ",3,4K7,R,Resistors_SMD:R_0805,Resistor,
+"R34, R29, R24, ",3,24K6,R,Resistors_SMD:R_0805,Resistor,
+"RV1, ",1,100K,POT,Potentiometers:Potentiometer_Trimmer_Vishay_TS53YJ,Potentiometer,
+"SW1, ",1,SW_Push,SW_Push,Buttons_Switches_SMD:SW_SPST_KMR2,"Push button switch, generic, two pins",
+"U1, ",1,STM32F072CBTx,STM32F072CBTx,Housings_QFP:LQFP-48_7x7mm_Pitch0.5mm,Core: ARM Cortex-M0 Package: LQFP48 Flash: 64KB Ram: 16KB Frequency: 48MHz Voltage: 2..3.6V IO-pins: 37,
+"U2, U3, U4, ",3,TLC5947,TLC5947,Housings_SSOP:HTSSOP-32_6.1x11mm_Pitch0.65mm_ThermalPad,,
+"U5, ",1,LD1117S33TR,LD1117S33TR_SOT223,TO_SOT_Packages_SMD:TO-252-2,"1A Low Dropout regulator, positive, 1.5V fixed output, SOT-223",
+"U6, ",1,DS3234,DS3234,Housings_SOIC:SO-20_12.8x7.5mm_Pitch1.27mm,DS3234 SPI Bus Real-time Clock with Integrated Crystal,
+"U7, ",1,DS1722,DS1722,Housings_SOIC:SOIC-8_3.9x4.9mm_Pitch1.27mm,,
+"U8, ",1,LM74,LM74,Housings_SOIC:SOIC-8_3.9x4.9mm_Pitch1.27mm,,
+"U9, ",1,MAX485E,MAX485E,Housings_SOIC:SOIC-8_3.9x4.9mm_Pitch1.27mm,"Half duplex RS-485/RS-422, 2.5 Mbps, å±15kV electro-static discharge (ESD) protection, no slew-rate, with low-power shutdown, with receiver/driver enable, 32 receiver drive kapacitity, DIP-8 and SOIC-8",
+"Y1, ",1,32.768 KHz,Crystal,Crystals:Crystal_SMD_3215-2pin_3.2x1.5mm,Two pin crystal,
+"Y2, ",1,8 MHz,Crystal,Crystals:Crystal_SMD_5032-4pin_5.0x3.2mm,Two pin crystal,

@@ -56,7 +56,8 @@ P 9000 2400
 F 0 "U9" H 8760 2850 50  0000 C CNN
 F 1 "MAX485E" H 9030 2850 50  0000 L CNN
 F 2 "Housings_SOIC:SOIC-8_3.9x4.9mm_Pitch1.27mm" H 9000 1700 50  0001 C CNN
-F 3 "" H 9000 2450 50  0001 C CNN
+F 3 "http://www.st.com/content/ccc/resource/technical/document/datasheet/81/93/fa/ed/87/47/46/00/CD00003136.pdf/files/CD00003136.pdf/jcr:content/translations/en.CD00003136.pdf" H 9000 2450 50  0001 C CNN
+F 4 "ST1480ACDR" H 9000 2400 60  0001 C CNN "Part Number"
 	1    9000 2400
 	1    0    0    -1  
 $EndComp
@@ -184,10 +185,10 @@ F 3 "" H 9700 1900 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Conn_01x06 J3
+L Conn_01x06 J2
 U 1 1 5A0B47CF
 P 6150 2500
-F 0 "J3" H 6150 2800 50  0000 C CNN
+F 0 "J2" H 6150 2800 50  0000 C CNN
 F 1 "Conn_01x06" H 6150 2100 50  0000 C CNN
 F 2 "Pin_Headers:Pin_Header_Straight_1x06_Pitch2.54mm" H 6150 2500 50  0001 C CNN
 F 3 "" H 6150 2500 50  0001 C CNN
@@ -229,10 +230,10 @@ USART2_MODE
 Text HLabel 8400 2600 0    60   Input ~ 0
 USART2_TX
 $Comp
-L Conn_02x03_Odd_Even J4
+L Conn_02x03_Odd_Even J3
 U 1 1 5A0E0EE5
 P 10000 2700
-F 0 "J4" H 10050 2900 50  0000 C CNN
+F 0 "J3" H 10050 2900 50  0000 C CNN
 F 1 "Conn_02x03_Odd_Even" H 10050 2500 50  0000 C CNN
 F 2 "Pin_Headers:Pin_Header_Straight_2x03_Pitch2.54mm" H 10000 2700 50  0001 C CNN
 F 3 "" H 10000 2700 50  0001 C CNN
@@ -290,7 +291,7 @@ P 2850 2400
 F 0 "U6" H 2600 3100 60  0000 C CNN
 F 1 "DS3234" H 3050 3100 60  0000 C CNN
 F 2 "Housings_SOIC:SO-20_12.8x7.5mm_Pitch1.27mm" H 2850 2400 60  0001 C CNN
-F 3 "" H 2850 2400 60  0000 C CNN
+F 3 "https://datasheets.maximintegrated.com/en/ds/DS3234.pdf" H 2850 2400 60  0001 C CNN
 F 4 "Maxim" H 2650 1650 60  0001 C CNN "Manufacturer"
 	1    2850 2400
 	1    0    0    -1  
@@ -321,7 +322,8 @@ P 5550 4850
 F 0 "U8" H 5650 5150 60  0000 C CNN
 F 1 "LM74" H 5700 4550 60  0000 C CNN
 F 2 "Housings_SOIC:SOIC-8_3.9x4.9mm_Pitch1.27mm" H 5550 4850 60  0001 C CNN
-F 3 "" H 5550 4850 60  0001 C CNN
+F 3 "http://www.ti.com/lit/ds/symlink/lm74.pdf" H 5550 4850 60  0001 C CNN
+F 4 "LM74CIMX-3/NOPB" H 5550 4850 60  0001 C CNN "Part Number"
 	1    5550 4850
 	1    0    0    -1  
 $EndComp
@@ -501,7 +503,7 @@ P 2850 4950
 F 0 "U7" H 3050 5550 60  0000 C CNN
 F 1 "DS1722" H 3050 4550 60  0000 C CNN
 F 2 "Housings_SOIC:SOIC-8_3.9x4.9mm_Pitch1.27mm" H 2850 4950 60  0001 C CNN
-F 3 "" H 2850 4950 60  0001 C CNN
+F 3 "https://datasheets.maximintegrated.com/en/ds/DS1722.pdf" H 2850 4950 60  0001 C CNN
 	1    2850 4950
 	1    0    0    -1  
 $EndComp
@@ -509,4 +511,6 @@ Wire Wire Line
 	2750 4200 5550 4200
 Wire Wire Line
 	2250 1950 1900 1950
+Text Notes 2800 6050 0    60   ~ 0
+Install DS1722 *OR* LM74 -- DO NOT INSTALL BOTH
 $EndSCHEMATC
