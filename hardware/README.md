@@ -1,8 +1,8 @@
-#kbx's RGB Binary Clock
+# kbx's RGB Binary Clock
 
 RGB Binary Clock PCB project files for KiCad
 
-##How do I get PCBs made for this?
+## How do I get PCBs made for this?
 
 Detailing the process is a bit outside of what I plan to discuss here. There are
  plenty of resources out around the web already that will do a better job of
@@ -17,7 +17,7 @@ As the vast majority of the components on this board are surface-mount parts,
  you'll likely want to have a stencil made to help with the placement of solder
  paste onto the board. I've used [OSHStencils](http://oshstencils.com) for this.
 
-##If I get boards made, how do I build it?
+## If I get boards made, how do I build it?
 
 All the components are listed in the KiCad project files here; there is also a
  `csv` file containing the same list. For "unusual" parts (things that aren't
@@ -27,16 +27,16 @@ All the components are listed in the KiCad project files here; there is also a
 Once you have your boards and parts, there are at least a couple of different
  ways you can actually build the clock. Below are build notes.
 
-##Build notes
+## Build notes
 
-###Optional parts
+### Optional parts
 
 Before building, you should consider just how fancy you want your new binary
  clock to be. There are a few optional parts that you may choose to not place
  on the PCB if you are interested in a slightly less expensive build and are
  willing to sacrifice some degree of accuracy and/or functionality.
 
-####External RTC
+#### External RTC
 
 **U6**
 
@@ -53,7 +53,7 @@ The external RTC--the DS3231 (hardware version 2.x) or the DS3234 (hardware
 `C6` as well as `R8` (hardware v2.x) or `R19` (hardware v3.x) should not be
  installed if the DS323x is installed.
 
-####External temperature sensor
+#### External temperature sensor
 
 **U7 (both hardware versions), U8 (hardware v3)**
 
@@ -76,7 +76,7 @@ Installing an external temperature sensor is a great solution to this problem.
  both, neither of them will work and you may cause damage to them or to other
  ICs on the board.
 
-####RS-485 transceiver
+#### RS-485 transceiver
 
 **U8 (hardware v2), U9 (hardware v3)**
 
@@ -89,14 +89,14 @@ This part will enable the the second USART in the STM32 MCU to be used to
  leave it off of the board unless you have a specific plan to use it for
  something.
 
-####Buzzer/beeper components
+#### Buzzer/beeper components
 
 **BZ1, D1, Q1, R1**
 
 If you don't want your clock to be able to make any noise at all, it is safe to
  leave these parts off of your board. It'll be sad, but it'll work just fine.
 
-####Current drive control components
+#### Current drive control components
 
 **Q6 through Q11, R21 through R24, R26 through R29, R31 through R34,
  R37 and R37** (hardware v2.x)
@@ -111,7 +111,7 @@ These parts enable some software control over the constant-current mechanism in
  versions might exercise them automatically, such as when the ambient light
  level changes.
 
-####Status LED components
+#### Status LED components
 
 **LED25, LED26, Q2 through Q4, R2 through R7**
 
@@ -120,14 +120,14 @@ The status LED is not typically used during normal operation, however it can be
  also provide troubleshooting information if your clock doesn't seem to be
  working. That said, it's not necessary unless you like LEDs as much as I do.
 
-####Reset button
+#### Reset button
 
 The reset button is of course not required, but it is convenient if you plan to
  do any development with this platform on your own.
 
-###Other requirements
+### Other requirements
 
-####Y1 installation and connection
+#### Y1 installation and connection
 
 `Y1` is a 32.768 kHz crystal. It is used to drive the STM32's internal RTC
  mechanism. This crystal is particularly important if the DS323x IC (U6) is
@@ -142,7 +142,7 @@ If the DS323x **is** installed, `SB1` may be bridged so as to connect the
  addition, if `SB1` is bridged in this manner, `Y1` (and its drive capacitors,
  `C1` and `C2`) should **not** be installed.
 
-####Q5 series resistors
+#### Q5 series resistors
 
  **RV1, R9 and R10** (hardware v2.x)
  **RV1, R8 and R9** (hardware v3.x)
@@ -157,12 +157,12 @@ If the DS323x **is** installed, `SB1` may be bridged so as to connect the
  installed on the larger component number's (`R9` or `R10`, depending on your
  hardware version) pads will probably work well.
 
-####Status LED
+#### Status LED
 
 If installing a status LED, install only LED25 **or** LED26. Do not install
  both.
 
-##After building...
+## After building...
 
 You'll need to flash the firmware onto the STM32 MCU. This can be done via the
  SWD connection (P1) or via the serial interface on J2. Either way, you'll need
