@@ -15,14 +15,16 @@ Detailing the process is a bit outside of what I plan to discuss here. There are
 As the vast majority of the components on this board are surface-mount parts,
  hot air is a fun approach for soldering it all together. If you go this route,
  you'll likely want to have a stencil made to help with the placement of solder
- paste onto the board. I've used [OSHStencils](http://oshstencils.com) for this.
+ paste onto the board. I've used [OSHStencils](http://oshstencils.com) for this
+ and they are very quick and do a wonderful job.
 
 ## If I get boards made, how do I build it?
 
-All the components are listed in the KiCad project files here; there is also a
- `csv` file containing the same list. For "unusual" parts (things that aren't
- resistors or capacitors) I've noted a suggested part number that should serve
- as a point of reference to help you find your own.
+All the components are listed in the KiCad project files here; one can also find
+ a bill of materials file named `kbxBinaryClock.bom.csv` containing this list.
+ For "unusual" parts (things that aren't resistors or capacitors) I've noted a
+ suggested part number that should serve as a point of reference to help you
+ find your own.
 
 Once you have your boards and parts, there are at least a couple of different
  ways you can actually build the clock. Below are build notes.

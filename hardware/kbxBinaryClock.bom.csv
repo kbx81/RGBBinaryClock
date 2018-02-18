@@ -13,10 +13,9 @@ C22,C22,1,10 µF,Capacitors_SMD:C_0805,Unpolarized capacitor,
 D1,D1,1,1N4148,Diodes_SMD:D_SOD-123,Diode,https://www.diodes.com/assets/Datasheets/ds30086.pdf
 D2,D2,1,S3A,Diodes_SMD:D_SMC,,http://www.onsemi.com/pub/Collateral/S3N-D.PDF
 F1,F1,1,~2A Polyfuse,Fuse_Holders_and_Fuses:Fuse_SMD2920,"Resettable fuse, polymeric positive temperature coefficient (PPTC)",http://m.littelfuse.com/~/media/electronics/datasheets/resettable_ptcs/littelfuse_ptc_2920l_datasheet.pdf.pdf
-J1,J1,1,GS3,Connectors:GS3,3-pin jumper/solder bridge,
-J2,J2,1,Jack-DC,BARREL_JACK,DC Barrel Jack,
-J3,J3,1,Conn_01x06,Pin_Headers:Pin_Header_Straight_1x06_Pitch2.54mm,"Generic connector, single row, 01x06",
-J4,J4,1,Conn_02x03_Odd_Even,Pin_Headers:Pin_Header_Straight_2x03_Pitch2.54mm,"Generic connector, double row, 02x03",
+J1,J1,1,Jack-DC,BARREL_JACK,DCÊBarrel Jack,
+J2,J2,1,Conn_01x06,Pin_Headers:Pin_Header_Straight_1x06_Pitch2.54mm,"Generic connector, single row, 01x06",
+J3,J3,1,Conn_02x03_Odd_Even,Pin_Headers:Pin_Header_Straight_2x03_Pitch2.54mm,"Generic connector, double row, 02x03",
 "LED1, LED2, LED3, LED4, LED5, LED6, LED7, LED8, LED9, LED10, LED11, LED12, LED13, LED14, LED15, LED16, LED17, LED18, LED19, LED20, LED21, LED22, LED23, LED24, LED25","LED1, LED2, LED3, LED4, LED5, LED6, LED7, LED8, LED9, LED10, LED11, LED12, LED13, LED14, LED15, LED16, LED17, LED18, LED19, LED20, LED21, LED22, LED23, LED24, LED25",25,LED_RGB_COMMON_ANODE,LEDs:LED_D5.0mm-4,,https://www.adafruit.com/product/302
 LED26,LED26,1,LED_Dual_AACC,LEDs:LED_Cree-PLCC4_3.2x2.8mm_CCW,"LED dual, 4-pin",https://www.vcclite.com/product/led-smt-1206-1-72-1v-20ma-redgreen-2k/
 P1,P1,1,STM32_SWD_USART,Pin_Headers:Pin_Header_Straight_2x05_Pitch1.27mm_SMD,,https://www.harwin.com/products/M50-3600542R/
