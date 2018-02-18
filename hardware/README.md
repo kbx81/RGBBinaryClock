@@ -18,6 +18,12 @@ As the vast majority of the components on this board are surface-mount parts,
  paste onto the board. I've used [OSHStencils](http://oshstencils.com) for this
  and they are very quick and do a wonderful job.
 
+Note that the TLC5947 driver ICs have a thermal relief pad on their underside;
+ this will not be possible to solder without access to a hot air soldering
+ station. At low current/intensity levels, this shouldn't be a problem, but if
+ you want your LEDs to be really bright, this could pose a problem as the
+ drivers may overheat too easily. With enough current, they can get hot quickly!
+
 ## If I get boards made, how do I build it?
 
 All the components are listed in the KiCad project files here; one can also find
@@ -96,7 +102,7 @@ If you don't want your clock to be able to make any noise at all, it is safe to
 
 #### Current drive control components:
 **Q6 through Q11, R21 through R24, R26 through R29, R31 through R34,
- R37 and R37** (hardware v2.x)
+ R36 and R37** (hardware v2.x);
 **Q6 through Q11, R20 through R23, R25 through R28, R30 through R33,
  R35 and R36** (hardware v3.x)
 
@@ -138,7 +144,7 @@ If the DS323x **is** installed, `SB1` may be bridged so as to connect the
  `C1` and `C2`) should **not** be installed.
 
 #### Q5 series resistors:
- **RV1, R9 and R10** (hardware v2.x)
+ **RV1, R9 and R10** (hardware v2.x);
  **RV1, R8 and R9** (hardware v3.x)
 
 `Q5` is the phototransistor that enables the application to determine the amount
@@ -163,3 +169,5 @@ You'll need to flash the firmware onto the STM32 MCU. This can be done via the
  an appropriate adapter to do so. You can find the source, compiled binary files
  and flashing instructions in the `src` folder one level up in the repo's
  hierarchy.
+
+_Happy building!_
