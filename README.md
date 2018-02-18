@@ -6,8 +6,8 @@ _It's probably more than what you're thinking..._
 
 ## Another binary clock? Why?
 
-The world probably doesn't need another (binary) clock. There are plenty of them
---all different shapes and sizes--so why build another one?
+The world probably doesn't need another (binary) clock. There are plenty of
+ them--all different shapes and sizes--so why build another one?
 
 This project was started with two main goals in mind: I wanted a "simple"
  project I could use to help me get back into the world of electronics. The
@@ -52,8 +52,8 @@ Next, the display brightness issue had to be addressed -- it has a
  great if you want to keep it near you at night while you sleep.
 
 Another cool bit is that it uses capacitive touch keys for buttons; the kit it
- is based on had mechanical, fixed-function buttons. This also adds a little
- extra "coolness" to the clock, too.
+ is based on had mechanical, fixed-function buttons. This adds a little extra
+ "coolness" to the clock, too.
 
 A CR2032 coin-cell battery back-up can be installed to keep the time valid in
  the event that the board loses power.

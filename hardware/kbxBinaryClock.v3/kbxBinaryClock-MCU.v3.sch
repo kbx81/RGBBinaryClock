@@ -854,7 +854,7 @@ Wire Wire Line
 	1500 4000 2100 4000
 Connection ~ 4350 1400
 Wire Wire Line
-	4600 1400 4350 1400
+	4200 1400 4600 1400
 Wire Wire Line
 	4350 1250 4350 1450
 Wire Wire Line
@@ -1284,4 +1284,6 @@ F 3 "" H 1850 5800 50  0001 C CNN
 	1    1850 5800
 	1    0    0    -1  
 $EndComp
+Wire Wire Line
+	4200 1100 4200 1400
 $EndSCHEMATC
