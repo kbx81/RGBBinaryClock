@@ -61,7 +61,7 @@ The external RTC--the DS3231 (hardware version 2.x) or the DS3234 (hardware
  installed if the DS323x is installed.
 
 #### External temperature sensor:
-**U7 (both hardware versions), U8 (hardware v3)**
+**U7 (both hardware versions), U8 (hardware v3.x)**
 
 A challenge with using the STM32's internal temperature sensor is that the
  sensor typically reads a few degrees higher than the temperature around the
@@ -77,13 +77,13 @@ Installing an external temperature sensor is a great solution to this problem.
  of the internal one (or the one in the DS323x if it happens to be installed, as
  well).
 
-**IMPORTANT NOTE: Hardware version 3 has footprints for two external temperature
- sensor ICs. ONLY INSTALL ONE of them. DO NOT INSTALL BOTH.** If you install
- both, neither of them will work and you may cause damage to them or to other
- ICs on the board.
+**IMPORTANT NOTE: Hardware version 3.x has footprints for two external
+ temperature sensor ICs. ONLY INSTALL ONE of them. DO NOT INSTALL BOTH.** If you
+ install both, neither of them will work and you may cause damage to them or to
+ other ICs on the board.
 
 #### RS-485 transceiver:
-**U8 (hardware v2), U9 (hardware v3)**
+**U8 (hardware v2.x), U9 (hardware v3.x)**
 
 This part will enable the the second USART in the STM32 MCU to be used to
  communicate on an RS-485 bus. The original intention for this feature was to

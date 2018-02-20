@@ -593,7 +593,8 @@ void _i2cSetup()
 void _rtcSetup()
 {
   const uint32_t sync = 1953;
-	const uint32_t async = 127;
+  const uint32_t async = 127;
+  uint32_t timeout = 500000;
 
   pwr_disable_backup_domain_write_protect();
   // reset RTC
@@ -610,7 +611,16 @@ void _rtcSetup()
 
 	// enter init mode
 	RTC_ISR |= RTC_ISR_INIT;
-	while ((RTC_ISR & RTC_ISR_INITF) == 0);
+	while (((RTC_ISR & RTC_ISR_INITF) == 0) && (--timeout > 0));
+
+  while (timeout == 0)
+  {
+    redLed(4095);
+    greenLed(0);
+    delay(10000000);
+    greenLed(4095);
+    delay(10000000);
+  }
 
 	// set synch prescaler, using defaults for 1Hz out
 	rtc_set_prescaler(sync, async);

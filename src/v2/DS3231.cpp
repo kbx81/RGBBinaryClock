@@ -19,7 +19,6 @@
 #include <cstdint>
 #include <stdio.h>
 #include <libopencm3/stm32/i2c.h>
-#include <libopencm3/stm32/usart.h>
 #include "DateTime.h"
 #include "DS3231.h"
 #include "Hardware.h"
@@ -145,7 +144,7 @@ bool isConnected()
   ds3231Register[cStatusRegister] = readBuffer[1];
 
   // If bits 4 through 6 are zero and there wasn't a timeout, the IC is probably connected
-  return ((ds3231Register[cStatusRegister] & 0x70) | (result == 0));
+  return (((ds3231Register[cStatusRegister] & 0x70) == 0) & (result == 0));
 }
 
 

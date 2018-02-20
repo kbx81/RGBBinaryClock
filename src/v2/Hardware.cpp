@@ -42,6 +42,7 @@
 #include "DateTime.h"
 #include "Display.h"
 #include "DS3231.h"
+#include "LM75.h"
 #include "Hardware.h"
 
 
@@ -405,15 +406,23 @@ void _adcSetup()
 void _clockSetup()
 {
   rcc_clock_setup_in_hse_8mhz_out_48mhz();
-  // We want to use the HSE for the RTC (more precision)
-  // rcc_set_rtc_clock_source(RCC_HSE);
 
-	// Enable clocks to various subsystems we'll need
+	// PWR must be enabled first as we can't disable the backup domain protection
+  //  without it online
   rcc_periph_clock_enable(RCC_PWR);
+
+  pwr_disable_backup_domain_write_protect();
+  rcc_set_rtc_clock_source(RCC_LSE);
+  rcc_osc_on(RCC_LSE);
+  rcc_wait_for_osc_ready(RCC_LSE);
+	rcc_enable_rtc_clock();
+  pwr_enable_backup_domain_write_protect();
+
+  // Enable clocks to various subsystems we'll need
+  rcc_periph_clock_enable(RCC_RTC);
+
   // SYSCFG is needed to remap USART DMA channels
   rcc_periph_clock_enable(RCC_SYSCFG_COMP);
-
-  rcc_periph_clock_enable(RCC_RTC);
 
   rcc_periph_clock_enable(RCC_GPIOA);
 	rcc_periph_clock_enable(RCC_GPIOB);
@@ -571,29 +580,33 @@ void _i2cSetup()
 //
 void _rtcSetup()
 {
-  const uint32_t sync = 1953;
+  const uint32_t sync = 256;
 	const uint32_t async = 127;
+  uint32_t timeout = 500000;
 
   pwr_disable_backup_domain_write_protect();
-  // reset RTC
+  // we can reset the RTC here if we wanted to
   // RCC_BDCR |= RCC_BDCR_BDRST;
   // RCC_BDCR &= ~RCC_BDCR_BDRST;
-
-  rcc_set_rtc_clock_source(RCC_LSE);
-
-  // Enable the clock
-	rcc_enable_rtc_clock();
 
 	rtc_unlock();
 
 	// enter init mode
 	RTC_ISR |= RTC_ISR_INIT;
-	while ((RTC_ISR & RTC_ISR_INITF) == 0);
+  while (((RTC_ISR & RTC_ISR_INITF) == 0) && (--timeout > 0));
+
+  // do a little blinky warning thing if we had to wait too long :(
+  while (timeout == 0)
+  {
+    redLed(4095);
+    greenLed(0);
+    delay(4000000);
+    greenLed(2048);
+    delay(4000000);
+  }
 
 	// set synch prescaler, using defaults for 1Hz out
 	rtc_set_prescaler(sync, async);
-
-	// load time and date here if desired, and hour format
 
 	// exit init mode
 	RTC_ISR &= ~(RTC_ISR_INIT);
@@ -701,8 +714,6 @@ void _timerSetup()
   timer_set_prescaler(TIM2, 0);
   timer_set_repetition_counter(TIM1, 0);
   timer_set_repetition_counter(TIM2, 0);
-  timer_enable_preload(TIM1);
-  timer_enable_preload(TIM2);
   timer_continuous_mode(TIM1);
   timer_continuous_mode(TIM2);
   timer_set_period(TIM1, 1);
@@ -720,12 +731,15 @@ void _timerSetup()
   timer_set_oc_value(TIM2, TIM_OC2, 0);
   timer_set_oc_value(TIM2, TIM_OC3, 0);
   timer_set_oc_value(TIM2, TIM_OC4, 0);
+
+  timer_enable_preload(TIM1);
+  timer_enable_preload(TIM2);
+
+  timer_enable_break_main_output(TIM1);
   timer_enable_oc_output(TIM1, TIM_OC1);
   timer_enable_oc_output(TIM2, TIM_OC2);
   timer_enable_oc_output(TIM2, TIM_OC3);
   timer_enable_oc_output(TIM2, TIM_OC4);
-
-  timer_enable_break_main_output(TIM1);
 
   timer_enable_counter(TIM1);
   timer_enable_counter(TIM2);
@@ -1065,10 +1079,10 @@ void initialize()
 
   // First, set up all the hardware things
   _clockSetup();
-  _rtcSetup();
-  _dmaSetup();
   _gpioSetup();
   _timerSetup();
+  _rtcSetup();
+  _dmaSetup();
   _adcSetup();
   _i2cSetup();
   _spiSetup();
@@ -1111,7 +1125,12 @@ void initialize()
     _rtcIsSet = RTC_ISR & RTC_ISR_INITS;
   }
 
-  // Here we should check for other temperature sensors
+  // Here we check for other temperature sensors
+  if (LM75::isConnected() == true)
+  {
+    _externalTemperatureSensor = TempSensorType::LM7x;
+    startupDisplayBitmap |= 0x10;   // this will appear on the startup display
+  }
 
   _displayBlank = false;  // enable the display drivers
 
@@ -1195,6 +1214,10 @@ void refresh()
         break;
 
       case TempSensorType::LM7x:
+        LM75::refreshTemp();
+        _temperatureX100 =  (LM75::getTemperature() >> 8) * 100;
+        _temperatureX100 += ((LM75::getTemperature() >> 6) & 0x03) * 25;
+        break;
       case TempSensorType::MCP9808:
       default:
         // Get the averages of the last several readings

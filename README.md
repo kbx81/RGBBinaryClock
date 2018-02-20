@@ -51,9 +51,10 @@ Next, the display brightness issue had to be addressed -- it has a
  it and the display will dim as the light level around it diminishes. This is
  great if you want to keep it near you at night while you sleep.
 
-Another cool bit is that it uses capacitive touch keys for buttons; the kit it
- is based on had mechanical, fixed-function buttons. This adds a little extra
- "coolness" to the clock, too.
+Another cool bit is that it uses capacitive sense touch keys for buttons; the
+ kit it is based on had mechanical, fixed-function buttons. If you haven't seen
+ or used capsense technology before, you'll find it's pretty cool and adds a
+ little extra uniqueness to the clock, too.
 
 A CR2032 coin-cell battery back-up can be installed to keep the time valid in
  the event that the board loses power.
@@ -69,15 +70,16 @@ Finally--and one could argue that no clock is complete without one--it has an
 The "brain" is an STM32F072 microcontroller. This MCU alone has everything
  that's necessary to have a functional time clock -- temperature sensor
  included. Still, it might not be quite as accurate as some of us would like.
- For those folks, the PCB has footprints for a Maxim DS3231 "extremely accurate"
- temperature-compensated crystal (TCXO) I2C real time clock IC as well as an
- LM75 (or compatible) I2C temperature sensor. Why both? The DS3231 is somewhat
- expensive and it's possible that one might want more accurate temperature
- sensing abilities but isn't as concerned with the accuracy of the clock.
+ For those folks, the PCBs have footprints for a Maxim DS3231 or DS3234
+ "extremely accurate" temperature-compensated crystal (TCXO) I2C real time clock
+ IC as well as an LM75 (or compatible) I2C temperature sensor. Why both? The
+ DS3231 and DS3234 are somewhat expensive and it's possible that one might want
+ more accurate temperature sensing abilities but isn't as concerned with the
+ accuracy of the clock.
 
 Beyond the MCU itself, the board has 25 RGB LEDs on it; 24 of them form the main
  display and they are connected to TLC5947 constant-current PWM drivers. The MCU
- uses the SPI1 to communicate with these drivers. The remaining RGB LED is used
+ uses its SPI1 to communicate with these drivers. The remaining RGB LED is used
  as a "status" LED and it is connected (through FET drivers) to GPIO pins on the
  MCU. These pins double as timer output channels, meaning they can also generate
  a PWM signal, enabling the dimming of the status LED elements, as well.
