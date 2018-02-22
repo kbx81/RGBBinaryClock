@@ -130,6 +130,10 @@ static const uint16_t cAdcSampleInterval = 500;
 //
 static const uint8_t cAdcSamplesToAverage = 16;
 
+// value use use to increase precision in our maths
+//
+static const uint16_t cBaseMultiplier = 1000;
+
 // length of delays used for doubleBlink confirmation
 //
 static const uint32_t cDoubleBlinkDuration = 200000;
@@ -224,9 +228,13 @@ static uint16_t _blankingThreshold = 300;
 //   100 = 10%
 static uint16_t _minimumIntensity = 100;
 
-// last multiplier used to adjust display intensity
+// multiplier used to adjust display intensity
 //
-static uint16_t _lastIntensityMultiplier = 1;
+static uint32_t _intensityMultiplier = 100;
+
+// previous multiplier used to adjust display intensity
+//
+static uint32_t _lastIntensityMultiplier = 100;
 
 // a place for data from the ADC to live
 //
@@ -288,37 +296,37 @@ static uint16_t _bufferOut[cPwmChannelsPerDevice * cPwmNumberOfDevices];
 //
 // rate at which the LED will change
 //
-static uint16_t _activeRate[LED_COUNT];
+static uint16_t _activeRate[Display::cLedCount];
 
 // intensity active right now
 //
-static uint16_t _activeRed[LED_COUNT];
-static uint16_t _activeGreen[LED_COUNT];
-static uint16_t _activeBlue[LED_COUNT];
+static uint16_t _activeRed[Display::cLedCount];
+static uint16_t _activeGreen[Display::cLedCount];
+static uint16_t _activeBlue[Display::cLedCount];
 
 // intensity LED is moving towards
 //
-static uint16_t _desiredRed[LED_COUNT];
-static uint16_t _desiredGreen[LED_COUNT];
-static uint16_t _desiredBlue[LED_COUNT];
+static uint16_t _desiredRed[Display::cLedCount];
+static uint16_t _desiredGreen[Display::cLedCount];
+static uint16_t _desiredBlue[Display::cLedCount];
 
 // how big of a step we'll take to the next intensity level
 //
-static int16_t _deltaRed[LED_COUNT];
-static int16_t _deltaGreen[LED_COUNT];
-static int16_t _deltaBlue[LED_COUNT];
+static int16_t _deltaRed[Display::cLedCount];
+static int16_t _deltaGreen[Display::cLedCount];
+static int16_t _deltaBlue[Display::cLedCount];
 
 // cycles between intensity level changes (if needed)
 //
-static uint16_t _cycleSkipRed[LED_COUNT];
-static uint16_t _cycleSkipGreen[LED_COUNT];
-static uint16_t _cycleSkipBlue[LED_COUNT];
+static uint16_t _cycleSkipRed[Display::cLedCount];
+static uint16_t _cycleSkipGreen[Display::cLedCount];
+static uint16_t _cycleSkipBlue[Display::cLedCount];
 
 // counters used when cycles are skipped between intensity changes
 //
-static uint16_t _cycleCountRed[LED_COUNT];
-static uint16_t _cycleCountGreen[LED_COUNT];
-static uint16_t _cycleCountBlue[LED_COUNT];
+static uint16_t _cycleCountRed[Display::cLedCount];
+static uint16_t _cycleCountGreen[Display::cLedCount];
+static uint16_t _cycleCountBlue[Display::cLedCount];
 
 // date & time stored by Refresh()
 //
@@ -580,28 +588,34 @@ void _i2cSetup()
 //
 void _rtcSetup()
 {
-  const uint32_t sync = 256;
+  // these values are the power-on defaults for the prescaler.
+  // we'll set them anyway to be sure they're there
+  const uint32_t sync = 255;
 	const uint32_t async = 127;
-  uint32_t timeout = 500000;
+  uint32_t timeout = 10000000;
 
   pwr_disable_backup_domain_write_protect();
-  // we can reset the RTC here if we wanted to
+  // we can reset the RTC here if we wanted to...
   // RCC_BDCR |= RCC_BDCR_BDRST;
   // RCC_BDCR &= ~RCC_BDCR_BDRST;
-
+  // rcc_set_rtc_clock_source(RCC_LSE);
+  // rcc_osc_on(RCC_LSE);
+  // rcc_wait_for_osc_ready(RCC_LSE);
+	// rcc_enable_rtc_clock();
+  // ...and now it has been reset.
 	rtc_unlock();
 
-	// enter init mode
+	// enter init mode -- this lets us test that everything is working as expected
 	RTC_ISR |= RTC_ISR_INIT;
   while (((RTC_ISR & RTC_ISR_INITF) == 0) && (--timeout > 0));
 
-  // do a little blinky warning thing if we had to wait too long :(
+  // do a blinky thing to indicate the problem if we had to wait too long :(
   while (timeout == 0)
   {
-    redLed(4095);
+    redLed(Display::cLedMaxIntensity);
     greenLed(0);
     delay(4000000);
-    greenLed(2048);
+    greenLed(Display::cLedMaxIntensity / 2);
     delay(4000000);
   }
 
@@ -717,7 +731,7 @@ void _timerSetup()
   timer_continuous_mode(TIM1);
   timer_continuous_mode(TIM2);
   timer_set_period(TIM1, 1);
-  timer_set_period(TIM2, 4095);
+  timer_set_period(TIM2, Display::cLedMaxIntensity);
 
   timer_disable_oc_output(TIM1, TIM_OC1);
   timer_disable_oc_output(TIM2, TIM_OC2);
@@ -864,13 +878,13 @@ void _setPWM(const uint16_t chan, const uint16_t pwm)
 {
   if (chan < cPwmChannelsPerDevice * cPwmNumberOfDevices)
   {
-    if (pwm < 4096)
+    if (pwm <= Display::cLedMaxIntensity)
     {
       _bufferOut[(cPwmChannelsPerDevice * cPwmNumberOfDevices) - 1 - chan] = gamma_table[pwm];
     }
     else
     {
-      _bufferOut[(cPwmChannelsPerDevice * cPwmNumberOfDevices) - 1 - chan] = 4095;
+      _bufferOut[(cPwmChannelsPerDevice * cPwmNumberOfDevices) - 1 - chan] = Display::cLedMaxIntensity;
     }
   }
 }
@@ -951,35 +965,35 @@ bool _writeDisplayHardware()
 //  a crossfade or due to a change in the ambient light level
 void _refreshDisplay()
 {
-  uint32_t multiplier;
-
   if (_autoAdjustIntensities == true)
   {
-    multiplier = (1000 * lightLevel()) / 4095;
+    _intensityMultiplier = (cBaseMultiplier * lightLevel()) / Display::cLedMaxIntensity;
 
-    if (multiplier < _minimumIntensity)
+    if (_intensityMultiplier < _minimumIntensity)
     {
-      multiplier = _minimumIntensity;
+      _intensityMultiplier = _minimumIntensity;
     }
 
-    if (_lastIntensityMultiplier > multiplier)
+    if (_intensityMultiplier < _lastIntensityMultiplier)
     {
+      _intensityMultiplier = --_lastIntensityMultiplier;
       _displayRefreshRequired = true;
-      multiplier = --_lastIntensityMultiplier;
     }
-    if (_lastIntensityMultiplier < multiplier)
+    if (_intensityMultiplier > _lastIntensityMultiplier)
     {
+      _intensityMultiplier = ++_lastIntensityMultiplier;
       _displayRefreshRequired = true;
-      multiplier = ++_lastIntensityMultiplier;
     }
   }
-
-  _displayRefreshInProgress = true;   // prevent updates while this is happening
+  else
+  {
+    _intensityMultiplier = cBaseMultiplier;
+  }
 
   for (uint8_t i = 0; i < Display::cLedCount; i++)
   {
     // adjust red intensity as needed
-    if ((_cycleCountRed[i]++ >= _cycleSkipRed[i]) &&( _activeRed[i] != _desiredRed[i]))
+    if ((_cycleCountRed[i]++ >= _cycleSkipRed[i]) && (_activeRed[i] != _desiredRed[i]))
     {
       _cycleCountRed[i] = 0;  // reset counter
       _displayRefreshRequired = true;
@@ -994,7 +1008,7 @@ void _refreshDisplay()
         _activeRed[i] = _desiredRed[i];
       }
 
-      if (!_autoAdjustIntensities)
+      if (_autoAdjustIntensities == false)
       {
         // _setPWM(i, _activeRed[i] >> 4);
         _setPWM(i, _activeRed[i]);
@@ -1017,7 +1031,7 @@ void _refreshDisplay()
         _activeGreen[i] = _desiredGreen[i];
       }
 
-      if (!_autoAdjustIntensities)
+      if (_autoAdjustIntensities == false)
       {
         // _setPWM(i + Display::Display::cLedCount, _activeGreen[i] >> 4);
         _setPWM(i + Display::Display::cLedCount, _activeGreen[i]);
@@ -1049,12 +1063,12 @@ void _refreshDisplay()
 
     if (_autoAdjustIntensities && _displayRefreshRequired)
     {
-      // _setPWM(i, ((_activeRed[i] * multiplier) / 1000) >> 4);
-      _setPWM(i, (_activeRed[i] * multiplier) / 1000);
-      // _setPWM(i + Display::Display::cLedCount, ((_activeGreen[i] * multiplier) / 1000) >> 4);
-      _setPWM(i + Display::Display::cLedCount, (_activeGreen[i] * multiplier) / 1000);
-      // _setPWM(i + (Display::Display::cLedCount * 2), ((_activeBlue[i] * multiplier) / 1000) >> 4);
-      _setPWM(i + (Display::Display::cLedCount * 2), (_activeBlue[i] * multiplier) / 1000);
+      // _setPWM(i, ((_activeRed[i] * _intensityMultiplier) / cBaseMultiplier) >> 4);
+      _setPWM(i, (_activeRed[i] * _intensityMultiplier) / cBaseMultiplier);
+      // _setPWM(i + Display::Display::cLedCount, ((_activeGreen[i] * _intensityMultiplier) / cBaseMultiplier) >> 4);
+      _setPWM(i + Display::Display::cLedCount, (_activeGreen[i] * _intensityMultiplier) / cBaseMultiplier);
+      // _setPWM(i + (Display::Display::cLedCount * 2), ((_activeBlue[i] * _intensityMultiplier) / cBaseMultiplier) >> 4);
+      _setPWM(i + (Display::Display::cLedCount * 2), (_activeBlue[i] * _intensityMultiplier) / cBaseMultiplier);
     }
   }
 
@@ -1064,8 +1078,6 @@ void _refreshDisplay()
 
     _displayRefreshRequired = false;
   }
-  // allow writing once again
-  _displayRefreshInProgress = false;
 }
 
 
@@ -1111,7 +1123,7 @@ void initialize()
     _setPWM(i, 0);
   }
 
-  _externalRtcConnected = DS3231::isConnected();
+  // _externalRtcConnected = DS3231::isConnected();
 
   if (_externalRtcConnected == true)
   {
@@ -1467,9 +1479,9 @@ int32_t temperature(const bool fahrenheit, const bool bcd)
   {
     if (bcd)
     {
-      return uint32ToBcd((uint16_t)((_temperatureX100 * 18) / 1000) + 32);
+      return uint32ToBcd((uint16_t)((_temperatureX100 * 18) / cBaseMultiplier) + 32);
     }
-    return ((_temperatureX100 * 18) / 1000) + 32;
+    return ((_temperatureX100 * 18) / cBaseMultiplier) + 32;
   }
   else
   {
@@ -1540,13 +1552,13 @@ void setFlickerReduction(const uint16_t value)
 
 void setMinimumIntensity(const uint16_t value)
 {
-  if (value < 1000)
+  if (value < cBaseMultiplier)
   {
     _minimumIntensity = value;
   }
   else
   {
-    _minimumIntensity = 1000;
+    _minimumIntensity = cBaseMultiplier;
   }
 }
 
@@ -1562,8 +1574,8 @@ void writeDisplay(const Display &display)
   uint8_t i = 0;
   uint16_t ledRate = 1;
 
-  // wait for display refresh to complete
-  while (_displayRefreshInProgress);
+  // prevent refreshes while this is happening
+  _displayRefreshInProgress = true;
 
   for (i = 0; i < Display::cLedCount; i++)
   {
@@ -1670,6 +1682,8 @@ void writeDisplay(const Display &display)
       _activeRate[i] = ledRate;
     // }
   }
+  // allow refreshes once again
+  _displayRefreshInProgress = false;
 }
 
 
@@ -2018,40 +2032,48 @@ bool writeSerial(const uint32_t usart, const uint32_t length, const char* data)
 
 void blueLed(const uint32_t intensity)
 {
-  if (intensity < 4096)
+  if (intensity <= Display::cLedMaxIntensity)
   {
     timer_set_oc_value(TIM2, TIM_OC2, gamma_table[intensity]);
   }
   else
   {
-    timer_set_oc_value(TIM2, TIM_OC2, 4095);
+    timer_set_oc_value(TIM2, TIM_OC2, Display::cLedMaxIntensity);
   }
 }
 
 
 void greenLed(const uint32_t intensity)
 {
-  if (intensity < 4096)
+  if (intensity <= Display::cLedMaxIntensity)
   {
     timer_set_oc_value(TIM2, TIM_OC4, gamma_table[intensity]);
   }
   else
   {
-    timer_set_oc_value(TIM2, TIM_OC4, 4095);
+    timer_set_oc_value(TIM2, TIM_OC4, Display::cLedMaxIntensity);
   }
 }
 
 
 void redLed(const uint32_t intensity)
 {
-  if (intensity < 4096)
+  if (intensity <= Display::cLedMaxIntensity)
   {
     timer_set_oc_value(TIM2, TIM_OC3, gamma_table[intensity]);
   }
   else
   {
-    timer_set_oc_value(TIM2, TIM_OC3, 4095);
+    timer_set_oc_value(TIM2, TIM_OC3, Display::cLedMaxIntensity);
   }
+}
+
+
+void setStatusLed(const RgbLed led)
+{
+  blueLed((led.getBlue() * _intensityMultiplier) / cBaseMultiplier);
+  greenLed((led.getGreen() * _intensityMultiplier) / cBaseMultiplier);
+  redLed((led.getRed() * _intensityMultiplier) / cBaseMultiplier);
 }
 
 
@@ -2206,7 +2228,10 @@ void systickIsr()
     timer_set_oc_value(TIM1, TIM_OC1, 0);
   }
 
-  _refreshDisplay();
+  if (_displayRefreshInProgress == false)
+  {
+    _refreshDisplay();
+  }
 }
 
 

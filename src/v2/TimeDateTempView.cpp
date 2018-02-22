@@ -246,33 +246,36 @@ void TimeDateTempView::loop()
     if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::StatusLedAsAmPm)
       && (_fixedDisplayItem != FixedDisplayItem::Temperature))
     {
-      if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity))
-      {
-        intensity = Hardware::lightLevel();
-
-        if (intensity < _settings.getRawSetting(Settings::Setting::MinimumIntensity))
-        {
-          intensity = _settings.getRawSetting(Settings::Setting::MinimumIntensity);
-        }
-      }
-      else
-      {
-        intensity = 4095;
-      }
+      // if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity))
+      // {
+      //   intensity = Hardware::lightLevel();
+      //
+      //   if (intensity < _settings.getRawSetting(Settings::Setting::MinimumIntensity))
+      //   {
+      //     intensity = _settings.getRawSetting(Settings::Setting::MinimumIntensity);
+      //   }
+      // }
+      // else
+      // {
+      //   intensity = 4095;
+      // }
 
       if (_currentTime.isPM())
       {
-        Hardware::greenLed(intensity);
-        Hardware::redLed(0);
+        Hardware::setStatusLed(color[1]);
+        // Hardware::greenLed(intensity);
+        // Hardware::redLed(0);
       }
       else
       {
-        Hardware::greenLed(0);
-        Hardware::redLed(intensity);
+        Hardware::setStatusLed(color[0]);
+        // Hardware::greenLed(0);
+        // Hardware::redLed(intensity);
       }
     }
     else
     {
+      Hardware::blueLed(0);
       Hardware::greenLed(0);
       Hardware::redLed(0);
     }

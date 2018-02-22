@@ -98,12 +98,17 @@ void MainMenuView::keyHandler(Keys::Key key)
 {
   if (key == Keys::Key::A)
   {
-    if (!Hardware::rtcIsSet())
+    if (Hardware::rtcIsSet() == false)
     {
-      DateTime today(2018, 2, 5, 1, 0, 0);
+      // this is a little shortcut to quickly set the date and time when testing
+      uint16_t year = 2000 + Hardware::bcdToUint32((BUILD_YEAR_CH2 << 4) | BUILD_YEAR_CH3);
+      uint8_t month = Hardware::bcdToUint32((BUILD_MONTH_CH0 << 4) | BUILD_MONTH_CH1),
+              day = Hardware::bcdToUint32((BUILD_DAY_CH0 << 4) | BUILD_DAY_CH1),
+              hour = Hardware::bcdToUint32((BUILD_HOUR_CH0 << 4) | BUILD_HOUR_CH1),
+              minute = Hardware::bcdToUint32((BUILD_MIN_CH0 << 4) | BUILD_MIN_CH1),
+              second = Hardware::bcdToUint32((BUILD_SEC_CH0 << 4) | BUILD_SEC_CH1);
+      DateTime today(year, month, day, hour, minute, second);
       Hardware::setDateTime(today);
-      // Hardware::setTimeBCD((BUILD_HOUR_CH0 << 4) | BUILD_HOUR_CH1, (BUILD_MIN_CH0 << 4) | BUILD_MIN_CH1, (BUILD_SEC_CH0 << 4) | BUILD_SEC_CH1, true, false);
-      // Hardware::setDateBCD((BUILD_YEAR_CH2 << 4) | BUILD_YEAR_CH3, (BUILD_MONTH_CH0 << 4) | BUILD_MONTH_CH1, (BUILD_DAY_CH0 << 4) | BUILD_DAY_CH1);
       Hardware::doubleBlink();
     }
     else

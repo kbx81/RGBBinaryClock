@@ -22,6 +22,7 @@
 #include <cstdint>
 #include "DateTime.h"
 #include "Display.h"
+#include "RgbLed.h"
 
 
 namespace kbxBinaryClock {
@@ -147,8 +148,10 @@ namespace Hardware {
 
   // Sets the given status LED to state
   //
+  void     blueLed(const uint32_t intensity);
   void     greenLed(const uint32_t intensity);
   void     redLed(const uint32_t intensity);
+  void     setStatusLed(const RgbLed led);
 
   // Creates a short delay using 'nop's
   //
