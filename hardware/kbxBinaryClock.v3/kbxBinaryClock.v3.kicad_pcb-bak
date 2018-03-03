@@ -3,7 +3,7 @@
   (general
     (links 463)
     (no_connects 3)
-    (area 92.151429 32.944999 222.808572 147.514525)
+    (area 93.904999 32.944999 221.055001 147.395001)
     (thickness 1.6)
     (drawings 33)
     (tracks 2967)
@@ -7055,7 +7055,7 @@
   (gr_text RS-485 (at 207.137 91.059 90) (layer F.SilkS)
     (effects (font (size 1 1) (thickness 0.2)))
   )
-  (gr_text "RGB Binary Clock version 3.0.1\nDesigned by Keith Burzinski (@kbx81) in Chicago, Illinois\nSource & other details: https://github.com/kbx81/RGBBinaryClock\nLayout inspired by EKI, Inc. kit 798" (at 105.41 39.37) (layer F.SilkS)
+  (gr_text "RGB Binary Clock version 3.0.2\nDesigned by Keith Burzinski (@kbx81) in Chicago, Illinois\nSource & other details: https://github.com/kbx81/RGBBinaryClock\nLayout inspired by EKI, Inc. kit 798" (at 105.41 39.37) (layer F.SilkS)
     (effects (font (size 0.75 0.75) (thickness 0.15)) (justify left))
   )
   (gr_text A (at 177.165 133.35) (layer F.SilkS)
