@@ -23,6 +23,7 @@
 #include "DateTime.h"
 #include "Hardware.h"
 #include "Keys.h"
+#include "Pitches.h"
 #include "Settings.h"
 
 
@@ -34,13 +35,18 @@ namespace AlarmHandler {
 // Alarm tone durations and frequencies
 //
 const uint16_t cHourlyAlarmToneDuration = 75;
-const uint16_t cHourlyAlarmToneFrequencies[] = {1175, 1760};
+// const uint16_t cHourlyAlarmToneFrequencies[] = {NOTE_D6, NOTE_A6};
+const uint16_t cHourlyAlarmToneFrequencies[] = {NOTE_E6, NOTE_E7};
 // Be creative and create your own melody!
 //   *** Array lengths MUST MATCH ***
 // const uint16_t cAlarmToneDurations[]   = {75, 75, 75, 75, 75, 75, 75, 700};
-// const uint16_t cAlarmToneFrequencies[] = {2349, 1, 2349, 1, 2349, 1, 2349, 1};
+// const uint16_t cAlarmToneFrequencies[] = {NOTE_D7, NOTE_REST, NOTE_D7, NOTE_REST, NOTE_D7, NOTE_REST, NOTE_D7, NOTE_REST};
 const uint16_t cAlarmToneDurations[]   = {150, 300, 50, 300, 150, 150, 150, 150, 150, 700};
-const uint16_t cAlarmToneFrequencies[] = {2093, 1568, 1, 1568, 1760, 1568, 1, 1976, 2093, 1};
+const uint16_t cAlarmToneFrequencies[] = {NOTE_C7, NOTE_G6, NOTE_REST, NOTE_G6, NOTE_A6, NOTE_G6, NOTE_REST, NOTE_B6, NOTE_C7, NOTE_REST};
+
+// Number of alarms available
+//
+const uint8_t _alarmCount = 8;
 
 // Counter for alarm beeps
 //
@@ -60,11 +66,20 @@ uint8_t _lastHourlyBeepHour = 25;
 
 // Times at which each alarm was last acknowledged
 //
-DateTime _ackTime[8];
+DateTime _ackTime[_alarmCount];
 
 // The application's current settings
 //
 Settings _settings;
+
+
+void initialize()
+{
+  for (uint8_t i = 0; i < _alarmCount; i++)
+  {
+    _ackTime[i] = Hardware::getDateTime();
+  }
+}
 
 
 void keyHandler(Keys::Key key)

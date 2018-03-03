@@ -151,6 +151,7 @@ namespace Hardware {
   void     blueLed(const uint32_t intensity);
   void     greenLed(const uint32_t intensity);
   void     redLed(const uint32_t intensity);
+  void     autoRefreshStatusLed(const bool autoRefreshEnabled);
   void     setStatusLed(const RgbLed led);
 
   // Creates a short delay using 'nop's

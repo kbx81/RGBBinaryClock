@@ -50,6 +50,24 @@ namespace kbxBinaryClock {
   }
 
 
+  bool RgbLed::operator==(const RgbLed &other) const
+  {
+    return _red == other._red &&
+            _green == other._green &&
+            _blue == other._blue &&
+            _rate == other._rate;
+  }
+
+
+  bool RgbLed::operator!=(const RgbLed &other) const
+  {
+    return _red != other._red ||
+            _green != other._green ||
+            _blue != other._blue ||
+            _rate != other._rate;
+  }
+
+
   void RgbLed::setRed(const uint16_t intensityRed)
   {
     _red = intensityRed;

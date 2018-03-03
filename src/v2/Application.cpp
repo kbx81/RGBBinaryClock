@@ -115,7 +115,7 @@ static viewDescriptor const cViewDescriptor[] = {
 
 // The maximum idle time before the application switches back to the default view
 //
-static const uint32_t cMaximumIdleCount = 100000;
+static const uint32_t cMaximumIdleCount = 80000;
 
 // The current mode and sub-mode (if used) of the application
 //
@@ -144,6 +144,7 @@ void initialize()
   _settings.loadFromFlash();
 
   // Update alarms
+  AlarmHandler::initialize();
   AlarmHandler::setSettings(_settings);
 
   // Update hardware things

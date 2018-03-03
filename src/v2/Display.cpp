@@ -271,7 +271,7 @@ bool Display::getLedMask(const uint8_t ledNumber) const
 }
 
 
-RgbLed Display::getLedRawColor(const uint8_t ledNumber) const
+RgbLed Display::getLedRaw(const uint8_t ledNumber) const
 {
   if (ledNumber < cLedCount)
   {

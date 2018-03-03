@@ -55,15 +55,19 @@ enum Key : uint8_t {
 };
 
 
-// Check the keys.
+// Check the keys
 //
 void scanKeys();
 
-// Check if there is a key press in the queue.
+// Should be called at consistent intervals to insert key repeats
+//
+void repeatHandler();
+
+// Check if there is a key press in the queue
 //
 bool hasKeyPress();
 
-// Get the next key from the queue.
+// Get the next key from the queue
 //
 Key getKeyPress();
 

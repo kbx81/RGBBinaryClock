@@ -30,6 +30,10 @@ namespace kbxBinaryClock {
 namespace AlarmHandler {
 
 
+  // Initialize the alarms
+  //
+  void initialize();
+
   // Handles key presses (during an active alarm)
   //
   void keyHandler(Keys::Key key);

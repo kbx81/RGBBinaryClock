@@ -143,7 +143,7 @@ public:
   /// @param ledNumber Number of LED to set (0 through 23)
   /// @return Pointer to RgbLed with color data from specified LED
   ///
-  RgbLed getLedRawColor(const uint8_t ledNumber) const;
+  RgbLed getLedRaw(const uint8_t ledNumber) const;
 
 
 private:

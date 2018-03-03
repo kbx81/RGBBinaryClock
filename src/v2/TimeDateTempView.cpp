@@ -89,6 +89,8 @@ void TimeDateTempView::enter()
   _settings = Application::getSettings();
 
   _lastSwitchTime = _currentTime.secondsSinceMidnight(false);
+
+  Hardware::autoRefreshStatusLed(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::StatusLedAsAmPm));
 }
 
 
@@ -119,6 +121,8 @@ void TimeDateTempView::keyHandler(Keys::Key key)
   if (key == Keys::Key::E)
   {
     // Make sure these are off before we leave
+    Hardware::autoRefreshStatusLed(false);
+    Hardware::blueLed(0);
     Hardware::greenLed(0);
     Hardware::redLed(0);
 
@@ -129,13 +133,9 @@ void TimeDateTempView::keyHandler(Keys::Key key)
 
 void TimeDateTempView::loop()
 {
-  uint32_t displayBitMask, changeDisplayTime;
-  uint16_t intensity = 0,
-           rate = 0;
-  RgbLed   color[2],
-           defaultWhite(4095, 4095, 4095, rate),
-           defaultDarkWhite(512, 512, 512, rate);
   FixedDisplayItem nextDisplayItem;
+  RgbLed   color[2], defaultOff(0, 0, 0, _settings.getRawSetting(Settings::Setting::FadeRate));
+  uint32_t displayBitMask, changeDisplayTime;
 
   _currentTime = Hardware::getDateTime();
 
@@ -188,27 +188,24 @@ void TimeDateTempView::loop()
     }
   }
 
-  // determine what colors we need to use, then determine the bitmask for the display
-  if (!Hardware::rtcIsSet() && _fixedDisplayItem != FixedDisplayItem::Temperature)
+  // Refresh display colors
+  _settings.refreshCalculatedColors();
+  color[0] = _settings.getColor0(Settings::Slot::SlotCalculated);
+  color[1] = _settings.getColor1(Settings::Slot::SlotCalculated);
+
+  // make the LSbs blink if the clock is not set
+  if ((Hardware::rtcIsSet() == false) && (_fixedDisplayItem != FixedDisplayItem::Temperature))
   {
     displayBitMask = ((_currentTime.second(false) << 16) | (_currentTime.second(false) << 8) | _currentTime.second(false)) & 0x010101;
-    // also make the green status LED blink
-    Hardware::greenLed(((displayBitMask + 3) << 7));
-
-    color[0] = defaultDarkWhite;
-    color[1] = defaultWhite;
+    // also make the status LED blink
+    Hardware::autoRefreshStatusLed(true);
+    Hardware::setStatusLed(color[_currentTime.second(false) & 1]);
   }
   else
   {
-    // Refresh display colors
-    _settings.refreshCalculatedColors();
-
     switch (_fixedDisplayItem)
     {
       case FixedDisplayItem::TimeSeconds:
-      color[0] = _settings.getColor0(Settings::Slot::SlotCalculated);
-      color[1] = _settings.getColor1(Settings::Slot::SlotCalculated);
-
       displayBitMask = _currentTime.secondsSinceMidnight(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD));
       break;
 
@@ -230,9 +227,6 @@ void TimeDateTempView::loop()
       break;
 
       default:
-      color[0] = _settings.getColor0(Settings::Slot::SlotCalculated);
-      color[1] = _settings.getColor1(Settings::Slot::SlotCalculated);
-
       displayBitMask = (_currentTime.hour(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD),
                         _settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour)) << 16)
                      | (_currentTime.minute(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)) << 8)
@@ -243,41 +237,23 @@ void TimeDateTempView::loop()
     color[0].setRate(_settings.getRawSetting(Settings::Setting::FadeRate));
     color[1].setRate(_settings.getRawSetting(Settings::Setting::FadeRate));
 
-    if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::StatusLedAsAmPm)
-      && (_fixedDisplayItem != FixedDisplayItem::Temperature))
+    if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::StatusLedAsAmPm))
     {
-      // if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity))
-      // {
-      //   intensity = Hardware::lightLevel();
-      //
-      //   if (intensity < _settings.getRawSetting(Settings::Setting::MinimumIntensity))
-      //   {
-      //     intensity = _settings.getRawSetting(Settings::Setting::MinimumIntensity);
-      //   }
-      // }
-      // else
-      // {
-      //   intensity = 4095;
-      // }
-
-      if (_currentTime.isPM())
+      if ((_fixedDisplayItem == FixedDisplayItem::Time) || (_fixedDisplayItem == FixedDisplayItem::TimeSeconds))
       {
-        Hardware::setStatusLed(color[1]);
-        // Hardware::greenLed(intensity);
-        // Hardware::redLed(0);
+        if (_currentTime.isPM())
+        {
+          Hardware::setStatusLed(color[1]);
+        }
+        else
+        {
+          Hardware::setStatusLed(color[0]);
+        }
       }
       else
       {
-        Hardware::setStatusLed(color[0]);
-        // Hardware::greenLed(0);
-        // Hardware::redLed(intensity);
+        Hardware::setStatusLed(defaultOff);
       }
-    }
-    else
-    {
-      Hardware::blueLed(0);
-      Hardware::greenLed(0);
-      Hardware::redLed(0);
     }
   }
 
