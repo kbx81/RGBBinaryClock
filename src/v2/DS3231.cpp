@@ -144,7 +144,7 @@ bool isConnected()
   ds3231Register[cStatusRegister] = readBuffer[1];
 
   // If bits 4 through 6 are zero and there wasn't a timeout, the IC is probably connected
-  return (((ds3231Register[cStatusRegister] & 0x70) == 0) & (result == 0));
+  return (((ds3231Register[cStatusRegister] & 0x70) == 0) && (result == 0));
 }
 
 

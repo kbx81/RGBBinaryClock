@@ -18,15 +18,14 @@
 //
 #include <cstdint>
 #include <stdio.h>
-#include <libopencm3/stm32/i2c.h>
 #include "DateTime.h"
-#include "LM75.h"
+#include "LM74.h"
 #include "Hardware.h"
 
 
 namespace kbxBinaryClock {
 
-namespace LM75 {
+namespace LM74 {
 
 
 // The chip's address on the I2C bus
@@ -57,12 +56,12 @@ static uint8_t writeBuffer[2];
 bool isConnected()
 {
   // Address the config register and read one byte
-  uint8_t result = Hardware::i2c_transfer7(I2C1, cChipAddress, &cConfigurationRegister, 1, readBuffer, 1);
+  // uint8_t result = Hardware::i2c_transfer7(I2C1, cChipAddress, &cConfigurationRegister, 1, readBuffer, 1);
 
   lm75Register[cConfigurationRegister + 1] = readBuffer[0];
 
   // If bits 4 through 6 are zero and there wasn't a timeout, the IC is probably connected
-  return (((lm75Register[cConfigurationRegister + 1] & 0xe0) == 0) && (result == 0));
+  return (((lm75Register[cConfigurationRegister + 1] & 0xe0) == 0)); // & (result == 0));
 }
 
 
@@ -75,14 +74,14 @@ int16_t getTemperature()
 uint8_t refresh()
 {
   // Address the first (temperature) register, then read all the registers
-  return Hardware::i2c_transfer7(I2C1, cChipAddress, &cTemperatureRegister, 1, lm75Register, cNumberOfRegisters);
+  // return Hardware::i2c_transfer7(I2C1, cChipAddress, &cTemperatureRegister, 1, lm75Register, cNumberOfRegisters);
 }
 
 
 uint8_t refreshTemp()
 {
   // Address the temperature register
-  return Hardware::i2c_transfer7(I2C1, cChipAddress, &cTemperatureRegister, 1, lm75Register, 2);
+  // return Hardware::i2c_transfer7(I2C1, cChipAddress, &cTemperatureRegister, 1, lm75Register, 2);
 }
 
 
