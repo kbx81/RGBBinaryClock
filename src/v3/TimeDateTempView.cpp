@@ -1,5 +1,5 @@
 //
-// kbx81's binary clock main application
+// kbx81's binary clock TimeDateTempView class
 // ---------------------------------------------------------------------------
 // (c)2017 by kbx81. See LICENSE for details.
 //
@@ -174,14 +174,9 @@ void TimeDateTempView::loop()
       break;
     }
 
-    // this is a little tacky, but we should be able to catch it...
-    if ((changeDisplayTime >= SecondsInADay) && (_currentTime.secondsSinceMidnight(false) == 0))
-    {
-      changeDisplayTime -= SecondsInADay;
-    }
-
     // rotate the display if it's time to do so
-    if (_currentTime.secondsSinceMidnight(false) >= changeDisplayTime)
+    if (((changeDisplayTime >= SecondsInADay) && (_currentTime.secondsSinceMidnight(false) + SecondsInADay >= changeDisplayTime)) ||
+        (_currentTime.secondsSinceMidnight(false) >= changeDisplayTime))
     {
       _fixedDisplayItem = nextDisplayItem;
       _lastSwitchTime = _currentTime.secondsSinceMidnight(false);

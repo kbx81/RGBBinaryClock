@@ -20,7 +20,7 @@
 // #include <cstddef>
 #include <cstdint>
 // #include <errno.h>
-// #include <stdio.h>
+#include <stdio.h>
 // #include <stdlib.h>
 // #include <string.h>
 #include <libopencm3/cm3/nvic.h>
@@ -67,8 +67,8 @@ namespace Hardware {
   //
   enum SpiState : uint8_t {
     Idle,
-    BusyDisplay,
-    BusyPeripheral
+    BusyPeripheral,
+    BusyDisplay
   };
 
 
@@ -140,7 +140,7 @@ static const int16_t cBaseMultiplier = 1000;
 
 // length of delays used for doubleBlink confirmation
 //
-static const uint32_t cDoubleBlinkDuration = 200000;
+static const uint32_t cDoubleBlinkDuration = 80000;
 
 // the last page number in the flash memory
 //
@@ -274,13 +274,13 @@ static uint32_t _lastIntensityMultiplier = 100;
 //
 static uint16_t _bufferADC[cAdcChannelCount];
 
-// tracks what the SPI is doing
-//
-volatile static SpiState _spiState = SpiState::Idle;
-
 // tracks what the SPI MISO is set to
 //
 static bool _spiMisoIsDisplay = false;
+
+// tracks what the SPI is doing
+//
+volatile static SpiState _spiState = SpiState::Idle;
 
 // tracks when to silence a tone
 //
@@ -334,8 +334,6 @@ static uint16_t _displayBufferIn[cPwmChannelsPerDevice * cPwmNumberOfDevices];
 //
 static uint16_t _displayBufferOut[cPwmChannelsPerDevice * cPwmNumberOfDevices];
 
-// display data:
-//
 // display buffers
 //
 RgbLed _displayActiveAndStart[2][Display::cLedCount + 1];
@@ -368,6 +366,10 @@ static bool _displayBlank = true;
 // true if updater routine determine one or more LEDs needs to be refreshed
 //
 static bool _displayRefreshRequired = false;
+
+// true if it's time to refresh the display
+//
+static bool _displayRefreshNow = false;
 
 // true if RTC is set/valid
 //
@@ -452,13 +454,8 @@ void _clockSetup()
   rcc_periph_clock_enable(RCC_TIM1);
   rcc_periph_clock_enable(RCC_TIM2);
 
-  // Set SYSCLK (not the default HSI) as I2C1's clock source
-  // rcc_set_i2c_clock_hsi(I2C1);
-	RCC_CFGR3 |= RCC_CFGR3_I2C1SW;
-
   rcc_periph_clock_enable(RCC_ADC);
 
-  rcc_periph_clock_enable(RCC_I2C1);
   rcc_periph_clock_enable(RCC_SPI1);
   rcc_periph_clock_enable(RCC_USART1);
   rcc_periph_clock_enable(RCC_USART2);
@@ -615,34 +612,23 @@ void _rtcSetup()
 
 
 // Toggle SPI MISO between display drivers and the other peripherals
-// ***** Make sure SPI is not in use before switching things around! *****
+// ***** Make sure SPI is not busy/in use before switching things around! *****
 void _spiSelectPeripheral(const bool selectDisplay)
 {
   // We won't waste time switching things around if we don't need to
   if (_spiMisoIsDisplay != selectDisplay)
   {
     // Reset SPI, SPI_CR1 register cleared, SPI is disabled
-    spi_reset(SPI1);
-    // spi_disable(SPI1);
-    // spi_clean_disable(SPI1);
+    spi_disable(SPI1);
 
     if (selectDisplay == true)
     {
       // Configure other peripherals MISO pin as input
       gpio_mode_setup(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO6);
-      // Configure GPIOs: SCK=PA5 and MOSI=PA7
-      gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO5 | GPIO7);
       // MISO=PB4 from LED drivers
       gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO4);
-
-      /* Set up SPI in Master mode with:
-       * Clock baud rate: 1/4 of peripheral clock frequency
-       * Clock polarity: Idle High
-       * Clock phase: Data valid on 1st clock pulse
-       * Frame format: MSB First
-       */
-      spi_init_master(SPI1, SPI_CR1_BAUDRATE_FPCLK_DIV_4, SPI_CR1_CPOL_CLK_TO_1_WHEN_IDLE,
-                      SPI_CR1_CPHA_CLK_TRANSITION_2, SPI_CR1_CRCL_8BIT, SPI_CR1_MSBFIRST);
+      // LED drivers can cope with a higher clock rate
+      // spi_set_baudrate_prescaler(SPI1, SPI_CR1_BAUDRATE_FPCLK_DIV_4);
 
       spi_fifo_reception_threshold_16bit(SPI1);
 
@@ -653,16 +639,10 @@ void _spiSelectPeripheral(const bool selectDisplay)
       // Configure display driver peripheral MISO pin as input
       gpio_mode_setup(GPIOB, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO4);
       // Configure GPIOs: SCK=PA5, MISO=PA6 and MOSI=PA7
-      gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO5 | GPIO6 | GPIO7);
-
-      /* Set up SPI in Master mode with:
-       * Clock baud rate: 1/4 of peripheral clock frequency
-       * Clock polarity: Idle High
-       * Clock phase: Data valid on 1st clock pulse
-       * Frame format: MSB First
-       */
-      spi_init_master(SPI1, SPI_CR1_BAUDRATE_FPCLK_DIV_8, SPI_CR1_CPOL_CLK_TO_1_WHEN_IDLE,
-                      SPI_CR1_CPHA_CLK_TRANSITION_2, SPI_CR1_CRCL_8BIT, SPI_CR1_MSBFIRST);
+      gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO6);
+      // RTC/Temp sensor technically require a slower clock rate...
+      // ...but they seem to work with the same fast rate as the LED drivers...
+      // spi_set_baudrate_prescaler(SPI1, SPI_CR1_BAUDRATE_FPCLK_DIV_8);
 
       spi_fifo_reception_threshold_8bit(SPI1);
 
@@ -696,8 +676,11 @@ void _spiSetup()
   // MISO=PB4 from LED drivers
   gpio_set_af(GPIOB, GPIO_AF0, GPIO4);
 
+  // Configure GPIOs: SCK=PA5 and MOSI=PA7
+  gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO5 | GPIO7);
+
   // Reset SPI, SPI_CR1 register cleared, SPI is disabled
-  // spi_reset(SPI1);
+  spi_reset(SPI1);
 
   /* Set up SPI in Master mode with:
    * Clock baud rate: 1/4 of peripheral clock frequency
@@ -705,26 +688,11 @@ void _spiSetup()
    * Clock phase: Data valid on 1st clock pulse
    * Frame format: MSB First
    */
-  // spi_init_master(SPI1, SPI_CR1_BAUDRATE_FPCLK_DIV_16, SPI_CR1_CPOL_CLK_TO_1_WHEN_IDLE,
-  //                 SPI_CR1_CPHA_CLK_TRANSITION_2, SPI_CR1_CRCL_8BIT, SPI_CR1_MSBFIRST);
+  spi_init_master(SPI1, SPI_CR1_BAUDRATE_FPCLK_DIV_16, SPI_CR1_CPOL_CLK_TO_1_WHEN_IDLE,
+                  SPI_CR1_CPHA_CLK_TRANSITION_2, SPI_CR1_CRCL_8BIT, SPI_CR1_MSBFIRST);
 
   // Configure SPI1 for use with the display driver (should already be idle now)
   _spiSelectPeripheral(true);
-
-  /*
-   * Set NSS management to software.
-   *
-   * Note:
-   * Setting nss high is very important, even if we are controlling the GPIO
-   * ourselves this bit needs to be at least set to 1, otherwise the spi
-   * peripheral will not send any data out.
-   */
-	// spi_enable_software_slave_management(SPI1);
-	// spi_set_nss_high(SPI1);
-	// spi_enable_ss_output(SPI1);
-
-   // Enable SPI1 peripheral
-  // spi_enable(SPI1);
 }
 
 
@@ -747,10 +715,6 @@ void _systickSetup(const uint16_t xms)
 
 
 // Set up the Timers
-// PA8 = beeper = AF2 = TIM1_CH1
-// PB3 = blue = AF2 = TIM2_CH2
-// PB10 = red = AF2 = TIM2_CH3
-// PB11 = green = AF2 = TIM2_CH4
 //
 void _timerSetup()
 {
@@ -1062,7 +1026,7 @@ void _refreshDisplay()
 
 void initialize()
 {
-  uint32_t startupDisplayBitmap = 0x010000; // version 1
+  uint32_t startupDisplayBitmap = 0x030000; // version 3
   RgbLed   startupDarkWhite(144, 114, 118, 0),
            startupBrightWhite(512, 380, 480, 0),
            startupOff(0, 0, 0, 0);
@@ -1198,41 +1162,49 @@ void refresh()
     // _rtcIsSet = RTC_ISR & RTC_ISR_INITS;
   }
 
-    // Determine where to get the temperature from and get it
-    switch (_externalTemperatureSensor)
-    {
-      case TempSensorType::DS323x:
-        // Registers will have been refreshed above
-        _temperatureX100 =  (DS3234::getTemperature() >> 8) * 100;
-        _temperatureX100 += ((DS3234::getTemperature() >> 6) & 0x03) * 25;
-        break;
+  // Determine where to get the temperature from and get it
+  switch (_externalTemperatureSensor)
+  {
+    case TempSensorType::DS323x:
+      // Registers will have been refreshed above
+      _temperatureX100 =  (DS3234::getTemperature() >> 8) * 100;
+      _temperatureX100 += ((DS3234::getTemperature() >> 6) & 0x03) * 25;
+      break;
 
-      case TempSensorType::LM7x:
-        LM74::refresh();
-        _temperatureX100 =  (LM74::getTemperature() >> 8) * 100;
-        _temperatureX100 += ((LM74::getTemperature() >> 6) & 0x03) * 25;
-        break;
+    case TempSensorType::LM7x:
+      while (!LM74::refresh());
+      // LM74::refresh();
+      _temperatureX100 =  (LM74::getTemperature() >> 8) * 100;
+      _temperatureX100 += ((LM74::getTemperature() >> 6) & 0x03) * 25;
+      break;
 
-      case TempSensorType::DS1722:
-        // while (DS1722::refresh());
-        DS1722::refresh();
-        _temperatureX100 =  (DS1722::getTemperature() >> 8) * 100;
-        _temperatureX100 += ((DS1722::getTemperature() >> 6) & 0x03) * 25;
-        break;
+    case TempSensorType::DS1722:
+      while (!DS1722::refresh());
+      // DS1722::refresh();
+      _temperatureX100 =  (DS1722::getTemperature() >> 8) * 100;
+      _temperatureX100 += ((DS1722::getTemperature() >> 6) & 0x03) * 25;
+      break;
 
-      default:
-        // Get the averages of the last several readings
-        int32_t averageTemp = totalTemp / cAdcSamplesToAverage;
-        int32_t averageVoltage = totalVoltage / cAdcSamplesToAverage;
-        // Determine the voltage as it affects the temperature calculation
-        int32_t voltage = cVddCalibrationVoltage * (int32_t)ST_VREFINT_CAL / averageVoltage;
-        // Now we can compute the temperature based on RM's formula, * 100
-        _temperatureX100 = (averageTemp * voltage / cVddCalibrationVoltage) - ST_TSENSE_CAL1_30C;
-        _temperatureX100 = _temperatureX100 * (110 - 30) * 100;
-        _temperatureX100 = _temperatureX100 / (ST_TSENSE_CAL2_110C - ST_TSENSE_CAL1_30C);
-        _temperatureX100 = _temperatureX100 + 3000 + (_temperatureAdjustment * 100);
-        // break;
-    }
+    default:
+      // Get the averages of the last several readings
+      int32_t averageTemp = totalTemp / cAdcSamplesToAverage;
+      int32_t averageVoltage = totalVoltage / cAdcSamplesToAverage;
+      // Determine the voltage as it affects the temperature calculation
+      int32_t voltage = cVddCalibrationVoltage * (int32_t)ST_VREFINT_CAL / averageVoltage;
+      // Now we can compute the temperature based on RM's formula, * 100
+      _temperatureX100 = (averageTemp * voltage / cVddCalibrationVoltage) - ST_TSENSE_CAL1_30C;
+      _temperatureX100 = _temperatureX100 * (110 - 30) * 100;
+      _temperatureX100 = _temperatureX100 / (ST_TSENSE_CAL2_110C - ST_TSENSE_CAL1_30C);
+      _temperatureX100 = _temperatureX100 + 3000 + (_temperatureAdjustment * 100);
+      // break;
+  }
+
+  if (_displayRefreshNow == true)
+  {
+    _refreshDisplay();
+
+    _displayRefreshNow = false;
+  }
 }
 
 
@@ -1399,42 +1371,40 @@ void setDateTime(const DateTime &dateTime)
   {
     DS3234::setDateTime(_currentDateTime);
   }
-  else
+  // we'll set the internal RTC regardless
+  uint8_t dayOfWeek = _currentDateTime.dayOfWeek();
+
+  // STM32 RTC does not accept 0; it uses 7 for Sunday, instead
+  if (dayOfWeek == 0)
   {
-    uint8_t dayOfWeek = _currentDateTime.dayOfWeek();
-
-    // STM32 RTC does not accept 0; it uses 7 for Sunday, instead
-    if (dayOfWeek == 0)
-    {
-      dayOfWeek = 7;
-    }
-
-    uint32_t dr = ((_currentDateTime.yearShort(true) & 0xff) << RTC_DR_YU_SHIFT) |
-                  ((_currentDateTime.month(true) & 0x1f) << RTC_DR_MU_SHIFT) |
-                  ((_currentDateTime.day(true) & 0x3f) << RTC_DR_DU_SHIFT) |
-                  ((dayOfWeek) << RTC_DR_WDU_SHIFT);
-
-    uint32_t tr = ((_currentDateTime.hour(true, false) & 0x3f) << RTC_TR_HU_SHIFT) |
-                  ((_currentDateTime.minute(true) & 0x7f) << RTC_TR_MNU_SHIFT) |
-                  ((_currentDateTime.second(true) & 0x7f) << RTC_TR_SU_SHIFT);
-
-    pwr_disable_backup_domain_write_protect();
-    rtc_unlock();
-
-    // enter init mode
-    RTC_ISR |= RTC_ISR_INIT;
-    while ((RTC_ISR & RTC_ISR_INITF) == 0);
-
-    RTC_DR = dr;
-    RTC_TR = tr;
-
-    // exit init mode
-    RTC_ISR &= ~(RTC_ISR_INIT);
-
-    rtc_lock();
-    rtc_wait_for_synchro();
-    pwr_enable_backup_domain_write_protect();
+    dayOfWeek = 7;
   }
+
+  uint32_t dr = ((_currentDateTime.yearShort(true) & 0xff) << RTC_DR_YU_SHIFT) |
+                ((_currentDateTime.month(true) & 0x1f) << RTC_DR_MU_SHIFT) |
+                ((_currentDateTime.day(true) & 0x3f) << RTC_DR_DU_SHIFT) |
+                ((dayOfWeek) << RTC_DR_WDU_SHIFT);
+
+  uint32_t tr = ((_currentDateTime.hour(true, false) & 0x3f) << RTC_TR_HU_SHIFT) |
+                ((_currentDateTime.minute(true) & 0x7f) << RTC_TR_MNU_SHIFT) |
+                ((_currentDateTime.second(true) & 0x7f) << RTC_TR_SU_SHIFT);
+
+  pwr_disable_backup_domain_write_protect();
+  rtc_unlock();
+
+  // enter init mode
+  RTC_ISR |= RTC_ISR_INIT;
+  while ((RTC_ISR & RTC_ISR_INITF) == 0);
+
+  RTC_DR = dr;
+  RTC_TR = tr;
+
+  // exit init mode
+  RTC_ISR &= ~(RTC_ISR_INIT);
+
+  rtc_lock();
+  rtc_wait_for_synchro();
+  pwr_enable_backup_domain_write_protect();
 
   return;
 }
@@ -1481,7 +1451,9 @@ void autoAdjustIntensities(const bool enable)
 
 void adjustForDst(const bool enableDst)
 {
-  if (enableDst != (RTC_CR & RTC_CR_BKP))
+  bool dstHwState = RTC_CR & RTC_CR_BKP;
+
+  if (enableDst != dstHwState)
   {
     pwr_disable_backup_domain_write_protect();
     rtc_unlock();
@@ -1668,120 +1640,6 @@ uint32_t writeFlash(uint32_t startAddress, uint8_t *inputData, uint16_t numEleme
 }
 
 
-/**
-* Run a write/read transaction to a given 7bit i2c address
-* If both write & read are provided, the read will use repeated start.
-* Both write and read are optional
-* @param i2c peripheral of choice, eg I2C1
-* @param addr 7 bit i2c device address
-* @param w buffer of data to write
-* @param wn length of w
-* @param r destination buffer to read into
-* @param rn number of bytes to read (r should be at least this long)
-*/
-uint8_t i2c_transfer7(const uint32_t i2c, const uint8_t addr, const uint8_t *w, size_t wn, uint8_t *r, size_t rn)
-{
-  uint16_t timer = cI2cTimeout;
-  uint8_t  returnCode = 0;
-
-  /*  waiting for busy is unnecessary. read the RM */
-  if (wn)
-  {
-    i2c_set_7bit_address(i2c, addr);
-    i2c_set_write_transfer_dir(i2c);
-    i2c_set_bytes_to_transfer(i2c, wn);
-    if (rn > 0)
-    {
-      i2c_disable_autoend(i2c);
-    }
-    else
-    {
-      i2c_enable_autoend(i2c);
-    }
-
-    i2c_send_start(i2c);
-
-    while (wn-- > 0)
-    {
-      while ((timer-- > 0) && (i2c_transmit_int_status(i2c) == 0))
-      {
-        if (i2c_nack(i2c))
-        {
-          returnCode |= 1;  // indicate a NACK was received
-          I2C_ICR(i2c) |= I2C_ICR_NACKCF;
-        }
-      }
-
-      if (timer > 0)
-      {
-        i2c_send_data(i2c, *w++);
-      }
-      else
-      {
-        returnCode |= 2;  // indicate a write timeout occured
-        wn = 0;           // break out of the loop
-        // i2c_send_stop(i2c); // stop the transfer
-      }
-
-      timer = cI2cTimeout;
-    }
-    /* not entirely sure this is really necessary.
-    * RM implies it will stall until it can write out the later bits
-    */
-    if (rn)
-    {
-      while ((timer-- > 0) && (i2c_transfer_complete(i2c) == 0) && (i2c_transmit_int_status(i2c) == 0))
-      {
-        if (i2c_nack(i2c))
-        {
-          returnCode |= 1;  // indicate a NACK was received
-          I2C_ICR(i2c) |= I2C_ICR_NACKCF;
-        }
-      }
-
-      if (timer == 0)
-      {
-        returnCode |= 2;  // indicate a write timeout occured
-        // i2c_send_stop(i2c); // stop the transfer
-      }
-
-      timer = cI2cTimeout;
-    }
-  }
-
-  if (rn)
-  {
-    /* Setting transfer properties */
-    i2c_set_7bit_address(i2c, addr);
-    i2c_set_read_transfer_dir(i2c);
-    i2c_set_bytes_to_transfer(i2c, rn);
-    /* start transfer */
-    i2c_send_start(i2c);
-    /* important to do it afterwards to do a proper repeated start! */
-    // i2c_enable_autoend(i2c);
-
-    for (size_t i = 0; i < rn; i++)
-    {
-      while ((timer-- > 0) && (i2c_received_data(i2c) == 0));
-      if (timer > 0)
-      {
-        r[i] = i2c_get_data(i2c);
-        timer = cI2cTimeout;
-      }
-      else
-      {
-        returnCode |= 4;  // indicate a read timeout occured
-        i = rn;           // break out of the loop
-        i2c_send_stop(i2c); // stop the transfer
-      }
-    }
-    i2c_send_stop(i2c); // stop the transfer
-  }
-
-  return returnCode;
-}
-
-
 bool readSerial(const uint32_t usart, const uint32_t length, const char* data)
 {
   switch (usart)
@@ -1919,7 +1777,6 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
   uint16_t mSize = DMA_CCR_MSIZE_8BIT, pSize = DMA_CCR_PSIZE_8BIT;
   volatile uint8_t temp_data __attribute__ ((unused));
 
-  // Make sure SPI is not in use before switching things around
   if (_spiState != SpiState::Idle)
   {
     // Let the caller know it was busy if so
@@ -1934,13 +1791,10 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
     pSize = DMA_CCR_PSIZE_16BIT;
   }
 
-	/* Reset SPI data and status registers.
-	 * First, ensure the SPI is not busy, then
-	 * purge the FIFO to ensure it's empty for
-	 * the new inbound bits.
-	 */
+	// Reset SPI data and status registers
+	// First, ensure the SPI is not busy...
   while (SPI_SR(SPI1) & (SPI_SR_BSY));
-
+  // ...now we purge the FIFO to ensure it's empty for the new inbound bits.
 	while (SPI_SR(SPI1) & (SPI_SR_RXNE | SPI_SR_OVR))
   {
 		temp_data = SPI_DR(SPI1);
@@ -2006,9 +1860,8 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
   }
 
 	/* Enable the SPI transfer via DMA
-	 * This will immediately start the transmission,
-	 * after which when the receive is complete, the
-	 * receive dma will activate
+	 * This will immediately start the transmission, after which when the receive
+   * is complete, the receive DMA will activate
 	 */
 	spi_enable_rx_dma(SPI1);
 	spi_enable_tx_dma(SPI1);
@@ -2078,8 +1931,14 @@ void delay(const uint32_t length)
 {
   for (uint32_t counter = 0; counter < length; counter++)
   {
-    // Wait a bit
-		__asm__("nop");
+    // Kill a cycle
+		// __asm__("nop");
+    if (_displayRefreshNow == true)
+    {
+      _refreshDisplay();
+
+      _displayRefreshNow = false;
+    }
 	}
 }
 
@@ -2231,9 +2090,9 @@ void systickIsr()
     timer_set_oc_value(TIM1, TIM_OC1, 0);
   }
 
-  _refreshDisplay();
-
   Keys::repeatHandler();
+
+  _displayRefreshNow = true;
 }
 
 

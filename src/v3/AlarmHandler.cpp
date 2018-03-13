@@ -18,6 +18,7 @@
 //
 #include <cstdint>
 
+#include <libopencm3/stm32/rtc.h>
 #include "AlarmHandler.h"
 #include "Application.h"
 #include "DateTime.h"
@@ -97,6 +98,9 @@ void keyHandler(Keys::Key key)
     }
     _activeAlarms = 0;
     _beepCounter = 0;
+    // restore the display in case the alarm changed anything
+    Hardware::autoAdjustIntensities(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
+    Hardware::displayBlank(false);
   }
 }
 
@@ -105,6 +109,7 @@ void keyHandler(Keys::Key key)
 //
 void loop()
 {
+  uint8_t i;
   DateTime slot, current = Hardware::getDateTime();
 
   // first, check if any alarm boundaries have been crossed, triggering an alarm
@@ -117,10 +122,10 @@ void loop()
       _hourlyAlarmActive = true;
     }
 
-    for (uint8_t i = static_cast<uint8_t>(Settings::Slot::Slot1); i <= static_cast<uint8_t>(Settings::Slot::Slot8); i++)
+    for (i = static_cast<uint8_t>(Settings::Slot::Slot1); i <= static_cast<uint8_t>(Settings::Slot::Slot8); i++)
     {
       // first check if the alarm is enabled
-      if (_settings.getSetting(Settings::Setting::BeepStates, i)) // || _settings.getSetting(Settings::Setting::BlinkStates, i))
+      if ((_settings.getSetting(Settings::Setting::BeepStates, i) == true) || (_settings.getSetting(Settings::Setting::BlinkStates, i) == true))
       {
         // get the current slot's time
         slot = _settings.getTime(i);
@@ -144,17 +149,35 @@ void loop()
     // next, make the beeper beep if it's time to do so
     if (_activeAlarms > 0)
     {
-      // cancel this since some other, more important alarm is active
-      _hourlyAlarmActive = false;
-
-      if (_beepCounter >= sizeof(cAlarmToneDurations) / 2) // words / 2 = bytes
+      for (i = static_cast<uint8_t>(Settings::Slot::Slot1); i <= static_cast<uint8_t>(Settings::Slot::Slot8); i++)
       {
-        _beepCounter = 0;
-      }
+        // first check if the alarm is enabled
+        if (_settings.getSetting(Settings::Setting::BeepStates, i) == true)
+        {
+          // cancel this since some other, more important alarm is active
+          _hourlyAlarmActive = false;
 
-      if (Hardware::tone(cAlarmToneFrequencies[_beepCounter], cAlarmToneDurations[_beepCounter]) == true)
-      {
-        _beepCounter++;
+          if (_beepCounter >= sizeof(cAlarmToneDurations) / 2) // words / 2 = bytes
+          {
+            _beepCounter = 0;
+          }
+
+          if (Hardware::tone(cAlarmToneFrequencies[_beepCounter], cAlarmToneDurations[_beepCounter]) == true)
+          {
+            _beepCounter++;
+          }
+        }
+
+        // first check if the alarm is enabled
+        if (_settings.getSetting(Settings::Setting::BlinkStates, i) == true)
+        {
+          // make the display bright!
+          Hardware::autoAdjustIntensities(false);
+          // blink based on seconds, or...
+          // Hardware::displayBlank(current.second(false) & 1);
+          // blink based on sub-seconds register for faster blinking
+          Hardware::displayBlank(RTC_SSR & (1 << 6));
+        }
       }
     }
     else if (_hourlyAlarmActive == true)

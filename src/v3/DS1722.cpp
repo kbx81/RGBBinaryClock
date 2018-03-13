@@ -93,7 +93,7 @@ bool isConnected()
 
 int16_t getTemperature()
 {
-  return (ds1722Register[cTemperatureMSBRegister] << 8) | ds1722Register[cTemperatureLSBRegister + 1];
+  return (ds1722Register[cTemperatureMSBRegister] << 8) | ds1722Register[cTemperatureLSBRegister];
 }
 
 

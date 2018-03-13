@@ -81,7 +81,7 @@ namespace kbxBinaryClock {
       _time[i].setTime((3 * i) + 1, 30, 0);
     }
 
-    _setting[static_cast<uint8_t>(SystemOptions)] = 0x081;
+    _setting[static_cast<uint8_t>(SystemOptions)] = 0x0c1;
     _setting[static_cast<uint8_t>(BeepStates)] = 0x00;
     _setting[static_cast<uint8_t>(BlinkStates)] = 0x00;
     _setting[static_cast<uint8_t>(ColorStates)] = 0xff;
@@ -101,21 +101,21 @@ namespace kbxBinaryClock {
     _setting[static_cast<uint8_t>(TemperatureCalibration)] = 10;
     _setting[static_cast<uint8_t>(DmxAddress)] = 1;
 
-    _color0[Slot::Slot1] = defaultRed;    // 0100
+    _color0[Slot::Slot1] = defaultRed;    // 0130
     _color1[Slot::Slot1] = defaultOrange;
-    _color0[Slot::Slot2] = defaultRed;    // 0400
+    _color0[Slot::Slot2] = defaultRed;    // 0430
     _color1[Slot::Slot2] = defaultOrange;
-    _color0[Slot::Slot3] = defaultOrange; // 0700
+    _color0[Slot::Slot3] = defaultOrange; // 0730
     _color1[Slot::Slot3] = defaultYellow;
-    _color0[Slot::Slot4] = defaultYellow; // 1000
+    _color0[Slot::Slot4] = defaultYellow; // 1030
     _color1[Slot::Slot4] = defaultMagenta;
-    _color0[Slot::Slot5] = defaultCyan;   // 1300 / 1 pm
+    _color0[Slot::Slot5] = defaultCyan;   // 1330 / 1:30 pm
     _color1[Slot::Slot5] = defaultYellow;
-    _color0[Slot::Slot6] = defaultOrange; // 1600 / 4 pm
+    _color0[Slot::Slot6] = defaultOrange; // 1630 / 4:30 pm
     _color1[Slot::Slot6] = defaultMagenta;
-    _color0[Slot::Slot7] = defaultBlue;   // 1900 / 7 pm
+    _color0[Slot::Slot7] = defaultBlue;   // 1930 / 7:30 pm
     _color1[Slot::Slot7] = defaultOrange;
-    _color0[Slot::Slot8] = defaultRed;    // 2200 / 10 pm
+    _color0[Slot::Slot8] = defaultRed;    // 2230 / 10:30 pm
     _color1[Slot::Slot8] = defaultOrange;
     _color0[Slot::SlotDate] = defaultGray;
     _color1[Slot::SlotDate] = defaultWhite;
@@ -136,8 +136,8 @@ namespace kbxBinaryClock {
 
     if (_validityKey != cSettingsValidationKey)
     {
-      Hardware::greenLed(4095);
-      Hardware::redLed(4095);
+      Hardware::greenLed(2048);
+      Hardware::redLed(2048);
       initialize();
       Hardware::doubleBlink();
       Hardware::doubleBlink();
