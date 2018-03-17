@@ -42,6 +42,11 @@ public:
   RgbLed(const uint16_t red = 0, const uint16_t green = 0, const uint16_t blue = 0, const uint16_t rate = 0);
 
 public:
+  /// Compare this RgbLed to another
+  ///
+  bool operator==(const RgbLed &other) const;
+  bool operator!=(const RgbLed &other) const;
+
   void setRed(const uint16_t intensity);
   void setGreen(const uint16_t intensity);
   void setBlue(const uint16_t intensity);

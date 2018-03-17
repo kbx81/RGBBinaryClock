@@ -24,6 +24,11 @@
 namespace kbxBinaryClock {
 
 
+// number of seconds in a day
+//
+const uint32_t TimerCounterView::cMaxBcdValue = 999999;
+
+
 void TimerCounterView::enter()
 {
   _settings = Application::getSettings();
@@ -38,6 +43,7 @@ void TimerCounterView::keyHandler(Keys::Key key)
   if (key == Keys::Key::A)
   {
     _timerRun = true;
+    _fadeRate = _settings.getRawSetting(Settings::Setting::FadeRate);
   }
 
   if (key == Keys::Key::B)
@@ -52,25 +58,27 @@ void TimerCounterView::keyHandler(Keys::Key key)
 
   if (key == Keys::Key::D)
   {
-    if (_timerRun)
+    if (_timerRun == true)
     {
       _countUp = false;
     }
     else
     {
       _timerValue--;
+      _fadeRate = 0;
     }
   }
 
   if (key == Keys::Key::U)
   {
-    if (_timerRun)
+    if (_timerRun == true)
     {
       _countUp = true;
     }
     else
     {
       _timerValue++;
+      _fadeRate = 0;
     }
   }
 
@@ -92,14 +100,14 @@ void TimerCounterView::loop()
   // determine what colors we need to use, then determine the bitmask for the display
   color0 = _settings.getColor0(Settings::Slot::SlotTimer);
   color1 = _settings.getColor1(Settings::Slot::SlotTimer);
-  color0.setRate(_settings.getRawSetting(Settings::Setting::FadeRate));
-  color1.setRate(_settings.getRawSetting(Settings::Setting::FadeRate));
+  color0.setRate(_fadeRate);
+  color1.setRate(_fadeRate);
 
-  if (_timerRun && _lastTime != currentTime.secondsSinceMidnight(false))
+  if ((_timerRun == true) && (_lastTime != currentTime.secondsSinceMidnight(false)))
   {
     _lastTime = currentTime.secondsSinceMidnight(false);
 
-    if (_countUp)
+    if (_countUp == true)
     {
       _timerValue++;
     }
@@ -109,10 +117,25 @@ void TimerCounterView::loop()
     }
   }
 
-  // display timer in BCD if settings say so
-  if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD))
+  if ((_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD) == true) &&
+      (_timerValue > cMaxBcdValue))
   {
-    displayBitMask = Hardware::uint32ToBcd((uint16_t)_timerValue);
+    // we'll use what the timer value is closer to to determine what it
+    //  should be reset to
+    if (_timerValue < cMaxBcdValue * 8)
+    {
+      _timerValue = 0;
+    }
+    else
+    {
+      _timerValue = cMaxBcdValue;
+    }
+  }
+
+  // display timer in BCD if settings say so
+  if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD) == true)
+  {
+    displayBitMask = Hardware::uint32ToBcd(_timerValue);
   }
   else
   {

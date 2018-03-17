@@ -33,6 +33,8 @@ class TimerCounterView : public View {
 // The view which displays the timer/counter
 //
 public: // Implement the TimerCounterView class
+  static const uint32_t cMaxBcdValue;
+
   virtual void enter() override;
   virtual void keyHandler(Keys::Key key) override;
   virtual void loop() override;
@@ -45,6 +47,10 @@ private:
   // the timer/counter's value
   //
   uint32_t _timerValue;
+
+  // the fade rate that will be used for the display
+  //
+  uint16_t _fadeRate;
 
   // should the timer be running?
   //

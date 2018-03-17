@@ -62,7 +62,7 @@ public:
   enum SystemOptionsBits : uint8_t
   {
     DisplayBCD = 0,
-    Display24Hour = 1,
+    Display12Hour = 1,
     StatusLedAsAmPm = 2,
     HourlyChime = 3,
     DstEnable = 4,

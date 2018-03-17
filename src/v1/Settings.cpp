@@ -24,7 +24,7 @@
 
 namespace kbxBinaryClock {
 
-  // key used for validating settings
+  // where settings will be read/written in FLASH
   const uint32_t Settings::cSettingsFlashAddress = 0x0801f000;
 
   // key used for validating settings
@@ -78,10 +78,10 @@ namespace kbxBinaryClock {
     // set default time slots every three hours starting at 0100 hours
     for (i = static_cast<uint8_t>(Slot::Slot1); i <= static_cast<uint8_t>(Slot::Slot8); i++)
     {
-      _time[i].setTime((3 * i) + 1, 0, 0);
+      _time[i].setTime((3 * i) + 1, 30, 0);
     }
 
-    _setting[static_cast<uint8_t>(SystemOptions)] = 0x1fd;
+    _setting[static_cast<uint8_t>(SystemOptions)] = 0x0c1;
     _setting[static_cast<uint8_t>(BeepStates)] = 0x00;
     _setting[static_cast<uint8_t>(BlinkStates)] = 0x00;
     _setting[static_cast<uint8_t>(ColorStates)] = 0xff;
@@ -96,26 +96,26 @@ namespace kbxBinaryClock {
     _setting[static_cast<uint8_t>(DstSwitchDayOfWeek)] = 0;
     _setting[static_cast<uint8_t>(DstSwitchHour)] = 2;
     _setting[static_cast<uint8_t>(MinimumIntensity)] = 30;
-    _setting[static_cast<uint8_t>(FlickerReduction)] = 700;
+    _setting[static_cast<uint8_t>(FlickerReduction)] = 800;
     _setting[static_cast<uint8_t>(CurrentDrive)] = 0;
     _setting[static_cast<uint8_t>(TemperatureCalibration)] = 10;
     _setting[static_cast<uint8_t>(DmxAddress)] = 1;
 
-    _color0[Slot::Slot1] = defaultRed;    // 0100
+    _color0[Slot::Slot1] = defaultRed;    // 0130
     _color1[Slot::Slot1] = defaultOrange;
-    _color0[Slot::Slot2] = defaultRed;    // 0400
+    _color0[Slot::Slot2] = defaultRed;    // 0430
     _color1[Slot::Slot2] = defaultOrange;
-    _color0[Slot::Slot3] = defaultOrange; // 0700
+    _color0[Slot::Slot3] = defaultOrange; // 0730
     _color1[Slot::Slot3] = defaultYellow;
-    _color0[Slot::Slot4] = defaultYellow; // 1000
+    _color0[Slot::Slot4] = defaultYellow; // 1030
     _color1[Slot::Slot4] = defaultMagenta;
-    _color0[Slot::Slot5] = defaultCyan;   // 1300 / 1 pm
+    _color0[Slot::Slot5] = defaultCyan;   // 1330 / 1:30 pm
     _color1[Slot::Slot5] = defaultYellow;
-    _color0[Slot::Slot6] = defaultOrange; // 1600 / 4 pm
+    _color0[Slot::Slot6] = defaultOrange; // 1630 / 4:30 pm
     _color1[Slot::Slot6] = defaultMagenta;
-    _color0[Slot::Slot7] = defaultBlue;   // 1900 / 7 pm
+    _color0[Slot::Slot7] = defaultBlue;   // 1930 / 7:30 pm
     _color1[Slot::Slot7] = defaultOrange;
-    _color0[Slot::Slot8] = defaultRed;    // 2200 / 10 pm
+    _color0[Slot::Slot8] = defaultRed;    // 2230 / 10:30 pm
     _color1[Slot::Slot8] = defaultOrange;
     _color0[Slot::SlotDate] = defaultGray;
     _color1[Slot::SlotDate] = defaultWhite;
@@ -132,17 +132,16 @@ namespace kbxBinaryClock {
 
   void Settings::loadFromFlash()
   {
+    RgbLed orange(2048, 768, 0, 0),
+           green(0, 2048, 0, 0);
+
     Hardware::readFlash(cSettingsFlashAddress, sizeof(Settings), (uint8_t*)this);
 
     if (_validityKey != cSettingsValidationKey)
     {
-      Hardware::greenLed(4095);
-      Hardware::redLed(4095);
       initialize();
-      Hardware::doubleBlink();
-      Hardware::doubleBlink();
-      Hardware::greenLed(0);
-      Hardware::redLed(0);
+      // blink to alert that settings could not be loaded
+      Hardware::blinkStatusLed(green, orange, 6, 100000);
     }
   }
 
@@ -280,6 +279,8 @@ namespace kbxBinaryClock {
   void Settings::refreshCalculatedColors()
   {
     DateTime currentTime = Hardware::getDateTime();
+    RgbLed   defaultWhite(4095, 4095, 4095, _setting[static_cast<uint8_t>(FadeRate)]),
+             defaultDarkWhite(512, 512, 512, _setting[static_cast<uint8_t>(FadeRate)]);
     int32_t i, delta, percentage, secondsSinceMidnight,
             // minSecs = 0,  // first/earliest slot
             prevSecs = 0, // slot most recently passed
@@ -292,95 +293,107 @@ namespace kbxBinaryClock {
 
     secondsSinceMidnight = (int32_t)currentTime.secondsSinceMidnight(false);
 
-    /* find minimum, maximum, just passed, and next to pass values */
-    for (i = static_cast<uint8_t>(Slot::Slot1); i <= static_cast<uint8_t>(Slot::Slot8); i++)
+    // we could set the rate, too, but other functions don't, so...
+    // _color0[Slot::SlotCalculated].setRate(_setting[static_cast<uint8_t>(FadeRate)]);
+    // _color1[Slot::SlotCalculated].setRate(_setting[static_cast<uint8_t>(FadeRate)]);
+
+    if (Hardware::rtcIsSet() == true)
     {
-      if (_setting[static_cast<uint8_t>(Setting::ColorStates)] & (1 << i))
+      // find minimum, maximum, just passed, and next to pass values
+      for (i = static_cast<uint8_t>(Slot::Slot1); i <= static_cast<uint8_t>(Slot::Slot8); i++)
       {
-        delta = (int32_t)_time[i].secondsSinceMidnight(false) - secondsSinceMidnight;
-
-        // if (((int32_t)_time[i].secondsSinceMidnight(false) < minSecs) || !i)
-        // {
-        //   minSecs = _time[i].secondsSinceMidnight(false);
-        //   minSlot = i;
-        // }
-
-        if (delta - 1 < 0 && ((delta - 1 > prevSecs) || !i))
+        if (_setting[static_cast<uint8_t>(Setting::ColorStates)] & (1 << i))
         {
-          prevSecs = delta - 1;
-          prevSlot = i;
-        }
+          delta = (int32_t)_time[i].secondsSinceMidnight(false) - secondsSinceMidnight;
 
-        if (delta > 0 && ((delta < nextSecs) || !nextSecs))
-        {
-          nextSecs = delta;
-          nextSlot = i;
-        }
+          // if (((int32_t)_time[i].secondsSinceMidnight(false) < minSecs) || !i)
+          // {
+          //   minSecs = _time[i].secondsSinceMidnight(false);
+          //   minSlot = i;
+          // }
 
-        if (((int32_t)_time[i].secondsSinceMidnight(false) > maxSecs) || !i)
-        {
-          maxSecs = _time[i].secondsSinceMidnight(false);
-          maxSlot = i;
+          if (delta - 1 < 0 && ((delta - 1 > prevSecs) || !i))
+          {
+            prevSecs = delta - 1;
+            prevSlot = i;
+          }
+
+          if (delta > 0 && ((delta < nextSecs) || !nextSecs))
+          {
+            nextSecs = delta;
+            nextSlot = i;
+          }
+
+          if (((int32_t)_time[i].secondsSinceMidnight(false) > maxSecs) || !i)
+          {
+            maxSecs = _time[i].secondsSinceMidnight(false);
+            maxSlot = i;
+          }
         }
       }
-    }
-    // if no slots have been passed yet, then the last one passed is the max/latest one
-    if (prevSecs >= 0)
-    {
-      prevSlot = maxSlot;
-    }
-
-    if ((_setting[static_cast<uint8_t>(Setting::SystemOptions)] & SystemOptionsBits::FadeAcrossSlots)
-        && _setting[static_cast<uint8_t>(Setting::ColorStates)])
-    {
-      // for each color (R, G, B), compute the value between old and new
-      // first, if prev > current time, add 86400 to current
-      if ((int32_t)_time[prevSlot].secondsSinceMidnight(false) > secondsSinceMidnight)
+      // if no slots have been passed yet, then the last one passed is the max/latest one
+      if (prevSecs >= 0)
       {
-        secondsSinceMidnight += 86400;
+        prevSlot = maxSlot;
       }
-      // next, if next - prev < 0, add 86400 to next
-      if (_time[nextSlot].secondsSinceMidnight(false) < _time[prevSlot].secondsSinceMidnight(false))
+
+      if ((_setting[static_cast<uint8_t>(Setting::SystemOptions)] & SystemOptionsBits::FadeAcrossSlots)
+          && _setting[static_cast<uint8_t>(Setting::ColorStates)])
       {
-        nextSecs = _time[nextSlot].secondsSinceMidnight(false) + 86400;
+        // for each color (R, G, B), compute the value between old and new
+        // first, if prev > current time, add 86400 to current
+        if ((int32_t)_time[prevSlot].secondsSinceMidnight(false) > secondsSinceMidnight)
+        {
+          secondsSinceMidnight += 86400;
+        }
+        // next, if next - prev < 0, add 86400 to next
+        if (_time[nextSlot].secondsSinceMidnight(false) < _time[prevSlot].secondsSinceMidnight(false))
+        {
+          nextSecs = _time[nextSlot].secondsSinceMidnight(false) + 86400;
+        }
+        else
+        {
+          nextSecs = _time[nextSlot].secondsSinceMidnight(false);
+        }
+        //  ...finally: (current - prev) / (next - prev) = % to new value
+        percentage = 10000 * (secondsSinceMidnight - _time[prevSlot].secondsSinceMidnight(false));
+        percentage /= (nextSecs - _time[prevSlot].secondsSinceMidnight(false));
+
+        // new intensity = prev - ((prev - next) * percentage)
+        i = (int32_t)_color0[prevSlot].getRed() - (int32_t)_color0[nextSlot].getRed();
+        i = (int32_t)_color0[prevSlot].getRed() - ((i * percentage) / 10000);
+        _color0[Slot::SlotCalculated].setRed(i);
+
+        i = (int32_t)_color0[prevSlot].getGreen() - (int32_t)_color0[nextSlot].getGreen();
+        i = (int32_t)_color0[prevSlot].getGreen() - ((i * percentage) / 10000);
+        _color0[Slot::SlotCalculated].setGreen(i);
+
+        i = (int32_t)_color0[prevSlot].getBlue() - (int32_t)_color0[nextSlot].getBlue();
+        i = (int32_t)_color0[prevSlot].getBlue() - ((i * percentage) / 10000);
+        _color0[Slot::SlotCalculated].setBlue(i);
+
+        i = (int32_t)_color1[prevSlot].getRed() - (int32_t)_color1[nextSlot].getRed();
+        i = (int32_t)_color1[prevSlot].getRed() - ((i * percentage) / 10000);
+        _color1[Slot::SlotCalculated].setRed(i);
+
+        i = (int32_t)_color1[prevSlot].getGreen() - (int32_t)_color1[nextSlot].getGreen();
+        i = (int32_t)_color1[prevSlot].getGreen() - ((i * percentage) / 10000);
+        _color1[Slot::SlotCalculated].setGreen(i);
+
+        i = (int32_t)_color1[prevSlot].getBlue() - (int32_t)_color1[nextSlot].getBlue();
+        i = (int32_t)_color1[prevSlot].getBlue() - ((i * percentage) / 10000);
+        _color1[Slot::SlotCalculated].setBlue(i);
       }
       else
       {
-        nextSecs = _time[nextSlot].secondsSinceMidnight(false);
+        _color0[Slot::SlotCalculated] = _color0[prevSlot];
+        _color1[Slot::SlotCalculated] = _color1[prevSlot];
       }
-      //  ...finally: (current - prev) / (next - prev) = % to new value
-      percentage = 10000 * (secondsSinceMidnight - _time[prevSlot].secondsSinceMidnight(false));
-      percentage /= (nextSecs - _time[prevSlot].secondsSinceMidnight(false));
-
-      // new intensity = prev - ((prev - next) * percentage)
-      i = (int32_t)_color0[prevSlot].getRed() - (int32_t)_color0[nextSlot].getRed();
-      i = (int32_t)_color0[prevSlot].getRed() - ((i * percentage) / 10000);
-      _color0[Slot::SlotCalculated].setRed(i);
-
-      i = (int32_t)_color0[prevSlot].getGreen() - (int32_t)_color0[nextSlot].getGreen();
-      i = (int32_t)_color0[prevSlot].getGreen() - ((i * percentage) / 10000);
-      _color0[Slot::SlotCalculated].setGreen(i);
-
-      i = (int32_t)_color0[prevSlot].getBlue() - (int32_t)_color0[nextSlot].getBlue();
-      i = (int32_t)_color0[prevSlot].getBlue() - ((i * percentage) / 10000);
-      _color0[Slot::SlotCalculated].setBlue(i);
-
-      i = (int32_t)_color1[prevSlot].getRed() - (int32_t)_color1[nextSlot].getRed();
-      i = (int32_t)_color1[prevSlot].getRed() - ((i * percentage) / 10000);
-      _color1[Slot::SlotCalculated].setRed(i);
-
-      i = (int32_t)_color1[prevSlot].getGreen() - (int32_t)_color1[nextSlot].getGreen();
-      i = (int32_t)_color1[prevSlot].getGreen() - ((i * percentage) / 10000);
-      _color1[Slot::SlotCalculated].setGreen(i);
-
-      i = (int32_t)_color1[prevSlot].getBlue() - (int32_t)_color1[nextSlot].getBlue();
-      i = (int32_t)_color1[prevSlot].getBlue() - ((i * percentage) / 10000);
-      _color1[Slot::SlotCalculated].setBlue(i);
     }
     else
     {
-      _color0[Slot::SlotCalculated] = _color0[prevSlot];
-      _color1[Slot::SlotCalculated] = _color1[prevSlot];
+      _color0[Slot::SlotCalculated] = defaultDarkWhite;
+      _color1[Slot::SlotCalculated] = defaultWhite;
     }
   }
 

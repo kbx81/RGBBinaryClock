@@ -24,9 +24,6 @@
 #include "RgbLed.h"
 
 
-#define LED_COUNT 24
-
-
 namespace kbxBinaryClock {
 
 /// @brief kbx Binary Clock Display class
@@ -67,7 +64,8 @@ public:
 
 public:
 
-  static const uint8_t cLedCount;
+  static const uint8_t cLedCount = 24;
+  static const uint16_t cLedMaxIntensity = 4095;
 
   /// @brief Set this display's foreground color
   ///
@@ -145,13 +143,13 @@ public:
   /// @param ledNumber Number of LED to set (0 through 23)
   /// @return Pointer to RgbLed with color data from specified LED
   ///
-  RgbLed getLedRawColor(const uint8_t ledNumber) const;
+  RgbLed getLedRaw(const uint8_t ledNumber) const;
 
 
 private:
   RgbLed _color0;       ///< color 0 (as used by bitmap)
   RgbLed _color1;       ///< color 1 (as used by bitmap)
-  RgbLed _display[LED_COUNT];   ///< values currently active on display
+  RgbLed _display[cLedCount];   ///< values currently active on display
   uint32_t _displayBitmap;      ///< current display bitmap
   uint32_t _displayBitmapMask;  ///< 1 = set by bitmap, 0 = set to raw color
 };

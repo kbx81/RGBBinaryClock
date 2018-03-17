@@ -22,11 +22,21 @@
 #include <cstdint>
 #include "DateTime.h"
 #include "Display.h"
+#include "RgbLed.h"
 
 
 namespace kbxBinaryClock {
 
 namespace Hardware {
+
+  // SPI1 peripherals
+  //
+  enum SpiPeripheral : uint8_t {
+    LedDrivers,
+    Rtc,
+    TempSensor
+  };
+
 
   // Initialize the hardware
   //
@@ -36,13 +46,9 @@ namespace Hardware {
   //
   void     refresh();
 
-  // Turns the beeper on or off
-  //
-  void     beep(const bool state);
-
-  // Check if the beeper is on or off
-  //
-  bool     beepState();
+  // Generates a tone for duration milliseconds
+  //  Returns true if tone was activated
+  bool     tone(const uint16_t frequency, const uint16_t duration);
 
   // Check a button
   //
@@ -141,19 +147,32 @@ namespace Hardware {
   uint8_t  i2c_transfer7(const uint32_t i2c, const uint8_t addr, const uint8_t *w, size_t wn, uint8_t *r, size_t rn);
 
   // Reads data from the serial port with DMA
-  //
+  //  Returns false if failure (the USART was busy)
   bool     readSerial(const uint32_t usart, const uint32_t length, const char* data);
 
   // Writes data to the serial port with DMA
-  //
+  //  Returns false if failure (the USART was busy)
   bool     writeSerial(const uint32_t usart, const uint32_t length, const char* data);
 
+  // Transfers data in/out through the SPI via DMA
+  //  Returns false if failure (the SPI was busy)
+  bool     spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *bufferOut, const uint16_t length, const bool use16BitXfers);
 
-  // Sets the given status LED to state
+  // Permits checking the status of the SPI; returns true if busy
+  //
+  bool     spiIsBusy();
+
+  // Sets the given status LED to the given intensity/RgbLed
   //
   void     blueLed(const uint32_t intensity);
   void     greenLed(const uint32_t intensity);
   void     redLed(const uint32_t intensity);
+  void     blinkStatusLed(const RgbLed led1, const RgbLed led2, uint32_t numberOfBlinks, const uint32_t delayLength);
+  void     setStatusLed(const RgbLed led);
+
+  // Enables the display refresher to control the status LED
+  //
+  void     autoRefreshStatusLed(const bool autoRefreshEnabled);
 
   // Creates a short delay using 'nop's
   //

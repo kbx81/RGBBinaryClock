@@ -1,5 +1,5 @@
 //
-// kbx81's binary clock main application
+// kbx81's binary clock TimeDateTempView class
 // ---------------------------------------------------------------------------
 // (c)2017 by kbx81. See LICENSE for details.
 //

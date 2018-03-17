@@ -38,11 +38,11 @@ namespace Keys {
 
   // The initial delay until repeat starts
   //
-  static const uint16_t cRepeatDelay = 2000;
+  static const uint16_t cRepeatDelay = 1500;
 
   // The speed of the repeat
   //
-  static const uint8_t cRepeatSpeed = 200;
+  static const uint8_t cRepeatSpeed = 75;
 
 
   // The last bitmask of the key states
@@ -108,7 +108,14 @@ namespace Keys {
         addKeyPress(key);
       }
     }
-    else if (_currentPressedKey != None)
+    // key repeating could be handled here, but we'll do it seperately (below)
+    //  so that the timing of the repeats is more consistent
+  }
+
+
+  void repeatHandler()
+  {
+    if (_currentPressedKey != None)
     {
       ++_keyPressedTimeCount;
       if (_repeatMode && _keyPressedTimeCount > cRepeatSpeed)

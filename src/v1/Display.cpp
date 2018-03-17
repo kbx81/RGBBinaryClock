@@ -39,7 +39,8 @@
 namespace kbxBinaryClock {
 
 
-const uint8_t Display::cLedCount = LED_COUNT;
+// const uint8_t Display::cLedCount = 24;
+// const uint16_t Display::cLedMaxIntensity = 4095;
 
 
 Display::Display()
@@ -270,7 +271,7 @@ bool Display::getLedMask(const uint8_t ledNumber) const
 }
 
 
-RgbLed Display::getLedRawColor(const uint8_t ledNumber) const
+RgbLed Display::getLedRaw(const uint8_t ledNumber) const
 {
   if (ledNumber < cLedCount)
   {
