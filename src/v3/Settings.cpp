@@ -132,17 +132,16 @@ namespace kbxBinaryClock {
 
   void Settings::loadFromFlash()
   {
+    RgbLed orange(2048, 768, 0, 0),
+           green(0, 2048, 0, 0);
+
     Hardware::readFlash(cSettingsFlashAddress, sizeof(Settings), (uint8_t*)this);
 
     if (_validityKey != cSettingsValidationKey)
     {
-      Hardware::greenLed(2048);
-      Hardware::redLed(2048);
       initialize();
-      Hardware::doubleBlink();
-      Hardware::doubleBlink();
-      Hardware::greenLed(0);
-      Hardware::redLed(0);
+      // blink to alert that settings could not be loaded
+      Hardware::blinkStatusLed(green, orange, 6, 100000);
     }
   }
 

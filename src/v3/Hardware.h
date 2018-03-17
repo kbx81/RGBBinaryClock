@@ -163,6 +163,7 @@ namespace Hardware {
   void     blueLed(const uint32_t intensity);
   void     greenLed(const uint32_t intensity);
   void     redLed(const uint32_t intensity);
+  void     blinkStatusLed(const RgbLed led1, const RgbLed led2, uint32_t numberOfBlinks, const uint32_t delayLength);
   void     setStatusLed(const RgbLed led);
 
   // Enables the display refresher to control the status LED
