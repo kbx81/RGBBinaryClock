@@ -37,11 +37,7 @@ void SetTimeDateView::enter()
   switch (_mode)
   {
     case Application::OperatingMode::OperatingModeSetClock:
-    // setDateTime.setTimeFromHardware(Hardware::rawTime());
-    // break;
-
     case Application::OperatingMode::OperatingModeSetDate:
-    // setDateTime.setDateFromHardware(Hardware::rawDate());
     setDateTime = Hardware::getDateTime();
     break;
 
@@ -71,6 +67,8 @@ void SetTimeDateView::enter()
     _maxValues[2] = 23;
     _maxValues[1] = 59;
     _maxValues[0] = 59;
+
+    Hardware::autoRefreshStatusLed(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour));
   }
 }
 
@@ -81,8 +79,6 @@ void SetTimeDateView::keyHandler(Keys::Key key)
 
   if (key == Keys::Key::A)
   {
-    // bool isPM = ((_setValues[2] > 12) && (!_settings.getSetting(Settings::Setting::Mode24Hour)));
-
     if (_mode == Application::OperatingMode::OperatingModeSetDate)
     {
       setDateTime.setDate(2000 + _setValues[2], _setValues[1], _setValues[0]);
@@ -95,11 +91,7 @@ void SetTimeDateView::keyHandler(Keys::Key key)
     switch (_mode)
     {
       case Application::OperatingMode::OperatingModeSetClock:
-      // Hardware::setTimeRaw(setDateTime.timeToHardware(), true);
-      // break;
-
       case Application::OperatingMode::OperatingModeSetDate:
-      // Hardware::setDateRaw(setDateTime.dateToHardware());
       Hardware::setDateTime(setDateTime);
       break;
 
@@ -175,6 +167,12 @@ void SetTimeDateView::keyHandler(Keys::Key key)
 
   if (key == Keys::Key::E)
   {
+    // Make sure these are off before we leave
+    Hardware::autoRefreshStatusLed(false);
+    Hardware::blueLed(0);
+    Hardware::greenLed(0);
+    Hardware::redLed(0);
+
     Application::setMode(Application::OperatingMode::OperatingModeMainMenu);
   }
 }
@@ -182,6 +180,8 @@ void SetTimeDateView::keyHandler(Keys::Key key)
 
 void SetTimeDateView::loop()
 {
+  uint8_t  adjustedHour = _setValues[2],
+           workingByte = _setValues[_selectedByte];
   uint16_t highlightIntensity = 4095,
            lowlightIntensity = 512,
            rate = 0,
@@ -192,30 +192,57 @@ void SetTimeDateView::loop()
            lowlightRed(lowlightIntensity, 0, 0, rate),
            lowlightGreen(0, lowlightIntensity, 0, rate);
 
-  // display in BCD if settings say so
-  if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD))
+  // display AM/PM on the status LED if we're in 12-hour mode and adjust
+  //  the displayed hour to match what's expected
+  if ((_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour) == true) &&
+      (_mode != Application::OperatingMode::OperatingModeSetDate))
   {
-    displayBitMask = (Hardware::uint32ToBcd(_setValues[2]) << 16)
-                   | (Hardware::uint32ToBcd(_setValues[1]) << 8)
-                   | Hardware::uint32ToBcd(_setValues[0]);
+    if (adjustedHour >= 12)
+    {
+      adjustedHour = adjustedHour - 12;
+      Hardware::setStatusLed(highlightRed);
+    }
+    else
+    {
+      Hardware::setStatusLed(highlightGreen);
+    }
+
+    if (adjustedHour == 0)
+    {
+      adjustedHour = 12;
+    }
+
+    if (_selectedByte == 2)
+    {
+      workingByte = adjustedHour;
+    }
+  }
+
+  // display in BCD if settings say so
+  if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD) == true)
+  {
+    displayBitMask = (Hardware::uint32ToBcd(adjustedHour) << 16) |
+                      (Hardware::uint32ToBcd(_setValues[1]) << 8) |
+                       Hardware::uint32ToBcd(_setValues[0]);
   }
   else
   {
-    displayBitMask = (_setValues[2] << 16) | (_setValues[1] << 8) | _setValues[0];
+    displayBitMask = (adjustedHour << 16) | (_setValues[1] << 8) | _setValues[0];
   }
 
   // now we can create a new display object with the right colors and bitmask
   Display bcDisp(lowlightGreen, lowlightRed, displayBitMask);
 
-  if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD))
+  // get the bitmap for the selected byte into displayBitMask
+  if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD) == true)
   {
-    displayBitMask = Hardware::uint32ToBcd(_setValues[_selectedByte]);
+    displayBitMask = Hardware::uint32ToBcd(workingByte);
   }
   else
   {
-    displayBitMask = _setValues[_selectedByte];
+    displayBitMask = workingByte;
   }
-
+  // create the highlight
   for (i = _selectedByte * 8; i < (_selectedByte + 1) * 8; i++)
   {
     if ((displayBitMask >> (i - (_selectedByte * 8))) & 1)
