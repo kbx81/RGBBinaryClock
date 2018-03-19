@@ -87,7 +87,8 @@ static viewDescriptor const cViewDescriptor[] = {
     { 31, ViewEnum::SetValueViewEnum },     // OperatingModeSetFlickerReduction
     { 32, ViewEnum::SetValueViewEnum },     // OperatingModeSetCurrentDrive
     { 33, ViewEnum::SetValueViewEnum },     // OperatingModeSetTempCalibration
-    { 34, ViewEnum::SetValueViewEnum },     // OperatingModeSetDMX512Address
+    { 34, ViewEnum::SetValueViewEnum },     // OperatingModeSetBeeperVolume
+    { 39, ViewEnum::SetValueViewEnum },     // OperatingModeSetDMX512Address
     { 40, ViewEnum::SetTimeDateViewEnum },  // OperatingModeSlot1Time
     { 41, ViewEnum::SetTimeDateViewEnum },  // OperatingModeSlot2Time
     { 42, ViewEnum::SetTimeDateViewEnum },  // OperatingModeSlot3Time
@@ -150,6 +151,7 @@ void initialize()
   // Update hardware things
   Hardware::autoAdjustIntensities(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
   Hardware::setFlickerReduction(_settings.getRawSetting(Settings::Setting::FlickerReduction));
+  Hardware::setVolume(_settings.getRawSetting(Settings::Setting::BeeperVolume));
   Hardware::currentDrive(_settings.getRawSetting(Settings::Setting::CurrentDrive));
   Hardware::setMinimumIntensity(_settings.getRawSetting(Settings::Setting::MinimumIntensity));
   Hardware::setTemperatureCalibration((int8_t)(-(_settings.getRawSetting(Settings::Setting::TemperatureCalibration))));

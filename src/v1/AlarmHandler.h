@@ -30,6 +30,10 @@ namespace kbxBinaryClock {
 namespace AlarmHandler {
 
 
+  // Initialize the alarms
+  //
+  void initialize();
+
   // Handles key presses (during an active alarm)
   //
   void keyHandler(Keys::Key key);
@@ -45,10 +49,6 @@ namespace AlarmHandler {
   // Set new alarm settings
   //
   void setSettings(Settings settings);
-
-  // Refreshes the state of the beeper
-  //
-  void refreshAlarm();
 }
 
 }

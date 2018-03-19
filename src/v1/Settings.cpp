@@ -49,6 +49,7 @@ namespace kbxBinaryClock {
                                               4095,     // FlickerReduction
                                               3,        // CurrentDrive
                                               31,       // TemperatureCalibration
+                                              7,        // BeeperVolume
                                               512 - 72 }; // DmxAddress
 
   Settings::Settings()
@@ -99,6 +100,7 @@ namespace kbxBinaryClock {
     _setting[static_cast<uint8_t>(FlickerReduction)] = 800;
     _setting[static_cast<uint8_t>(CurrentDrive)] = 0;
     _setting[static_cast<uint8_t>(TemperatureCalibration)] = 10;
+    _setting[static_cast<uint8_t>(BeeperVolume)] = 7;
     _setting[static_cast<uint8_t>(DmxAddress)] = 1;
 
     _color0[Slot::Slot1] = defaultRed;    // 0130

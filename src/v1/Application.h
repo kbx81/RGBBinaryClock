@@ -56,6 +56,7 @@ namespace Application {
     OperatingModeSetFlickerReduction, ///< Set flicker reduction value for display
     OperatingModeSetCurrentDrive,     ///< Set drive current for LEDs
     OperatingModeSetTempCalibration,  ///< Set temperature calibration
+    OperatingModeSetBeeperVolume,     ///< Set Beeper Volume
     OperatingModeSetDMX512Address,    ///< Set DMX-512 address mode
     OperatingModeSlot1Time,           ///< Set slot 1 time mode
     OperatingModeSlot2Time,           ///< Set slot 2 time mode

@@ -167,6 +167,14 @@ static const uint8_t cPwmBytesPerChannel = 2;
 //
 static const uint8_t cPwmTotalBytes = cPwmChannelsPerDevice * cPwmNumberOfDevices * cPwmBytesPerChannel;
 
+// minimum frequency allowed for tones
+//
+static const uint8_t cToneFrequencyMinimum = 91;
+
+// maximum volume level allowed for tones
+//
+static const uint8_t cToneVolumeMaximum = 7;
+
 // number of TSC channels we're using
 //
 static const uint8_t cTscChannelCount = 6;
@@ -278,6 +286,10 @@ volatile static SpiState _spiState = SpiState::Idle;
 // tracks when to silence a tone
 //
 static uint16_t _toneTimer = 0;
+
+// volume level for tones
+//
+static uint8_t _toneVolume = 0;
 
 // tracks which array element the next sample is to be written to
 //
@@ -1200,12 +1212,13 @@ bool tone(const uint16_t frequency, const uint16_t duration)
   // oc_value = period / 2
   if (_toneTimer == 0)
   {
-    if (frequency > 91)
+    if ((frequency > cToneFrequencyMinimum) && (_toneVolume < cToneVolumeMaximum))
     {
       // proc speed divided by prescaler...
-      uint32_t period = (48000000 / 8) / frequency;
+      uint32_t period = (48000000 / 8) / frequency,
+               ocValue = period / (2 << _toneVolume);
       timer_set_period(TIM1, period);
-      timer_set_oc_value(TIM1, TIM_OC1, period / 2);
+      timer_set_oc_value(TIM1, TIM_OC1, ocValue);
     }
     else
     {
@@ -1497,6 +1510,19 @@ void setMinimumIntensity(const uint16_t value)
 void setTemperatureCalibration(const int8_t value)
 {
   _temperatureAdjustment = value;
+}
+
+
+void setVolume(const uint8_t volumeLevel)
+{
+  if (volumeLevel > cToneVolumeMaximum)
+  {
+    _toneVolume = 0;
+  }
+  else
+  {
+    _toneVolume = cToneVolumeMaximum - volumeLevel;
+  }
 }
 
 

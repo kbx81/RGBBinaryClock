@@ -87,7 +87,8 @@ static viewDescriptor const cViewDescriptor[] = {
     { 31, ViewEnum::SetValueViewEnum },     // OperatingModeSetFlickerReduction
     { 32, ViewEnum::SetValueViewEnum },     // OperatingModeSetCurrentDrive
     { 33, ViewEnum::SetValueViewEnum },     // OperatingModeSetTempCalibration
-    { 34, ViewEnum::SetValueViewEnum },     // OperatingModeSetDMX512Address
+    { 34, ViewEnum::SetValueViewEnum },     // OperatingModeSetBeeperVolume
+    { 39, ViewEnum::SetValueViewEnum },     // OperatingModeSetDMX512Address
     { 40, ViewEnum::SetTimeDateViewEnum },  // OperatingModeSlot1Time
     { 41, ViewEnum::SetTimeDateViewEnum },  // OperatingModeSlot2Time
     { 42, ViewEnum::SetTimeDateViewEnum },  // OperatingModeSlot3Time
@@ -115,7 +116,7 @@ static viewDescriptor const cViewDescriptor[] = {
 
 // The maximum idle time before the application switches back to the default view
 //
-static const uint32_t cMaximumIdleCount = 100000;
+static const uint32_t cMaximumIdleCount = 80000;
 
 // The current mode and sub-mode (if used) of the application
 //
@@ -144,11 +145,13 @@ void initialize()
   _settings.loadFromFlash();
 
   // Update alarms
+  AlarmHandler::initialize();
   AlarmHandler::setSettings(_settings);
 
   // Update hardware things
   Hardware::autoAdjustIntensities(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
   Hardware::setFlickerReduction(_settings.getRawSetting(Settings::Setting::FlickerReduction));
+  Hardware::setVolume(_settings.getRawSetting(Settings::Setting::BeeperVolume));
   Hardware::currentDrive(_settings.getRawSetting(Settings::Setting::CurrentDrive));
   Hardware::setMinimumIntensity(_settings.getRawSetting(Settings::Setting::MinimumIntensity));
   Hardware::setTemperatureCalibration((int8_t)(-(_settings.getRawSetting(Settings::Setting::TemperatureCalibration))));

@@ -183,6 +183,14 @@ static const uint8_t cPwmBytesPerChannel = 2;
 //
 static const uint8_t cPwmTotalBytes = cPwmChannelsPerDevice * cPwmNumberOfDevices * cPwmBytesPerChannel;
 
+// minimum frequency allowed for tones
+//
+static const uint8_t cToneFrequencyMinimum = 0;
+
+// maximum volume level allowed for tones
+//
+static const uint8_t cToneVolumeMaximum = 7;
+
 // number of TSC channels we're using
 //
 static const uint8_t cTscChannelCount = 6;
@@ -294,6 +302,10 @@ volatile static SpiState _spiState = SpiState::Idle;
 // tracks when to silence a tone
 //
 static uint16_t _toneTimer = 0;
+
+// volume level for tones
+//
+static uint8_t _toneVolume = 0;
 
 // tracks which array element the next sample is to be written to
 //
@@ -1183,7 +1195,7 @@ bool tone(const uint16_t frequency, const uint16_t duration)
 {
   if (_toneTimer == 0)
   {
-    if (frequency > 0)
+    if ((frequency > cToneFrequencyMinimum) && (_toneVolume < cToneVolumeMaximum))
     {
       gpio_set(cBuzzerPort, cBuzzerPin);
     }
@@ -1476,6 +1488,19 @@ void setMinimumIntensity(const uint16_t value)
 void setTemperatureCalibration(const int8_t value)
 {
   _temperatureAdjustment = value;
+}
+
+
+void setVolume(const uint8_t volumeLevel)
+{
+  if (volumeLevel > cToneVolumeMaximum)
+  {
+    _toneVolume = 0;
+  }
+  else
+  {
+    _toneVolume = cToneVolumeMaximum - volumeLevel;
+  }
 }
 
 

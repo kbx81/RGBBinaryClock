@@ -126,6 +126,10 @@ namespace Hardware {
   //
   void     setTemperatureCalibration(const int8_t value);
 
+  // Sets the volume of tones emitted from the buzzer
+  //  Valid range is 0 (muted/minimum) to 7 (maximum/default)
+  void     setVolume(const uint8_t volumeLevel);
+
   // Writes the passed display into the display buffer. LEDs will fade to the
   //  intensities in the new display at the specified rates.
   void     writeDisplay(const Display &display);

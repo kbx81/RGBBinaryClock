@@ -54,7 +54,8 @@ public:
     FlickerReduction = 15,
     CurrentDrive = 16,
     TemperatureCalibration = 17,
-    DmxAddress = 18
+    BeeperVolume = 18,
+    DmxAddress = 19
   };
 
   // @brief Settings we keep
