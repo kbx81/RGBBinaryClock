@@ -81,24 +81,16 @@ void SetBitsView::keyHandler(Keys::Key key)
 
 void SetBitsView::loop()
 {
-  uint16_t highlightIntensity = 4095,
-           lowlightIntensity = 512,
-           rate = 0;
-  RgbLed   highlightRed(highlightIntensity, 0, 0, rate),
-           highlightGreen(0, highlightIntensity, 0, rate),
-           lowlightRed(lowlightIntensity, 0, 0, rate),
-           lowlightGreen(0, lowlightIntensity, 0, rate);
-
-  // now we can create a new display object with the right colors and bitmask
-  Display bcDisp(lowlightGreen, lowlightRed, (uint32_t)_setBits);
-
+  // create a new display object with the right colors and bitmask
+  Display bcDisp(_settings.getColor0(Settings::Slot::SlotSetDim), _settings.getColor1(Settings::Slot::SlotSetDim), (uint32_t)_setBits);
+  // highlight the selected region
   if ((_setBits >> _selectedBit) & 1)
   {
-    bcDisp.setLedFromRaw(_selectedBit, highlightRed);
+    bcDisp.setLedFromRaw(_selectedBit, _settings.getColor1(Settings::Slot::SlotSet));
   }
   else
   {
-    bcDisp.setLedFromRaw(_selectedBit, highlightGreen);
+    bcDisp.setLedFromRaw(_selectedBit, _settings.getColor0(Settings::Slot::SlotSet));
   }
 
   Hardware::writeDisplay(bcDisp);

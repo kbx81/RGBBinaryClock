@@ -48,6 +48,9 @@ void SetColorsView::enter()
   _setValues[Color::Red1] = color1.getRed();
   _setValues[Color::Green1] = color1.getGreen();
   _setValues[Color::Blue1] = color1.getBlue();
+
+  // make the display bright so we can see the colors we're working with
+  Hardware::autoAdjustIntensities(false);
 }
 
 
@@ -63,6 +66,7 @@ void SetColorsView::keyHandler(Keys::Key key)
     _settings.setColors(static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSlot1Colors), color0, color1);
 
     Application::setSettings(_settings);
+    Hardware::autoAdjustIntensities(false);   // keep this disabled for now
 
     Hardware::doubleBlink();
   }
@@ -96,6 +100,9 @@ void SetColorsView::keyHandler(Keys::Key key)
 
   if (key == Keys::Key::E)
   {
+    // restore autoAdjustIntensities in case we changed it
+    Hardware::autoAdjustIntensities(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
+
     Application::setMode(Application::OperatingMode::OperatingModeMainMenu);
   }
 }
@@ -152,27 +159,27 @@ void SetColorsView::loop()
   switch (_selectedParam)
   {
     case Red0:
-    bcDisp.setLedFromRaw(20, redHighlight);
-    break;
-
-    case Green0:
-    bcDisp.setLedFromRaw(21, greenHighlight);
-    break;
-
-    case Blue0:
-    bcDisp.setLedFromRaw(22, blueHighlight);
-    break;
-
-    case Red1:
     bcDisp.setLedFromRaw(16, redHighlight);
     break;
 
-    case Green1:
+    case Green0:
     bcDisp.setLedFromRaw(17, greenHighlight);
     break;
 
-    case Blue1:
+    case Blue0:
     bcDisp.setLedFromRaw(18, blueHighlight);
+    break;
+
+    case Red1:
+    bcDisp.setLedFromRaw(20, redHighlight);
+    break;
+
+    case Green1:
+    bcDisp.setLedFromRaw(21, greenHighlight);
+    break;
+
+    case Blue1:
+    bcDisp.setLedFromRaw(22, blueHighlight);
     break;
   }
 

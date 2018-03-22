@@ -76,7 +76,9 @@ namespace Application {
     OperatingModeSlot8Colors,         ///< Set slot 8 colors mode
     OperatingModeDateColors,          ///< Set date colors mode
     OperatingModeTempColors,          ///< Set temperature colors mode
-    OperatingModeTimerCounterColors   ///< Set timer/counter colors mode
+    OperatingModeTimerCounterColors,  ///< Set timer/counter colors mode
+    OperatingModeMenuColors,          ///< Set menu colors mode
+    OperatingModeSetColors            ///< Set set colors mode
   };
 
   /// @brief Enums for views

@@ -88,7 +88,10 @@ public:
     SlotDate = 8,
     SlotTemperature = 9,
     SlotTimer = 10,
-    SlotCalculated = 11
+    SlotMenu = 11,
+    SlotSet = 12,
+    SlotSetDim = 13,
+    SlotCalculated = 14
   };
 
 

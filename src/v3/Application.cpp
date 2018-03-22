@@ -107,7 +107,9 @@ static viewDescriptor const cViewDescriptor[] = {
     { 57, ViewEnum::SetColorsViewEnum },    // OperatingModeSlot8Colors
     { 58, ViewEnum::SetColorsViewEnum },    // OperatingModeDateColors
     { 59, ViewEnum::SetColorsViewEnum },    // OperatingModeTempColors
-    { 60, ViewEnum::SetColorsViewEnum }     // OperatingModeTimerCounterColors
+    { 60, ViewEnum::SetColorsViewEnum },    // OperatingModeTimerCounterColors
+    { 61, ViewEnum::SetColorsViewEnum },    // OperatingModeMenuColors
+    { 62, ViewEnum::SetColorsViewEnum },    // OperatingModeSetColors
 };
 
 // The loop delay in milliseconds.
@@ -168,7 +170,7 @@ uint8_t getModeDisplayNumber(OperatingMode mode)
 
 uint8_t getModeDisplayNumber(uint8_t mode)
 {
-  if (mode <= static_cast<uint8_t>(OperatingMode::OperatingModeTimerCounterColors))
+  if (mode <= static_cast<uint8_t>(OperatingMode::OperatingModeSetColors))
   {
     return cViewDescriptor[mode].displayNumber;
   }
@@ -217,6 +219,7 @@ void setSettings(Settings settings)
   // Update hardware things
   Hardware::autoAdjustIntensities(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
   Hardware::setFlickerReduction(_settings.getRawSetting(Settings::Setting::FlickerReduction));
+  Hardware::setVolume(_settings.getRawSetting(Settings::Setting::BeeperVolume));
   Hardware::currentDrive(_settings.getRawSetting(Settings::Setting::CurrentDrive));
   Hardware::setMinimumIntensity(_settings.getRawSetting(Settings::Setting::MinimumIntensity));
   Hardware::setTemperatureCalibration((int8_t)(-(_settings.getRawSetting(Settings::Setting::TemperatureCalibration))));
@@ -267,7 +270,6 @@ void loop()
         setMode(OperatingMode::OperatingModeToggleDisplay);
       }
     }
-    // Hardware::delay(cLoopDelay);
   }
 }
 

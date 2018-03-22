@@ -65,9 +65,11 @@ namespace kbxBinaryClock {
              rate = 100;
     uint8_t  i = 0;
     RgbLed   defaultRed(intensity, 0, 0, rate),
+             defaultRedDim(intensity / 4, 0, 0, rate),
              defaultOrange(intensity, intensity / 3, 0, rate),
              defaultYellow(intensity, intensity, 0, rate),
              defaultGreen(0, intensity, 0, rate),
+             defaultGreenDim(0, intensity / 4, 0, rate),
              defaultCyan(0, intensity, intensity, rate),
              defaultBlue(0, 0, intensity, rate),
              defaultViolet(intensity / 8, 0, intensity, rate),
@@ -123,10 +125,23 @@ namespace kbxBinaryClock {
     _color1[Slot::SlotDate] = defaultWhite;
     _color0[Slot::SlotTemperature] = defaultBlue;
     _color1[Slot::SlotTemperature] = defaultYellow;
-    _color0[Slot::SlotTimer] = defaultGreen;
-    _color1[Slot::SlotTimer] = defaultRed;
+    _color0[Slot::SlotTimer] = defaultBlue;
+    _color1[Slot::SlotTimer] = defaultWhite;
+    _color0[Slot::SlotMenu] = defaultGray;
+    _color1[Slot::SlotMenu] = defaultWhite;
+    _color0[Slot::SlotSet] = defaultGreen;
+    _color1[Slot::SlotSet] = defaultRed;
+    _color0[Slot::SlotSetDim] = defaultGreenDim;
+    _color1[Slot::SlotSetDim] = defaultRedDim;
     _color0[Slot::SlotCalculated] = defaultGreen;
     _color1[Slot::SlotCalculated] = defaultRed;
+
+    _color0[Slot::SlotMenu].setRate(0);
+    _color1[Slot::SlotMenu].setRate(0);
+    _color0[Slot::SlotSet].setRate(0);
+    _color1[Slot::SlotSet].setRate(0);
+    _color0[Slot::SlotSetDim].setRate(0);
+    _color1[Slot::SlotSetDim].setRate(0);
 
     _validityKey = cSettingsValidationKey;  // settings are now valid
 }
@@ -270,10 +285,21 @@ namespace kbxBinaryClock {
 
   void Settings::setColors(const uint8_t slot, const RgbLed color0, const RgbLed color1)
   {
-    if (slot <= static_cast<uint8_t>(Slot::SlotCalculated))
+    if (slot <= static_cast<uint8_t>(Slot::SlotSet))
     {
       _color0[slot] = color0;
       _color1[slot] = color1;
+
+      if (slot == static_cast<uint8_t>(Slot::SlotSet))
+      {
+        _color0[slot + 1].setRed(color0.getRed() / 4);
+        _color0[slot + 1].setGreen(color0.getGreen() / 4);
+        _color0[slot + 1].setBlue(color0.getBlue() / 4);
+        _color1[slot + 1].setRed(color1.getRed() / 4);
+        _color1[slot + 1].setGreen(color1.getGreen() / 4);
+        _color1[slot + 1].setBlue(color1.getBlue() / 4);
+      }
+
     }
   }
 

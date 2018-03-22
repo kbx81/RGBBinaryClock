@@ -1,5 +1,5 @@
 //
-// kbx81's binary clock LM75 temperature sensor class
+// kbx81's binary clock DS1722 temperature sensor class
 // ---------------------------------------------------------------------------
 // (c)2017 by kbx81. See LICENSE for details.
 //

@@ -90,10 +90,7 @@ void SetValueView::keyHandler(Keys::Key key)
 
 void SetValueView::loop()
 {
-  uint16_t rate = 0;
   uint32_t displayBitMask;
-  RgbLed   defaultRed(4095, 0, 0, rate),
-           defaultGreen(0, 4095, 0, rate);
 
   // display value in BCD if settings say so
   if (_settings.getSetting(Settings::SystemOptions, Settings::SystemOptionsBits::DisplayBCD))
@@ -106,7 +103,7 @@ void SetValueView::loop()
   }
 
   // now we can create a new display object with the right colors and bitmask
-  Display bcDisp(defaultGreen, defaultRed, displayBitMask);
+  Display bcDisp(_settings.getColor0(Settings::Slot::SlotSet), _settings.getColor1(Settings::Slot::SlotSet), displayBitMask);
 
   Hardware::writeDisplay(bcDisp);
 }

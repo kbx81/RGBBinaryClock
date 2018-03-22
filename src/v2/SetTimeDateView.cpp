@@ -180,17 +180,9 @@ void SetTimeDateView::keyHandler(Keys::Key key)
 
 void SetTimeDateView::loop()
 {
-  uint8_t  adjustedHour = _setValues[2],
+  uint8_t  i, adjustedHour = _setValues[2],
            workingByte = _setValues[_selectedByte];
-  uint16_t highlightIntensity = 4095,
-           lowlightIntensity = 512,
-           rate = 0,
-           i = 0;
   uint32_t displayBitMask;
-  RgbLed   highlightRed(highlightIntensity, 0, 0, rate),
-           highlightGreen(0, highlightIntensity, 0, rate),
-           lowlightRed(lowlightIntensity, 0, 0, rate),
-           lowlightGreen(0, lowlightIntensity, 0, rate);
 
   // display AM/PM on the status LED if we're in 12-hour mode and adjust
   //  the displayed hour to match what's expected
@@ -200,11 +192,11 @@ void SetTimeDateView::loop()
     if (adjustedHour >= 12)
     {
       adjustedHour = adjustedHour - 12;
-      Hardware::setStatusLed(highlightRed);
+      Hardware::setStatusLed(_settings.getColor1(Settings::Slot::SlotSet));
     }
     else
     {
-      Hardware::setStatusLed(highlightGreen);
+      Hardware::setStatusLed(_settings.getColor0(Settings::Slot::SlotSet));
     }
 
     if (adjustedHour == 0)
@@ -231,7 +223,7 @@ void SetTimeDateView::loop()
   }
 
   // now we can create a new display object with the right colors and bitmask
-  Display bcDisp(lowlightGreen, lowlightRed, displayBitMask);
+  Display bcDisp(_settings.getColor0(Settings::Slot::SlotSetDim), _settings.getColor1(Settings::Slot::SlotSetDim), displayBitMask);
 
   // get the bitmap for the selected byte into displayBitMask
   if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD) == true)
@@ -247,11 +239,11 @@ void SetTimeDateView::loop()
   {
     if ((displayBitMask >> (i - (_selectedByte * 8))) & 1)
     {
-      bcDisp.setLedFromRaw(i, highlightRed);
+      bcDisp.setLedFromRaw(i, _settings.getColor1(Settings::Slot::SlotSet));
     }
     else
     {
-      bcDisp.setLedFromRaw(i, highlightGreen);
+      bcDisp.setLedFromRaw(i, _settings.getColor0(Settings::Slot::SlotSet));
     }
   }
 

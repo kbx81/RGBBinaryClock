@@ -1,5 +1,5 @@
 //
-// kbx81's binary clock
+// kbx81's binary clock Hardware class
 // ---------------------------------------------------------------------------
 // (c)2017 by kbx81. See LICENSE for details.
 //

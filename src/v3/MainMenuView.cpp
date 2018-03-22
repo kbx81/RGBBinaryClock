@@ -30,7 +30,7 @@ void MainMenuView::enter()
   _settings = Application::getSettings();
 
   // correct the mode if it's out of range
-  if ((_selectedMode == 0) || (_selectedMode > Application::OperatingMode::OperatingModeTimerCounterColors))
+  if ((_selectedMode == 0) || (_selectedMode > Application::OperatingMode::OperatingModeSetColors))
   {
     _selectedMode = Application::OperatingMode::OperatingModeFixedDisplay;
   }
@@ -50,7 +50,7 @@ void MainMenuView::enter()
 void MainMenuView::keyHandler(Keys::Key key)
 {
   if ((key == Keys::Key::A) &&
-      (_selectedMode == static_cast<uint8_t>(Application::OperatingMode::OperatingModeTimerCounterColors) + 1))
+      (_selectedMode == static_cast<uint8_t>(Application::OperatingMode::OperatingModeSetColors) + 1))
   {
     Hardware::redLed(4095);
 
@@ -84,15 +84,15 @@ void MainMenuView::keyHandler(Keys::Key key)
   {
     _selectedMode++;
 
-    if (_selectedMode > static_cast<uint8_t>(Application::OperatingMode::OperatingModeTimerCounterColors) + 1)
+    if (_selectedMode > static_cast<uint8_t>(Application::OperatingMode::OperatingModeSetColors) + 1)
     {
-      _selectedMode = static_cast<uint8_t>(Application::OperatingMode::OperatingModeTimerCounterColors) + 1;
+      _selectedMode = static_cast<uint8_t>(Application::OperatingMode::OperatingModeSetColors) + 1;
     }
   }
 
   if (key == Keys::Key::E)
   {
-    if (_selectedMode <= static_cast<uint8_t>(Application::OperatingMode::OperatingModeTimerCounterColors))
+    if (_selectedMode <= static_cast<uint8_t>(Application::OperatingMode::OperatingModeSetColors))
     {
       Application::setMode((Application::OperatingMode)_selectedMode);
     }
@@ -102,10 +102,7 @@ void MainMenuView::keyHandler(Keys::Key key)
 
 void MainMenuView::loop()
 {
-  uint16_t rate = 0;
   uint32_t displayBitMask = Application::getModeDisplayNumber(_selectedMode);
-  RgbLed  menuWhite(4095, 4095, 4095, rate),
-          menuDarkWhite(512, 512, 512, rate);
 
   if (displayBitMask == 0)
   {
@@ -118,7 +115,7 @@ void MainMenuView::loop()
     displayBitMask = Hardware::uint32ToBcd(static_cast<uint16_t>(displayBitMask));
   }
 
-  Display bcDisp(menuDarkWhite, menuWhite, displayBitMask << 16);
+  Display bcDisp(_settings.getColor0(Settings::Slot::SlotMenu), _settings.getColor1(Settings::Slot::SlotMenu), displayBitMask << 16);
 
   Hardware::writeDisplay(bcDisp);
 }
