@@ -1,5 +1,5 @@
 //
-// kbx81's binary clock LM75 temperature sensor class
+// kbx81's binary clock LM74 temperature sensor class
 // ---------------------------------------------------------------------------
 // (c)2017 by kbx81. See LICENSE for details.
 //
@@ -34,13 +34,9 @@ bool isConnected();
 //
 int16_t getTemperature();
 
-// Read all registers from the LM75
-//  Returns result of read from Hardware::i2c_transfer7()
-uint8_t refresh();
-
-// Read temperature registers from the LM75
-//  Returns result of read from Hardware::i2c_transfer7()
-uint8_t refreshTemp();
+// Read temperature registers from the LM74
+//  Returns result of read from Hardware::spiTransfer()
+bool refresh();
 
 }
 

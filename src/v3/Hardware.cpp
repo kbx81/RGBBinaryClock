@@ -196,12 +196,10 @@ static const uint32_t cTscPort = GPIOB;
 
 // pins used for sense capacitors
 //
-// static const uint16_t cTscSamplingCapPins = PIN_TSCG3_CS | PIN_TSCG5_CS | PIN_TSCG6_CS;
 static const uint16_t cTscSamplingCapPins = GPIO2 | GPIO3 | GPIO14;
 
 // pins used for touch keys
 //
-// static const uint16_t cTscTouchKeyPins = PIN_TSCG3_K2 | PIN_TSCG3_K3 | PIN_TSCG5_K2 | PIN_TSCG5_K3 | PIN_TSCG6_K2 | PIN_TSCG6_K3;
 static const uint16_t cTscTouchKeyPins = GPIO0 | GPIO1 | GPIO6 | GPIO7 | GPIO12 | GPIO13;
 
 // touch sense controller I/O groups
@@ -273,6 +271,10 @@ static uint16_t _minimumIntensity = 100;
 // multiplier used to adjust display intensity
 //
 static uint32_t _intensityMultiplier = 100;
+
+// inverts NSS state during SPI transfers (for DS1722) if true
+//
+static bool _invertCsForTemperatureSensor = false;
 
 // previous multiplier used to adjust display intensity
 //
@@ -559,8 +561,8 @@ void _gpioSetup()
   gpio_mode_setup(cPhototransistorPort, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, cPhototransistorPin);
 
   // Finally, set the inital pin states for the pins we configured above
-  gpio_set(cNssPort, cNssDisplayPin | cNssRtcPin);
-  gpio_clear(cNssPort, cNssTemperaturePin);
+  gpio_set(cNssPort, cNssDisplayPin | cNssRtcPin | cNssTemperaturePin);
+  // gpio_clear(cNssPort, cNssTemperaturePin);
   gpio_set(cBlankDisplayPort, cBlankDisplayPin);
   gpio_clear(cCurrentDrivePort, cCurrentDriveLowPin | cCurrentDriveHighPin);
   gpio_clear(cLedXPort, cSparePin);
@@ -1092,6 +1094,27 @@ void initialize()
     _setPWMx3(i, startupOff);
   }
 
+  // Here we check for other temperature sensors
+  if (LM74::isConnected() == true)
+  {
+    _externalTemperatureSensor = TempSensorType::LM7x;
+    startupDisplayBitmap |= 0x01;   // this will appear on the startup display
+  }
+  else
+  {
+    _invertCsForTemperatureSensor = true;
+
+    if (DS1722::isConnected() == true)
+    {
+      _externalTemperatureSensor = TempSensorType::DS1722;
+      startupDisplayBitmap |= 0x02;   // this will appear on the startup display
+    }
+    else
+    {
+      _invertCsForTemperatureSensor = false;
+    }
+  }
+
   _externalRtcConnected = DS3234::isConnected();
 
   if (_externalRtcConnected == true)
@@ -1099,26 +1122,16 @@ void initialize()
     while (_spiState != SpiState::Idle);
     // isConnected() refreshes the status register so this will work without a refresh()
     _rtcIsSet = DS3234::isValid();
-    _externalTemperatureSensor = TempSensorType::DS323x;
     startupDisplayBitmap |= 0x10;   // this will appear on the startup display
+    if (_externalTemperatureSensor == TempSensorType::None)
+    {
+      _externalTemperatureSensor = TempSensorType::DS323x;
+    }
   }
   else
   {
     _rtcIsSet = RTC_ISR & RTC_ISR_INITS;
   }
-
-  // Here we check for other temperature sensors
-  if (DS1722::isConnected() == true)
-  {
-    _externalTemperatureSensor = TempSensorType::DS1722;
-    startupDisplayBitmap |= 0x02;   // this will appear on the startup display
-  }
-
-  // if (LM74::isConnected() == true)
-  // {
-  //   _externalTemperatureSensor = TempSensorType::LM7x;
-  //   startupDisplayBitmap |= 0x01;   // this will appear on the startup display
-  // }
 
   _rtcSetup();
 
@@ -1203,14 +1216,14 @@ void refresh()
       break;
 
     case TempSensorType::LM7x:
-      while (!LM74::refresh());
+      while (LM74::refresh() == false);
       // LM74::refresh();
-      _temperatureX100 =  (LM74::getTemperature() >> 8) * 100;
-      _temperatureX100 += ((LM74::getTemperature() >> 6) & 0x03) * 25;
+      _temperatureX100 =  (LM74::getTemperature() >> 7) * 100;
+      _temperatureX100 += ((LM74::getTemperature() >> 5) & 0x03) * 25;
       break;
 
     case TempSensorType::DS1722:
-      while (!DS1722::refresh());
+      while (DS1722::refresh() == false);
       // DS1722::refresh();
       _temperatureX100 =  (DS1722::getTemperature() >> 8) * 100;
       _temperatureX100 += ((DS1722::getTemperature() >> 6) & 0x03) * 25;
@@ -1897,7 +1910,14 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
       break;
 
     case SpiPeripheral::TempSensor:
-      gpio_set(cNssPort, cNssTemperaturePin);
+      if (_invertCsForTemperatureSensor == true)
+      {
+        gpio_set(cNssPort, cNssTemperaturePin);
+      }
+      else
+      {
+        gpio_clear(cNssPort, cNssTemperaturePin);
+      }
       break;
 
     default:
@@ -2070,8 +2090,15 @@ void dmaIsr()
     // wait for the last bits to roll out
     while (SPI_SR(SPI1) & SPI_SR_BSY);
     // release the NSS line(s)
-    gpio_set(cNssPort, cNssDisplayPin | cNssRtcPin);
-    gpio_clear(cNssPort, cNssTemperaturePin);
+    if (_invertCsForTemperatureSensor == true)
+    {
+      gpio_set(cNssPort, cNssDisplayPin | cNssRtcPin);
+      gpio_clear(cNssPort, cNssTemperaturePin);
+    }
+    else
+    {
+      gpio_set(cNssPort, cNssDisplayPin | cNssRtcPin | cNssTemperaturePin);
+    }
 
     if ((_spiState == SpiState::BusyDisplay) && (_displayBlank == false))
     {

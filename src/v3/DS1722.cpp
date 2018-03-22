@@ -17,7 +17,6 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 //
 #include <cstdint>
-#include "DateTime.h"
 #include "DS1722.h"
 #include "Hardware.h"
 

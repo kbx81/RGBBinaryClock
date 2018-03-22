@@ -34,7 +34,7 @@ bool isConnected();
 //
 int16_t getTemperature();
 
-// Read all registers from the LM75
+// Read all registers from the DS1722
 //  Returns result of read from Hardware::spiTransfer()
 bool refresh();
 
