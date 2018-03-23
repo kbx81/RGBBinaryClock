@@ -66,9 +66,21 @@ bool isConnected()
 }
 
 
-int16_t getTemperature()
+uint16_t getTemperatureRegister()
 {
   return (lm75Register[cTemperatureRegister] << 8) | lm75Register[cTemperatureRegister + 1];
+}
+
+
+int16_t getTemperatureWholePart()
+{
+  return ((int8_t)lm75Register[cTemperatureRegister]);
+}
+
+
+uint16_t getTemperatureFractionalPart()
+{
+  return ((lm75Register[cTemperatureRegister + 1] & 0x80) >> 4);
 }
 
 

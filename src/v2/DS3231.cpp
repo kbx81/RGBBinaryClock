@@ -162,9 +162,21 @@ bool isValid()
 }
 
 
-int16_t getTemperature()
+uint16_t getTemperatureRegister()
 {
   return (ds3231Register[cTemperatureMSBRegister] << 8) | ds3231Register[cTemperatureLSBRegister];
+}
+
+
+int16_t getTemperatureWholePart()
+{
+  return ((int8_t)ds3231Register[cTemperatureMSBRegister]);
+}
+
+
+uint16_t getTemperatureFractionalPart()
+{
+  return (ds3231Register[cTemperatureLSBRegister] >> 4);
 }
 
 

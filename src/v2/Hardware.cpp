@@ -131,7 +131,7 @@ static const uint16_t cAdcSampleInterval = 500;
 //
 static const uint8_t cAdcSamplesToAverage = 16;
 
-// value use use to increase precision in our maths
+// value used to increase precision in our maths
 //
 static const int16_t cBaseMultiplier = 1000;
 
@@ -166,6 +166,10 @@ static const uint8_t cPwmBytesPerChannel = 2;
 // total bytes required for all PWM channels
 //
 static const uint8_t cPwmTotalBytes = cPwmChannelsPerDevice * cPwmNumberOfDevices * cPwmBytesPerChannel;
+
+// value by which we multiply the fractional part of temperature sensor readings
+//
+static const int16_t cTempFracMultiplier = 125;
 
 // minimum frequency allowed for tones
 //
@@ -354,7 +358,7 @@ static DateTime _currentDateTime;
 
 // contains the temperature in degrees Celsius times one hundred
 //
-static int32_t _temperatureX100;
+static int32_t _temperatureXcBaseMultiplier;
 
 // contains the calculated light level based on the ADC's reading
 //
@@ -1180,14 +1184,14 @@ void refresh()
     {
       case TempSensorType::DS323x:
         // Registers will have been refreshed above
-        _temperatureX100 =  (DS3231::getTemperature() >> 8) * 100;
-        _temperatureX100 += ((DS3231::getTemperature() >> 6) & 0x03) * 25;
+        _temperatureXcBaseMultiplier =  DS3231::getTemperatureWholePart() * cBaseMultiplier;
+        _temperatureXcBaseMultiplier += ((DS3231::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
         break;
 
       case TempSensorType::LM7x:
         LM75::refreshTemp();
-        _temperatureX100 =  (LM75::getTemperature() >> 8) * 100;
-        _temperatureX100 += ((LM75::getTemperature() >> 6) & 0x03) * 25;
+        _temperatureXcBaseMultiplier =  LM75::getTemperatureWholePart() * cBaseMultiplier;
+        _temperatureXcBaseMultiplier += ((LM75::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
         break;
       case TempSensorType::MCP9808:
       default:
@@ -1196,11 +1200,11 @@ void refresh()
         int32_t averageVoltage = totalVoltage / cAdcSamplesToAverage;
         // Determine the voltage as it affects the temperature calculation
         int32_t voltage = cVddCalibrationVoltage * (int32_t)ST_VREFINT_CAL / averageVoltage;
-        // Now we can compute the temperature based on RM's formula, * 100
-        _temperatureX100 = (averageTemp * voltage / cVddCalibrationVoltage) - ST_TSENSE_CAL1_30C;
-        _temperatureX100 = _temperatureX100 * (110 - 30) * 100;
-        _temperatureX100 = _temperatureX100 / (ST_TSENSE_CAL2_110C - ST_TSENSE_CAL1_30C);
-        _temperatureX100 = _temperatureX100 + 3000 + (_temperatureAdjustment * 100);
+        // Now we can compute the temperature based on RM's formula, * cBaseMultiplier
+        _temperatureXcBaseMultiplier = (averageTemp * voltage / cVddCalibrationVoltage) - ST_TSENSE_CAL1_30C;
+        _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier * (110 - 30) * cBaseMultiplier;
+        _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier / (ST_TSENSE_CAL2_110C - ST_TSENSE_CAL1_30C);
+        _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier + 30000 + (_temperatureAdjustment * cBaseMultiplier);
         // break;
     }
 }
@@ -1421,17 +1425,17 @@ int32_t temperature(const bool fahrenheit, const bool bcd)
   {
     if (bcd)
     {
-      return uint32ToBcd((uint16_t)((_temperatureX100 * 18) / cBaseMultiplier) + 32);
+      return uint32ToBcd((uint16_t)((_temperatureXcBaseMultiplier * 18) / 10000) + 32);
     }
-    return ((_temperatureX100 * 18) / cBaseMultiplier) + 32;
+    return ((_temperatureXcBaseMultiplier * 18) / 10000) + 32;
   }
   else
   {
     if (bcd)
     {
-      return uint32ToBcd((uint16_t)_temperatureX100 / 100);
+      return uint32ToBcd((uint16_t)_temperatureXcBaseMultiplier / cBaseMultiplier);
     }
-    return _temperatureX100 / 100;
+    return _temperatureXcBaseMultiplier / cBaseMultiplier;
   }
 }
 

@@ -65,9 +65,17 @@ bool isRunning();
 //
 bool isValid();
 
-// Get the temperature in degrees celsius
+// Get the raw temperature register value
 //
-int16_t getTemperature();
+uint16_t getTemperatureRegister();
+
+// Get the whole-number part of the temperature register (in degrees celsius)
+//
+int16_t getTemperatureWholePart();
+
+// Get the fractional part of the temperature register (in degrees celsius)
+//
+uint16_t getTemperatureFractionalPart();
 
 // Read all registers from the DS3234
 //  Returns result of read from Hardware::spiTransfer

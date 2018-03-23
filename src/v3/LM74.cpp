@@ -66,16 +66,33 @@ bool isConnected()
 }
 
 
-int16_t getTemperature()
+uint16_t getTemperatureRegister()
 {
   return (lm74Register[0] << 8) | lm74Register[1];
+}
+
+
+int16_t getTemperatureWholePart()
+{
+  int16_t temperature = ((lm74Register[0] & 0x80) << 8) |
+                        (lm74Register[0] << 1) |
+                        (lm74Register[1] >> 7);
+  return temperature;
+}
+
+
+uint16_t getTemperatureFractionalPart()
+{
+  uint16_t temperature = (lm74Register[1] & 0x7f) >> 3;
+
+  return temperature;
 }
 
 
 bool refresh()
 {
   // Try to read the temperature registers
-  while (Hardware::spiTransfer(Hardware::SpiPeripheral::TempSensor, lm74Register, spareBuffer, 2, false) == false);
+  return Hardware::spiTransfer(Hardware::SpiPeripheral::TempSensor, lm74Register, spareBuffer, 2, false);
 }
 
 

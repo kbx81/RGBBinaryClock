@@ -46,7 +46,7 @@ static const uint8_t cAddressByte = 0x00;
 
 // What we want in the config register
 //
-static const uint8_t cConfigByte = 0xe4;
+static const uint8_t cConfigByte = 0xee;
 
 // Setting this bit in the address byte makes the operation a write
 //
@@ -90,9 +90,21 @@ bool isConnected()
 }
 
 
-int16_t getTemperature()
+uint16_t getTemperatureRegister()
 {
   return (ds1722Register[cTemperatureMSBRegister] << 8) | ds1722Register[cTemperatureLSBRegister];
+}
+
+
+int16_t getTemperatureWholePart()
+{
+  return ((int8_t)ds1722Register[cTemperatureMSBRegister]);
+}
+
+
+uint16_t getTemperatureFractionalPart()
+{
+  return (ds1722Register[cTemperatureLSBRegister] >> 4);
 }
 
 
