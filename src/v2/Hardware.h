@@ -150,6 +150,15 @@ namespace Hardware {
   //
   uint8_t  i2c_transfer7(const uint32_t i2c, const uint8_t addr, const uint8_t *w, size_t wn, uint8_t *r, size_t rn);
 
+  // Reads and/or writes data to/from specified I2C interface via DMA
+  //
+  uint8_t  i2cTransfer(const uint8_t addr, const uint8_t *w, size_t wn, uint8_t *r, size_t rn);
+
+  // Reads and/or writes data to/from the I2C1 interface via DMA
+  //
+  bool     i2cReceive(const uint8_t addr, const uint8_t *bufferRx, const size_t numberRx, const bool autoEndXfer);
+  bool     i2cTransmit(const uint8_t addr, const uint8_t *bufferTx, const size_t numberTx, const bool autoEndXfer);
+
   // Reads data from the serial port with DMA
   //  Returns false if failure (the USART was busy)
   bool     readSerial(const uint32_t usart, const uint32_t length, const char* data);
@@ -161,6 +170,10 @@ namespace Hardware {
   // Transfers data in/out through the SPI via DMA
   //  Returns false if failure (the SPI was busy)
   bool     spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *bufferOut, const uint16_t length, const bool use16BitXfers);
+
+  // Permits checking the status of the I2C; returns true if busy
+  //
+  bool     i2cIsBusy();
 
   // Permits checking the status of the SPI; returns true if busy
   //
@@ -191,6 +204,7 @@ namespace Hardware {
   // Interrupt Service Routines
   //
   void     dmaIsr();
+  void     i2c1Isr();
   void     systickIsr();
   void     tscIsr();
   void     usart1Isr();

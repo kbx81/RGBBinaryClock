@@ -56,6 +56,13 @@ void dma1_channel4_5_isr()
 }
 
 
+/* TSC */
+void i2c1_isr(void)
+{
+	Hardware::i2c1Isr();
+}
+
+
 /* Called when systick fires */
 void sys_tick_handler(void)
 {

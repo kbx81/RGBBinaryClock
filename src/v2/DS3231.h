@@ -57,6 +57,10 @@ bool isRunning();
 //
 bool isValid();
 
+// Enable or disable the 32kHz output signal
+//
+void set32kHzOut(const bool isEnabled);
+
 // Get the raw temperature register value
 //
 uint16_t getTemperatureRegister();

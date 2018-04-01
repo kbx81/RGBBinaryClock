@@ -30,6 +30,7 @@
 #include <libopencm3/stm32/flash.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/i2c.h>
+#include <libopencm3/stm32/iwdg.h>
 #include <libopencm3/stm32/pwr.h>
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/rtc.h>
@@ -62,12 +63,20 @@ namespace Hardware {
     MCP9808
   };
 
+  // I2C1 state
+  //
+  enum I2cState : uint8_t {
+    I2cIdle,
+    I2cBusy,
+    I2cBusy2
+  };
+
   // SPI1 state
   //
   enum SpiState : uint8_t {
-    Idle,
-    BusyPeripheral,
-    BusyDisplay
+    SpiIdle,
+    SpiBusyPeripheral,
+    SpiBusyDisplay
   };
 
 
@@ -283,9 +292,17 @@ static uint32_t _lastIntensityMultiplier = 100;
 //
 static uint16_t _bufferADC[cAdcChannelCount];
 
+// tracks how many times tx/rx requests were blocked because the I2C is busy
+//
+static uint8_t _i2cBusyFailCount = 0;
+
+// tracks what the I2C is doing
+//
+volatile static I2cState _i2cState = I2cState::I2cIdle;
+
 // tracks what the SPI is doing
 //
-volatile static SpiState _spiState = SpiState::Idle;
+volatile static SpiState _spiState = SpiState::SpiIdle;
 
 // tracks when to silence a tone
 //
@@ -443,16 +460,18 @@ void _clockSetup()
   // SYSCFG is needed to remap USART DMA channels
   rcc_periph_clock_enable(RCC_SYSCFG_COMP);
 
-  rcc_periph_clock_enable(RCC_RTC);
+	rcc_periph_clock_enable(RCC_DMA);
 
-  rcc_periph_clock_enable(RCC_GPIOA);
-	rcc_periph_clock_enable(RCC_GPIOB);
-	rcc_periph_clock_enable(RCC_GPIOC);
+  rcc_periph_clock_enable(RCC_RTC);
 
   rcc_periph_clock_enable(RCC_TIM1);
   rcc_periph_clock_enable(RCC_TIM2);
 
   rcc_periph_clock_enable(RCC_ADC);
+
+  rcc_periph_clock_enable(RCC_GPIOA);
+	rcc_periph_clock_enable(RCC_GPIOB);
+	rcc_periph_clock_enable(RCC_GPIOC);
 
   // Set SYSCLK (not the default HSI) as I2C1's clock source
   // rcc_set_i2c_clock_hsi(I2C1);
@@ -464,8 +483,6 @@ void _clockSetup()
   rcc_periph_clock_enable(RCC_USART2);
 
   rcc_periph_clock_enable(RCC_TSC);
-
-	rcc_periph_clock_enable(RCC_DMA);
 }
 
 
@@ -488,11 +505,12 @@ void _dmaIntEnable()
 //
 void _dmaSetup()
 {
-  // USART1 and USART2 TX and RX remap bits set in SYSCFG_CFGR1 since
-  //  SPI1 ties up the USART's default DMA channels
+  // I2C, USART1 and USART2 TX and RX remap bits set in SYSCFG_CFGR1 since
+  //  SPI1 ties up the I2C1 & USART1 default DMA channels
   SYSCFG_CFGR1 |= (SYSCFG_CFGR1_USART1_RX_DMA_RMP |
                    SYSCFG_CFGR1_USART1_TX_DMA_RMP |
-                   SYSCFG_CFGR1_USART2_DMA_RMP);
+                   SYSCFG_CFGR1_USART2_DMA_RMP |
+                   SYSCFG_CFGR1_I2C1_DMA_RMP);
 
   // Reset DMA channels
   dma_channel_reset(DMA1, DMA_CHANNEL1);
@@ -562,42 +580,89 @@ void _gpioSetup()
 }
 
 
+// Configure the Independent Watchdog Timer
+//
+void _iwdgSetup()
+{
+  iwdg_set_period_ms(5000);
+  iwdg_start();
+}
+
+
 void _i2cSetup()
 {
-  i2c_reset(I2C1);
+  // Configure GPIOs SCL=PB8 and SDA=PB9 so we can reset the bus nicely
+  gpio_mode_setup(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO8 | GPIO9);
+  gpio_set_output_options(GPIOB, GPIO_OTYPE_OD, GPIO_OSPEED_100MHZ, GPIO8 | GPIO9);
 
-  // Configure GPIOs: SCL=PB8 and SDA=PB9
-	gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO8 | GPIO9);
+  gpio_set(GPIOB, GPIO8 | GPIO9);
+  delay(2);
+  gpio_clear(GPIOB, GPIO9);
+  delay(2);
+  gpio_clear(GPIOB, GPIO8);
+  delay(2);
+  gpio_set(GPIOB, GPIO8);
+  delay(2);
+  gpio_set(GPIOB, GPIO9);
+  delay(2);
+
+  gpio_mode_setup(GPIOB, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, GPIO9);
+  // Clock out any remaining bits any slave is trying to send
+  while (gpio_get(GPIOB, GPIO9) == false)
+  {
+    gpio_clear(GPIOB, GPIO8);
+    delay(2);
+    gpio_set(GPIOB, GPIO8);
+    delay(2);
+  }
+
+  // Now configure GPIOs for I2C use
+	gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_PULLUP, GPIO8 | GPIO9);
 
 	// Setup I2C1 pins as alternate function one
 	gpio_set_af(GPIOB, GPIO_AF1, GPIO8 | GPIO9);
 
 	// Set alternate functions for the SCL and SDA pins of I2C1
-  gpio_set_output_options(GPIOB, GPIO_OTYPE_OD, GPIO_OSPEED_25MHZ, GPIO8 | GPIO9);
+  gpio_set_output_options(GPIOB, GPIO_OTYPE_OD, GPIO_OSPEED_100MHZ, GPIO8 | GPIO9);
 
   // Enable heftier drivers for I2C pins...maybe helpful?
-  SYSCFG_CFGR1 |= (SYSCFG_CFGR1_I2C_PB8_FMP | SYSCFG_CFGR1_I2C_PB9_FMP);
+  // SYSCFG_CFGR1 |= (SYSCFG_CFGR1_I2C_PB8_FMP | SYSCFG_CFGR1_I2C_PB9_FMP);
 
-	// Disable the I2C before changing any configuration
-	i2c_peripheral_disable(I2C1);
+	// Reset/Disable the I2C before changing any configuration
+  i2c_reset(I2C1);
+
+  // 400KHz - I2C Fast Mode - SYSCLK is 48 MHz
+  // i2c_set_speed(I2C1, i2c_speed_fm_400k, 48);
+  I2C_TIMINGR(I2C1) = 0x2010091a;
+
+  // Set our slave address in case we should want to receive from other masters
+	i2c_set_own_7bit_slave_address(I2C1, 0x11);
 
   // Configure ANFOFF DNF[3:0] in CR1
 	i2c_enable_analog_filter(I2C1);
 	i2c_set_digital_filter(I2C1, I2C_CR1_DNF_DISABLED);
 
-	// 400KHz - I2C Fast Mode - SYSCLK is 48 MHz
-  i2c_set_speed(I2C1, i2c_speed_fm_400k, 48);
-  // i2c_set_speed(I2C1, i2c_speed_sm_100k, 48);
-
 	// Configure No-Stretch CR1
   //  (only relevant in slave mode, must be disabled in master mode)
 	i2c_disable_stretching(I2C1);
 
-	// Set our slave address in case we should want to receive from other masters
-	i2c_set_own_7bit_slave_address(I2C1, 0x32);
-
 	// Once everything is configured, enable the peripheral
 	i2c_peripheral_enable(I2C1);
+
+  _i2cState = I2cState::I2cIdle;
+}
+
+
+void _i2cRecover()
+{
+  // Disable the I2C before all this
+	i2c_peripheral_disable(I2C1);
+
+  // Stop/cancel any on-going or pending DMA
+  dma_channel_reset(DMA1, DMA_CHANNEL6);
+  dma_channel_reset(DMA1, DMA_CHANNEL7);
+
+  _i2cSetup();
 }
 
 
@@ -1049,6 +1114,7 @@ void initialize()
 
   // First, set up all the hardware things
   _clockSetup();
+  // _iwdgSetup();
   _gpioSetup();
   _timerSetup();
   _dmaSetup();
@@ -1086,6 +1152,7 @@ void initialize()
   {
     // isConnected() refreshes the status register so this will work without a refresh()
     _rtcIsSet = DS3231::isValid();
+    DS3231::set32kHzOut(true);
     _externalTemperatureSensor = TempSensorType::DS323x;
     startupDisplayBitmap |= 0x01;   // this will appear on the startup display
   }
@@ -1125,6 +1192,8 @@ void refresh()
 {
   uint32_t totalLight = 0, totalTemp = 0, totalVoltage = 0;
   uint8_t i = 0;
+
+  iwdg_reset();
 
   // Add up some values so we can compute some averages...
   for (i = 0; i < cAdcSamplesToAverage; i++)
@@ -1195,6 +1264,7 @@ void refresh()
         break;
       case TempSensorType::MCP9808:
       default:
+        const int32_t cTsCal1Temperature = 30 * cBaseMultiplier;
         // Get the averages of the last several readings
         int32_t averageTemp = totalTemp / cAdcSamplesToAverage;
         int32_t averageVoltage = totalVoltage / cAdcSamplesToAverage;
@@ -1204,7 +1274,7 @@ void refresh()
         _temperatureXcBaseMultiplier = (averageTemp * voltage / cVddCalibrationVoltage) - ST_TSENSE_CAL1_30C;
         _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier * (110 - 30) * cBaseMultiplier;
         _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier / (ST_TSENSE_CAL2_110C - ST_TSENSE_CAL1_30C);
-        _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier + 30000 + (_temperatureAdjustment * cBaseMultiplier);
+        _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier + cTsCal1Temperature + (_temperatureAdjustment * cBaseMultiplier);
         // break;
     }
 }
@@ -1667,106 +1737,270 @@ uint32_t writeFlash(uint32_t startAddress, uint8_t *inputData, uint16_t numEleme
 * @param r destination buffer to read into
 * @param rn number of bytes to read (r should be at least this long)
 */
-uint8_t i2c_transfer7(const uint32_t i2c, const uint8_t addr, const uint8_t *w, size_t wn, uint8_t *r, size_t rn)
-{
-  uint16_t timer = cI2cTimeout;
-  uint8_t  returnCode = 0;
+// uint8_t i2c_transfer7(const uint32_t i2c, const uint8_t addr, const uint8_t *w, size_t wn, uint8_t *r, size_t rn)
+// {
+//   uint16_t timer = cI2cTimeout;
+//   uint8_t  returnCode = 0;
+//
+//   /*  waiting for busy is unnecessary. read the RM */
+//   if (wn)
+//     {
+//     i2c_set_7bit_address(i2c, addr);
+//     i2c_set_write_transfer_dir(i2c);
+//     i2c_set_bytes_to_transfer(i2c, wn);
+//     if (rn > 0)
+//     {
+//       i2c_disable_autoend(i2c);
+//     }
+//     else
+//     {
+//       i2c_enable_autoend(i2c);
+//     }
+//
+//     i2c_send_start(i2c);
+//
+//     while (wn-- > 0)
+//     {
+//       while ((timer-- > 0) && (i2c_transmit_int_status(i2c) == 0))
+//       {
+//         if (i2c_nack(i2c))
+//         {
+//           returnCode |= 1;  // indicate a NACK was received
+//           I2C_ICR(i2c) |= I2C_ICR_NACKCF;
+//         }
+//       }
+//
+//       if (timer > 0)
+//       {
+//         i2c_send_data(i2c, *w++);
+//       }
+//       else
+//       {
+//         returnCode |= 2;  // indicate a write timeout occured
+//         wn = 0;           // break out of the loop
+//         // i2c_send_stop(i2c); // stop the transfer
+//       }
+//
+//       timer = cI2cTimeout;
+//     }
+//     /* not entirely sure this is really necessary.
+//     * RM implies it will stall until it can write out the later bits
+//     */
+//     if (rn)
+//     {
+//       while ((timer-- > 0) && (i2c_transfer_complete(i2c) == 0) && (i2c_transmit_int_status(i2c) == 0))
+//       {
+//         if (i2c_nack(i2c))
+//         {
+//           returnCode |= 1;  // indicate a NACK was received
+//           I2C_ICR(i2c) |= I2C_ICR_NACKCF;
+//         }
+//       }
+//
+//       if (timer == 0)
+//       {
+//         returnCode |= 2;  // indicate a write timeout occured
+//         // i2c_send_stop(i2c); // stop the transfer
+//       }
+//
+//       timer = cI2cTimeout;
+//     }
+//   }
+//
+//   if (rn)
+//   {
+//     /* Setting transfer properties */
+//     i2c_set_7bit_address(i2c, addr);
+//     i2c_set_read_transfer_dir(i2c);
+//     i2c_set_bytes_to_transfer(i2c, rn);
+//     /* start transfer */
+//     i2c_send_start(i2c);
+//     /* important to do it afterwards to do a proper repeated start! */
+//     // i2c_enable_autoend(i2c);
+//
+//     for (size_t i = 0; i < rn; i++)
+//     {
+//       while ((timer-- > 0) && (i2c_received_data(i2c) == 0));
+//       if (timer > 0)
+//       {
+//         r[i] = i2c_get_data(i2c);
+//         timer = cI2cTimeout;
+//       }
+//       else
+//       {
+//         returnCode |= 4;  // indicate a read timeout occured
+//         i = rn;           // break out of the loop
+//         i2c_send_stop(i2c); // stop the transfer
+//       }
+//     }
+//     i2c_send_stop(i2c); // stop the transfer
+//   }
+//
+//   return returnCode;
+// }
 
-  /*  waiting for busy is unnecessary. read the RM */
-  if (wn)
+volatile static uint8_t _addr;
+static uint8_t *_bufferRx;
+volatile static size_t _numberRx;
+
+uint8_t i2cTransfer(const uint8_t addr, const uint8_t *bufferTx, size_t numberTx, uint8_t *bufferRx, size_t numberRx)
+{
+  if (numberRx > 0)
   {
-    i2c_set_7bit_address(i2c, addr);
-    i2c_set_write_transfer_dir(i2c);
-    i2c_set_bytes_to_transfer(i2c, wn);
-    if (rn > 0)
+    _addr = addr;
+    _bufferRx = bufferRx;
+    _numberRx = numberRx;
+
+    return i2cTransmit(addr, bufferTx, numberTx, false);
+  }
+  else
+  {
+    _addr = addr;
+    _bufferRx = nullptr;
+    _numberRx = 0;
+
+    return i2cTransmit(addr, bufferTx, numberTx, true);
+  }
+}
+
+
+// Transfers the given buffers to/from the given peripheral through the SPI via DMA
+//
+bool i2cReceive(const uint8_t addr, uint8_t *bufferRx, const size_t numberRx, const bool autoEndXfer)
+{
+  if (_i2cState != I2cState::I2cIdle)
+  {
+    if (_i2cBusyFailCount++ > 5)
     {
-      i2c_disable_autoend(i2c);
+      _i2cRecover();
+      _i2cBusyFailCount = 0;
+    }
+    // Let the caller know it was busy if so
+    return false;
+  }
+
+  _i2cBusyFailCount = 0;
+
+  if (numberRx)
+  {
+    _i2cState = I2cState::I2cBusy;
+    i2c_set_7bit_address(I2C1, addr);
+    i2c_set_read_transfer_dir(I2C1);
+    i2c_set_bytes_to_transfer(I2C1, numberRx);
+
+    // Reset DMA channel
+    dma_channel_reset(DMA1, DMA_CHANNEL7);
+
+    // Set up rx dma, note it has higher priority to avoid overrun
+    dma_set_peripheral_address(DMA1, DMA_CHANNEL7, (uint32_t)&I2C1_RXDR);
+    dma_set_memory_address(DMA1, DMA_CHANNEL7, (uint32_t)bufferRx);
+    dma_set_number_of_data(DMA1, DMA_CHANNEL7, numberRx);
+    dma_set_read_from_peripheral(DMA1, DMA_CHANNEL7);
+    dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL7);
+    dma_set_peripheral_size(DMA1, DMA_CHANNEL7, DMA_CCR_PSIZE_8BIT);
+    dma_set_memory_size(DMA1, DMA_CHANNEL7, DMA_CCR_MSIZE_8BIT);
+    dma_set_priority(DMA1, DMA_CHANNEL7, DMA_CCR_PL_VERY_HIGH);
+
+    // Enable dma transfer complete interrupt
+  	dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL7);
+
+  	// Activate dma channel
+  	dma_enable_channel(DMA1, DMA_CHANNEL7);
+
+    i2c_send_start(I2C1);
+
+    if (autoEndXfer == true)
+    {
+      /* important to do it afterwards to do a proper repeated start! */
+      i2c_enable_autoend(I2C1);
     }
     else
     {
-      i2c_enable_autoend(i2c);
+      i2c_disable_autoend(I2C1);
     }
 
-    i2c_send_start(i2c);
-
-    while (wn-- > 0)
-    {
-      while ((timer-- > 0) && (i2c_transmit_int_status(i2c) == 0))
-      {
-        if (i2c_nack(i2c))
-        {
-          returnCode |= 1;  // indicate a NACK was received
-          I2C_ICR(i2c) |= I2C_ICR_NACKCF;
-        }
-      }
-
-      if (timer > 0)
-      {
-        i2c_send_data(i2c, *w++);
-      }
-      else
-      {
-        returnCode |= 2;  // indicate a write timeout occured
-        wn = 0;           // break out of the loop
-        // i2c_send_stop(i2c); // stop the transfer
-      }
-
-      timer = cI2cTimeout;
-    }
-    /* not entirely sure this is really necessary.
-    * RM implies it will stall until it can write out the later bits
-    */
-    if (rn)
-    {
-      while ((timer-- > 0) && (i2c_transfer_complete(i2c) == 0) && (i2c_transmit_int_status(i2c) == 0))
-      {
-        if (i2c_nack(i2c))
-        {
-          returnCode |= 1;  // indicate a NACK was received
-          I2C_ICR(i2c) |= I2C_ICR_NACKCF;
-        }
-      }
-
-      if (timer == 0)
-      {
-        returnCode |= 2;  // indicate a write timeout occured
-        // i2c_send_stop(i2c); // stop the transfer
-      }
-
-      timer = cI2cTimeout;
-    }
+  	/* Enable the I2C transfer via DMA
+  	 * This will immediately start the transmission, after which when the receive
+     * is complete, the receive DMA will activate
+  	 */
+  	i2c_enable_rxdma(I2C1);
   }
 
-  if (rn)
+  return true;
+}
+
+
+// Transfers the given buffers to/from the given peripheral through the SPI via DMA
+//
+bool i2cTransmit(const uint8_t addr, const uint8_t *bufferTx, const size_t numberTx, const bool autoEndXfer)
+{
+  if (_i2cState != I2cState::I2cIdle)
   {
-    /* Setting transfer properties */
-    i2c_set_7bit_address(i2c, addr);
-    i2c_set_read_transfer_dir(i2c);
-    i2c_set_bytes_to_transfer(i2c, rn);
-    /* start transfer */
-    i2c_send_start(i2c);
-    /* important to do it afterwards to do a proper repeated start! */
-    // i2c_enable_autoend(i2c);
-
-    for (size_t i = 0; i < rn; i++)
+    if (_i2cBusyFailCount++ > 5)
     {
-      while ((timer-- > 0) && (i2c_received_data(i2c) == 0));
-      if (timer > 0)
-      {
-        r[i] = i2c_get_data(i2c);
-        timer = cI2cTimeout;
-      }
-      else
-      {
-        returnCode |= 4;  // indicate a read timeout occured
-        i = rn;           // break out of the loop
-        i2c_send_stop(i2c); // stop the transfer
-      }
+      _i2cRecover();
+      _i2cBusyFailCount = 0;
     }
-    i2c_send_stop(i2c); // stop the transfer
+    // Let the caller know it was busy if so
+    return false;
   }
 
-  return returnCode;
+  _i2cBusyFailCount = 0;
+
+  if (numberTx)
+  {
+    _i2cState = I2cState::I2cBusy;
+    /* Setting transfer properties */
+    i2c_set_7bit_address(I2C1, addr);
+    i2c_set_write_transfer_dir(I2C1);
+    i2c_set_bytes_to_transfer(I2C1, numberTx);
+
+    // Reset DMA channel
+    dma_channel_reset(DMA1, DMA_CHANNEL6);
+
+    // Set up tx dma
+    dma_set_peripheral_address(DMA1, DMA_CHANNEL6, (uint32_t)&I2C1_TXDR);
+    dma_set_memory_address(DMA1, DMA_CHANNEL6, (uint32_t)bufferTx);
+    dma_set_number_of_data(DMA1, DMA_CHANNEL6, numberTx);
+    dma_set_read_from_memory(DMA1, DMA_CHANNEL6);
+    dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL6);
+    dma_set_peripheral_size(DMA1, DMA_CHANNEL6, DMA_CCR_PSIZE_8BIT);
+    dma_set_memory_size(DMA1, DMA_CHANNEL6, DMA_CCR_MSIZE_8BIT);
+    dma_set_priority(DMA1, DMA_CHANNEL6, DMA_CCR_PL_HIGH);
+
+    // Enable dma transfer complete interrupt
+  	dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL6);
+
+  	// Activate dma channel
+  	dma_enable_channel(DMA1, DMA_CHANNEL6);
+
+    /* start transfer */
+    i2c_send_start(I2C1);
+
+    if (autoEndXfer == true)
+    {
+      /* important to do it afterwards to do a proper repeated start! */
+      i2c_enable_autoend(I2C1);
+    }
+    else
+    {
+      i2c_disable_autoend(I2C1);
+    }
+
+  	/* Enable the I2C transfer via DMA
+  	 * This will immediately start the transmission, after which when the receive
+     * is complete, the receive DMA will activate
+  	 */
+  	i2c_enable_txdma(I2C1);
+  }
+
+  return true;
+}
+
+
+bool i2cIsBusy()
+{
+  return _i2cState != I2cState::I2cIdle;
 }
 
 
@@ -1907,13 +2141,13 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
   uint16_t mSize = DMA_CCR_MSIZE_8BIT, pSize = DMA_CCR_PSIZE_8BIT;
   volatile uint8_t temp_data __attribute__ ((unused));
 
-  if (_spiState != SpiState::Idle)
+  if (_spiState != SpiState::SpiIdle)
   {
     // Let the caller know it was busy if so
     return false;
   }
 
-  _spiState = SpiState::BusyPeripheral;
+  _spiState = SpiState::SpiBusyPeripheral;
 
   if (use16BitXfers == true)
   {
@@ -1971,7 +2205,7 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
       {
         gpio_set(cBlankDisplayPort, cBlankDisplayPin);
       }
-      _spiState = SpiState::BusyDisplay;
+      _spiState = SpiState::SpiBusyDisplay;
       break;
 
     case SpiPeripheral::Rtc:
@@ -1993,7 +2227,7 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
 
 bool spiIsBusy()
 {
-  return _spiState != SpiState::Idle;
+  return _spiState != SpiState::SpiIdle;
 }
 
 
@@ -2157,12 +2391,12 @@ void dmaIsr()
 
     gpio_set(cNssPort, cNssDisplayPin);
 
-    if ((_spiState == SpiState::BusyDisplay) && (_displayBlank == false))
+    if ((_spiState == SpiState::SpiBusyDisplay) && (_displayBlank == false))
     {
       gpio_clear(cBlankDisplayPort, cBlankDisplayPin);
     }
 
-    _spiState = SpiState::Idle;
+    _spiState = SpiState::SpiIdle;
   }
 
   if (DMA1_ISR & DMA_ISR_TCIF4)
@@ -2172,6 +2406,7 @@ void dmaIsr()
 		dma_disable_transfer_complete_interrupt(DMA1, DMA_CHANNEL4);
 
 		usart_disable_tx_dma(USART1);
+    // usart_disable_tx_dma(USART2);
 
 		dma_disable_channel(DMA1, DMA_CHANNEL4);
 	}
@@ -2183,6 +2418,7 @@ void dmaIsr()
 		dma_disable_transfer_complete_interrupt(DMA1, DMA_CHANNEL5);
 
 		usart_disable_rx_dma(USART1);
+    // usart_disable_rx_dma(USART2);
 
 		dma_disable_channel(DMA1, DMA_CHANNEL5);
 	}
@@ -2193,9 +2429,16 @@ void dmaIsr()
 
 		dma_disable_transfer_complete_interrupt(DMA1, DMA_CHANNEL6);
 
-		usart_disable_rx_dma(USART2);
+    i2c_disable_txdma(I2C1);
 
 		dma_disable_channel(DMA1, DMA_CHANNEL6);
+
+    _i2cState = I2cState::I2cIdle;
+
+    if (_numberRx > 0)
+    {
+      i2cReceive(_addr, _bufferRx, _numberRx, true);
+    }
 	}
 
   if (DMA1_ISR & DMA_ISR_TCIF7)
@@ -2204,9 +2447,14 @@ void dmaIsr()
 
 		dma_disable_transfer_complete_interrupt(DMA1, DMA_CHANNEL7);
 
-		usart_disable_tx_dma(USART2);
+    i2c_disable_rxdma(I2C1);
 
 		dma_disable_channel(DMA1, DMA_CHANNEL7);
+
+    _i2cState = I2cState::I2cIdle;
+
+    _bufferRx = nullptr;
+    _numberRx = 0;
 	}
 }
 
@@ -2303,6 +2551,12 @@ void tscIsr()
   {
     TSC_ICR = TSC_ICR_MCEIC;
   }
+}
+
+
+void i2c1Isr()
+{
+  while (true);
 }
 
 
