@@ -44,11 +44,11 @@ uint16_t getTemperatureFractionalPart();
 
 // Read all registers from the LM75
 //  Returns result of read from Hardware::i2c_transfer7()
-uint8_t refresh();
+bool refresh();
 
 // Read temperature registers from the LM75
 //  Returns result of read from Hardware::i2c_transfer7()
-uint8_t refreshTemp();
+bool refreshTemp();
 
 }
 

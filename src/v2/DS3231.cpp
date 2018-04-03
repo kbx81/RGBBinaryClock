@@ -17,8 +17,6 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 //
 #include <cstdint>
-// #include <stdio.h>
-// #include <libopencm3/stm32/i2c.h>
 #include "DateTime.h"
 #include "DS3231.h"
 #include "Hardware.h"
@@ -124,29 +122,29 @@ void setDateTime(const DateTime &dateTime)
   // Based on the buffer we set up above, we'll start at the seconds register
   //  and write up from there -- we won't read anything back
   while (Hardware::i2cTransfer(cChipAddress, writeBuffer, 8, readBuffer, 0) == false);
-  while (Hardware::i2cIsBusy());
+  while (Hardware::i2cIsBusy() == true);
 
   // we need to write the starting address first...
   writeBuffer[0] = cStatusRegister;
   // clear the OSF bit 7
-  writeBuffer[1] = 0x04;
+  writeBuffer[1] = (ds3231Register[cStatusRegister] &= ~(1 << 7));
 
   // Address the status register and write it to clear the OSF
-  while (Hardware::i2cTransfer(cChipAddress, writeBuffer, 2, readBuffer, 0));
+  while (Hardware::i2cTransfer(cChipAddress, writeBuffer, 2, readBuffer, 0) == false);
 }
 
 
 bool isConnected()
 {
   // Address the status register and read one byte
-  while (Hardware::i2cTransfer(cChipAddress, &cControlRegister, 1, readBuffer, 2));
-  while (Hardware::i2cIsBusy());
+  while (Hardware::i2cTransfer(cChipAddress, &cControlRegister, 1, readBuffer, 2) == false);
+  while (Hardware::i2cIsBusy() == true);
 
   ds3231Register[cControlRegister] = readBuffer[0];
   ds3231Register[cStatusRegister] = readBuffer[1];
 
   // If bits 4 through 6 are zero and there wasn't a timeout, the IC is probably connected
-  return (((ds3231Register[cStatusRegister] & 0x70) == 0)); // && (result == 0));
+  return (((ds3231Register[cStatusRegister] & 0x70) == 0));
 }
 
 
@@ -181,8 +179,7 @@ void set32kHzOut(const bool isEnabled)
   writeBuffer[1] = ds3231Register[cStatusRegister];
 
   // Address the status register and read one byte
-  while (Hardware::i2cTransfer(cChipAddress, writeBuffer, 2, readBuffer, 0));
-  while (Hardware::i2cIsBusy());
+  while (Hardware::i2cTransfer(cChipAddress, writeBuffer, 2, readBuffer, 0) == false);
 }
 
 
@@ -204,17 +201,17 @@ uint16_t getTemperatureFractionalPart()
 }
 
 
-uint8_t refresh()
+bool refresh()
 {
   // Address the seconds register, then read all the registers
-  return !Hardware::i2cTransfer(cChipAddress, &cSecondsRegister, 1, ds3231Register, cNumberOfRegisters);
+  return Hardware::i2cTransfer(cChipAddress, &cSecondsRegister, 1, ds3231Register, cNumberOfRegisters);
 }
 
 
-uint8_t refreshTimeDateTemp()
+bool refreshTimeDateTemp()
 {
   // Address the seconds register, then read all the registers
-  uint8_t result = !Hardware::i2cTransfer(cChipAddress, &cTemperatureMSBRegister, 1, readBuffer, 9);
+  bool result = Hardware::i2cTransfer(cChipAddress, &cTemperatureMSBRegister, 1, readBuffer, 9);
 
   ds3231Register[cTemperatureMSBRegister] = readBuffer[0];
   ds3231Register[cTemperatureLSBRegister] = readBuffer[1];
@@ -230,10 +227,10 @@ uint8_t refreshTimeDateTemp()
 }
 
 
-uint8_t refreshTimeDate()
+bool refreshTimeDate()
 {
   // Address the seconds register, then read all the registers
-  return !Hardware::i2cTransfer(cChipAddress, &cSecondsRegister, 1, ds3231Register, 7);
+  return Hardware::i2cTransfer(cChipAddress, &cSecondsRegister, 1, ds3231Register, 7);
 }
 
 

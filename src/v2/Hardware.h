@@ -146,17 +146,13 @@ namespace Hardware {
   //
   uint32_t writeFlash(uint32_t startAddress, uint8_t *inputData, uint16_t numElements);
 
-  // Reads and/or writes data to/from specified I2C interface
-  //
-  uint8_t  i2c_transfer7(const uint32_t i2c, const uint8_t addr, const uint8_t *w, size_t wn, uint8_t *r, size_t rn);
-
   // Reads and/or writes data to/from specified I2C interface via DMA
   //
-  uint8_t  i2cTransfer(const uint8_t addr, const uint8_t *w, size_t wn, uint8_t *r, size_t rn);
+  bool     i2cTransfer(const uint8_t addr, const uint8_t *bufferTx, size_t numberTx, uint8_t *bufferRx, size_t numberRx);
 
   // Reads and/or writes data to/from the I2C1 interface via DMA
   //
-  bool     i2cReceive(const uint8_t addr, const uint8_t *bufferRx, const size_t numberRx, const bool autoEndXfer);
+  bool     i2cReceive(const uint8_t addr, uint8_t *bufferRx, const size_t numberRx, const bool autoEndXfer);
   bool     i2cTransmit(const uint8_t addr, const uint8_t *bufferTx, const size_t numberTx, const bool autoEndXfer);
 
   // Reads data from the serial port with DMA
@@ -204,7 +200,6 @@ namespace Hardware {
   // Interrupt Service Routines
   //
   void     dmaIsr();
-  void     i2c1Isr();
   void     systickIsr();
   void     tscIsr();
   void     usart1Isr();

@@ -1,5 +1,5 @@
 //
-// kbx81's binary clock DS3231 RTC class
+// kbx81's binary clock MCP9808 temperature sensor class
 // ---------------------------------------------------------------------------
 // (c)2017 by kbx81. See LICENSE for details.
 //
@@ -19,47 +19,16 @@
 #pragma once
 
 #include <cstdint>
-#include "DateTime.h"
 
 
 namespace kbxBinaryClock {
 
-namespace DS3231 {
+namespace MCP9808 {
 
 
-// Initialize the real time clock driver.
-//
-// @param yearBase The year base which is used for the RTC.
-//    The RTC stores the year only with two digits, plus one
-//    additional bit for the next century. If you set the
-//    year base to 2000, the RTC will hold the correct time
-//    for 200 years, starting from 2000-01-01 00:00:00.
-//
-void setBaseYear(uint16_t yearBase = 2000);
-
-// Get the current date/time
-//
-DateTime getDateTime();
-
-// Set the date/time
-//
-void setDateTime(const DateTime &dateTime);
-
-// Check if the RTC is connected
+// Check if the chip is connected
 //
 bool isConnected();
-
-// Check if the RTC is running
-//
-bool isRunning();
-
-// Check if the RTC is valid
-//
-bool isValid();
-
-// Enable or disable the 32kHz output signal
-//
-void set32kHzOut(const bool isEnabled);
 
 // Get the raw temperature register value
 //
@@ -73,17 +42,13 @@ int16_t getTemperatureWholePart();
 //
 uint16_t getTemperatureFractionalPart();
 
-// Read all registers from the DS3231
-//  Returns result of read from Hardware::i2cTransfer()
+// Read all registers from the MCP9808
+//  Returns result of read from Hardware::i2c_transfer7()
 bool refresh();
 
-// Read the time and temperature registers from the DS3231
-//  Returns result of read from Hardware::i2cTransfer()
-bool refreshTimeDateTemp();
-
-// Read the time and date registers from the DS3231
-//  Returns result of read from Hardware::i2cTransfer()
-bool refreshTimeDate();
+// Read temperature registers from the MCP9808
+//  Returns result of read from Hardware::i2c_transfer7()
+bool refreshTemp();
 
 }
 

@@ -67,8 +67,7 @@ namespace Hardware {
   //
   enum I2cState : uint8_t {
     I2cIdle,
-    I2cBusy,
-    I2cBusy2
+    I2cBusy
   };
 
   // SPI1 state
@@ -159,6 +158,10 @@ static const uint32_t cFlashPageSize = 0x800;
 // maximum time we'll wait for an ACK on I2C
 //
 static const uint16_t cI2cTimeout = 5000;
+
+// maximum number of times we'll fail requests because I2C is busy
+//
+static const uint8_t cI2cMaxFailBusyCount = 20;
 
 // number of PWM channels each device has
 //
@@ -296,6 +299,18 @@ static uint16_t _bufferADC[cAdcChannelCount];
 //
 static uint8_t _i2cBusyFailCount = 0;
 
+// device address I2C must use to resume communication
+//
+volatile static uint8_t _i2cAddr;
+
+// buffer used when I2C resumes communication
+//
+static uint8_t *_i2cBufferRx;
+
+// number of bytes to transfer when I2C resumes communication
+//
+volatile static size_t _i2cNumberRx;
+
 // tracks what the I2C is doing
 //
 volatile static I2cState _i2cState = I2cState::I2cIdle;
@@ -392,6 +407,10 @@ static bool _displayBlank = true;
 // true if updater routine determine one or more LEDs needs to be refreshed
 //
 static bool _displayRefreshRequired = false;
+
+// true if it's time to refresh the display
+//
+static bool _displayRefreshNow = false;
 
 // true if RTC is set/valid
 //
@@ -632,19 +651,18 @@ void _i2cSetup()
   i2c_reset(I2C1);
 
   // 400KHz - I2C Fast Mode - SYSCLK is 48 MHz
-  // i2c_set_speed(I2C1, i2c_speed_fm_400k, 48);
-  I2C_TIMINGR(I2C1) = 0x2010091a;
+  i2c_set_speed(I2C1, i2c_speed_fm_400k, 48);
 
   // Set our slave address in case we should want to receive from other masters
 	i2c_set_own_7bit_slave_address(I2C1, 0x11);
 
   // Configure ANFOFF DNF[3:0] in CR1
-	i2c_enable_analog_filter(I2C1);
-	i2c_set_digital_filter(I2C1, I2C_CR1_DNF_DISABLED);
+	// i2c_enable_analog_filter(I2C1);
+	// i2c_set_digital_filter(I2C1, I2C_CR1_DNF_DISABLED);
 
 	// Configure No-Stretch CR1
   //  (only relevant in slave mode, must be disabled in master mode)
-	i2c_disable_stretching(I2C1);
+	// i2c_disable_stretching(I2C1);
 
 	// Once everything is configured, enable the peripheral
 	i2c_peripheral_enable(I2C1);
@@ -655,14 +673,19 @@ void _i2cSetup()
 
 void _i2cRecover()
 {
-  // Disable the I2C before all this
-	i2c_peripheral_disable(I2C1);
+  // Ensure status is busy -- it'll be reset to Idle by _i2cSetup()
+  _i2cState = I2cState::I2cBusy;
 
   // Stop/cancel any on-going or pending DMA
   dma_channel_reset(DMA1, DMA_CHANNEL6);
   dma_channel_reset(DMA1, DMA_CHANNEL7);
 
+  // Disable the I2C before all this
+	i2c_peripheral_disable(I2C1);
+
   _i2cSetup();
+
+  _i2cBusyFailCount = 0;
 }
 
 
@@ -1114,7 +1137,7 @@ void initialize()
 
   // First, set up all the hardware things
   _clockSetup();
-  // _iwdgSetup();
+  _iwdgSetup();
   _gpioSetup();
   _timerSetup();
   _dmaSetup();
@@ -1183,6 +1206,7 @@ void initialize()
   delay(500000);
 
   refresh();
+  while (Hardware::i2cIsBusy() == true);
   // set status LED off
   _setPWMx3(Display::cLedCount, startupOff);
 }
@@ -1247,36 +1271,43 @@ void refresh()
     _currentDateTime.setTime(hour, minute, second);
     // _rtcIsSet = RTC_ISR & RTC_ISR_INITS;
   }
+  // we do this here to give DMA time to complete before reading the temp sensor
+  if (_displayRefreshNow == true)
+  {
+    _refreshDisplay();
 
-    // Determine where to get the temperature from and get it
-    switch (_externalTemperatureSensor)
-    {
-      case TempSensorType::DS323x:
-        // Registers will have been refreshed above
-        _temperatureXcBaseMultiplier =  DS3231::getTemperatureWholePart() * cBaseMultiplier;
-        _temperatureXcBaseMultiplier += ((DS3231::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
-        break;
+    _displayRefreshNow = false;
+  }
 
-      case TempSensorType::LM7x:
-        LM75::refreshTemp();
-        _temperatureXcBaseMultiplier =  LM75::getTemperatureWholePart() * cBaseMultiplier;
-        _temperatureXcBaseMultiplier += ((LM75::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
-        break;
-      case TempSensorType::MCP9808:
-      default:
-        const int32_t cTsCal1Temperature = 30 * cBaseMultiplier;
-        // Get the averages of the last several readings
-        int32_t averageTemp = totalTemp / cAdcSamplesToAverage;
-        int32_t averageVoltage = totalVoltage / cAdcSamplesToAverage;
-        // Determine the voltage as it affects the temperature calculation
-        int32_t voltage = cVddCalibrationVoltage * (int32_t)ST_VREFINT_CAL / averageVoltage;
-        // Now we can compute the temperature based on RM's formula, * cBaseMultiplier
-        _temperatureXcBaseMultiplier = (averageTemp * voltage / cVddCalibrationVoltage) - ST_TSENSE_CAL1_30C;
-        _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier * (110 - 30) * cBaseMultiplier;
-        _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier / (ST_TSENSE_CAL2_110C - ST_TSENSE_CAL1_30C);
-        _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier + cTsCal1Temperature + (_temperatureAdjustment * cBaseMultiplier);
-        // break;
-    }
+  // Determine where to get the temperature from and get it
+  switch (_externalTemperatureSensor)
+  {
+    case TempSensorType::DS323x:
+      // Registers will have been refreshed above
+      _temperatureXcBaseMultiplier =  DS3231::getTemperatureWholePart() * cBaseMultiplier;
+      _temperatureXcBaseMultiplier += ((DS3231::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
+      break;
+
+    case TempSensorType::LM7x:
+      LM75::refreshTemp();
+      _temperatureXcBaseMultiplier =  LM75::getTemperatureWholePart() * cBaseMultiplier;
+      _temperatureXcBaseMultiplier += ((LM75::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
+      break;
+    case TempSensorType::MCP9808:
+    default:
+      const int32_t cTsCal1Temperature = 30 * cBaseMultiplier;
+      // Get the averages of the last several readings
+      int32_t averageTemp = totalTemp / cAdcSamplesToAverage;
+      int32_t averageVoltage = totalVoltage / cAdcSamplesToAverage;
+      // Determine the voltage as it affects the temperature calculation
+      int32_t voltage = cVddCalibrationVoltage * (int32_t)ST_VREFINT_CAL / averageVoltage;
+      // Now we can compute the temperature based on RM's formula, * cBaseMultiplier
+      _temperatureXcBaseMultiplier = (averageTemp * voltage / cVddCalibrationVoltage) - ST_TSENSE_CAL1_30C;
+      _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier * (110 - 30) * cBaseMultiplier;
+      _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier / (ST_TSENSE_CAL2_110C - ST_TSENSE_CAL1_30C);
+      _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier + cTsCal1Temperature + (_temperatureAdjustment * cBaseMultiplier);
+      // break;
+  }
 }
 
 
@@ -1726,141 +1757,26 @@ uint32_t writeFlash(uint32_t startAddress, uint8_t *inputData, uint16_t numEleme
 }
 
 
-/**
-* Run a write/read transaction to a given 7bit i2c address
-* If both write & read are provided, the read will use repeated start.
-* Both write and read are optional
-* @param i2c peripheral of choice, eg I2C1
-* @param addr 7 bit i2c device address
-* @param w buffer of data to write
-* @param wn length of w
-* @param r destination buffer to read into
-* @param rn number of bytes to read (r should be at least this long)
-*/
-// uint8_t i2c_transfer7(const uint32_t i2c, const uint8_t addr, const uint8_t *w, size_t wn, uint8_t *r, size_t rn)
-// {
-//   uint16_t timer = cI2cTimeout;
-//   uint8_t  returnCode = 0;
-//
-//   /*  waiting for busy is unnecessary. read the RM */
-//   if (wn)
-//     {
-//     i2c_set_7bit_address(i2c, addr);
-//     i2c_set_write_transfer_dir(i2c);
-//     i2c_set_bytes_to_transfer(i2c, wn);
-//     if (rn > 0)
-//     {
-//       i2c_disable_autoend(i2c);
-//     }
-//     else
-//     {
-//       i2c_enable_autoend(i2c);
-//     }
-//
-//     i2c_send_start(i2c);
-//
-//     while (wn-- > 0)
-//     {
-//       while ((timer-- > 0) && (i2c_transmit_int_status(i2c) == 0))
-//       {
-//         if (i2c_nack(i2c))
-//         {
-//           returnCode |= 1;  // indicate a NACK was received
-//           I2C_ICR(i2c) |= I2C_ICR_NACKCF;
-//         }
-//       }
-//
-//       if (timer > 0)
-//       {
-//         i2c_send_data(i2c, *w++);
-//       }
-//       else
-//       {
-//         returnCode |= 2;  // indicate a write timeout occured
-//         wn = 0;           // break out of the loop
-//         // i2c_send_stop(i2c); // stop the transfer
-//       }
-//
-//       timer = cI2cTimeout;
-//     }
-//     /* not entirely sure this is really necessary.
-//     * RM implies it will stall until it can write out the later bits
-//     */
-//     if (rn)
-//     {
-//       while ((timer-- > 0) && (i2c_transfer_complete(i2c) == 0) && (i2c_transmit_int_status(i2c) == 0))
-//       {
-//         if (i2c_nack(i2c))
-//         {
-//           returnCode |= 1;  // indicate a NACK was received
-//           I2C_ICR(i2c) |= I2C_ICR_NACKCF;
-//         }
-//       }
-//
-//       if (timer == 0)
-//       {
-//         returnCode |= 2;  // indicate a write timeout occured
-//         // i2c_send_stop(i2c); // stop the transfer
-//       }
-//
-//       timer = cI2cTimeout;
-//     }
-//   }
-//
-//   if (rn)
-//   {
-//     /* Setting transfer properties */
-//     i2c_set_7bit_address(i2c, addr);
-//     i2c_set_read_transfer_dir(i2c);
-//     i2c_set_bytes_to_transfer(i2c, rn);
-//     /* start transfer */
-//     i2c_send_start(i2c);
-//     /* important to do it afterwards to do a proper repeated start! */
-//     // i2c_enable_autoend(i2c);
-//
-//     for (size_t i = 0; i < rn; i++)
-//     {
-//       while ((timer-- > 0) && (i2c_received_data(i2c) == 0));
-//       if (timer > 0)
-//       {
-//         r[i] = i2c_get_data(i2c);
-//         timer = cI2cTimeout;
-//       }
-//       else
-//       {
-//         returnCode |= 4;  // indicate a read timeout occured
-//         i = rn;           // break out of the loop
-//         i2c_send_stop(i2c); // stop the transfer
-//       }
-//     }
-//     i2c_send_stop(i2c); // stop the transfer
-//   }
-//
-//   return returnCode;
-// }
-
-volatile static uint8_t _addr;
-static uint8_t *_bufferRx;
-volatile static size_t _numberRx;
-
-uint8_t i2cTransfer(const uint8_t addr, const uint8_t *bufferTx, size_t numberTx, uint8_t *bufferRx, size_t numberRx)
+bool i2cTransfer(const uint8_t addr, const uint8_t *bufferTx, size_t numberTx, uint8_t *bufferRx, size_t numberRx)
 {
-  if (numberRx > 0)
+  // this could be arranged a little better but this way prevents the DMA
+  //  complete interrupt from being called before the receive data is populated
+  if (_i2cState == I2cState::I2cIdle)
   {
-    _addr = addr;
-    _bufferRx = bufferRx;
-    _numberRx = numberRx;
+    if (numberTx > 0)
+    {
+      _i2cAddr = addr;
+      _i2cBufferRx = bufferRx;
+      _i2cNumberRx = numberRx;
 
-    return i2cTransmit(addr, bufferTx, numberTx, false);
+      return i2cTransmit(addr, bufferTx, numberTx, (numberRx == 0));
+    }
+    else if (numberRx > 0)
+    {
+      return i2cReceive(addr, bufferRx, numberRx, true);
+    }
   }
-  else
-  {
-    _addr = addr;
-    _bufferRx = nullptr;
-    _numberRx = 0;
-
-    return i2cTransmit(addr, bufferTx, numberTx, true);
-  }
+  return false;
 }
 
 
@@ -1870,10 +1786,9 @@ bool i2cReceive(const uint8_t addr, uint8_t *bufferRx, const size_t numberRx, co
 {
   if (_i2cState != I2cState::I2cIdle)
   {
-    if (_i2cBusyFailCount++ > 5)
+    if (_i2cBusyFailCount++ > cI2cMaxFailBusyCount)
     {
       _i2cRecover();
-      _i2cBusyFailCount = 0;
     }
     // Let the caller know it was busy if so
     return false;
@@ -1881,7 +1796,7 @@ bool i2cReceive(const uint8_t addr, uint8_t *bufferRx, const size_t numberRx, co
 
   _i2cBusyFailCount = 0;
 
-  if (numberRx)
+  if (numberRx > 0)
   {
     _i2cState = I2cState::I2cBusy;
     i2c_set_7bit_address(I2C1, addr);
@@ -1936,10 +1851,9 @@ bool i2cTransmit(const uint8_t addr, const uint8_t *bufferTx, const size_t numbe
 {
   if (_i2cState != I2cState::I2cIdle)
   {
-    if (_i2cBusyFailCount++ > 5)
+    if (_i2cBusyFailCount++ > cI2cMaxFailBusyCount)
     {
       _i2cRecover();
-      _i2cBusyFailCount = 0;
     }
     // Let the caller know it was busy if so
     return false;
@@ -1947,7 +1861,7 @@ bool i2cTransmit(const uint8_t addr, const uint8_t *bufferTx, const size_t numbe
 
   _i2cBusyFailCount = 0;
 
-  if (numberTx)
+  if (numberTx > 0)
   {
     _i2cState = I2cState::I2cBusy;
     /* Setting transfer properties */
@@ -1974,18 +1888,17 @@ bool i2cTransmit(const uint8_t addr, const uint8_t *bufferTx, const size_t numbe
   	// Activate dma channel
   	dma_enable_channel(DMA1, DMA_CHANNEL6);
 
-    /* start transfer */
-    i2c_send_start(I2C1);
-
     if (autoEndXfer == true)
     {
-      /* important to do it afterwards to do a proper repeated start! */
       i2c_enable_autoend(I2C1);
     }
     else
     {
       i2c_disable_autoend(I2C1);
     }
+
+    /* start transfer */
+    i2c_send_start(I2C1);
 
   	/* Enable the I2C transfer via DMA
   	 * This will immediately start the transmission, after which when the receive
@@ -2000,7 +1913,7 @@ bool i2cTransmit(const uint8_t addr, const uint8_t *bufferTx, const size_t numbe
 
 bool i2cIsBusy()
 {
-  return _i2cState != I2cState::I2cIdle;
+  return (_i2cState != I2cState::I2cIdle);
 }
 
 
@@ -2305,23 +2218,14 @@ void delay(const uint32_t length)
 {
   for (uint32_t counter = 0; counter < length; counter++)
   {
-    // Kill some cycles
-    __asm__("nop");
-    __asm__("nop");
-    __asm__("nop");
-    __asm__("nop");
-    __asm__("nop");
-    __asm__("nop");
-    __asm__("nop");
-    __asm__("nop");
-    __asm__("nop");
-    __asm__("nop");
-    __asm__("nop");
-    __asm__("nop");
-    __asm__("nop");
-    __asm__("nop");
-    __asm__("nop");
-    __asm__("nop");
+    // Kill a cycle
+		// __asm__("nop");
+    if (_displayRefreshNow == true)
+    {
+      _refreshDisplay();
+
+      _displayRefreshNow = false;
+    }
 	}
 }
 
@@ -2435,9 +2339,9 @@ void dmaIsr()
 
     _i2cState = I2cState::I2cIdle;
 
-    if (_numberRx > 0)
+    if (_i2cNumberRx > 0)
     {
-      i2cReceive(_addr, _bufferRx, _numberRx, true);
+      i2cReceive(_i2cAddr, _i2cBufferRx, _i2cNumberRx, true);
     }
 	}
 
@@ -2453,8 +2357,8 @@ void dmaIsr()
 
     _i2cState = I2cState::I2cIdle;
 
-    _bufferRx = nullptr;
-    _numberRx = 0;
+    _i2cBufferRx = nullptr;
+    _i2cNumberRx = 0;
 	}
 }
 
@@ -2488,7 +2392,7 @@ void systickIsr()
 
   Keys::repeatHandler();
 
-  _refreshDisplay();
+  _displayRefreshNow = true;
 }
 
 
@@ -2551,12 +2455,6 @@ void tscIsr()
   {
     TSC_ICR = TSC_ICR_MCEIC;
   }
-}
-
-
-void i2c1Isr()
-{
-  while (true);
 }
 
 

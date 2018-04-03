@@ -17,8 +17,6 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 //
 #include <cstdint>
-// #include <stdio.h>
-// #include <libopencm3/stm32/i2c.h>
 #include "DateTime.h"
 #include "LM75.h"
 #include "Hardware.h"
@@ -57,8 +55,8 @@ static uint8_t writeBuffer[2];
 bool isConnected()
 {
   // Address the config register and read one byte
-  uint8_t result = Hardware::i2cTransfer(cChipAddress, &cConfigurationRegister, 1, readBuffer, 1);
-  while (Hardware::i2cIsBusy());
+  while (Hardware::i2cTransfer(cChipAddress, &cConfigurationRegister, 1, readBuffer, 1) == false);
+  while (Hardware::i2cIsBusy() == true);
 
   lm75Register[cConfigurationRegister + 1] = readBuffer[0];
 
@@ -85,17 +83,17 @@ uint16_t getTemperatureFractionalPart()
 }
 
 
-uint8_t refresh()
+bool refresh()
 {
   // Address the first (temperature) register, then read all the registers
-  return !Hardware::i2cTransfer(cChipAddress, &cTemperatureRegister, 1, lm75Register, cNumberOfRegisters);
+  return Hardware::i2cTransfer(cChipAddress, &cTemperatureRegister, 1, lm75Register, cNumberOfRegisters);
 }
 
 
-uint8_t refreshTemp()
+bool refreshTemp()
 {
   // Address the temperature register
-  return !Hardware::i2cTransfer(cChipAddress, &cTemperatureRegister, 1, lm75Register, 2);
+  return Hardware::i2cTransfer(cChipAddress, &cTemperatureRegister, 1, lm75Register, 2);
 }
 
 
