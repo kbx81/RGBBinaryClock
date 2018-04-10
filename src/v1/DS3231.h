@@ -57,6 +57,10 @@ bool isRunning();
 //
 bool isValid();
 
+// Enable or disable the 32kHz output signal
+//
+void set32kHzOut(const bool isEnabled);
+
 // Get the raw temperature register value
 //
 uint16_t getTemperatureRegister();
@@ -70,16 +74,16 @@ int16_t getTemperatureWholePart();
 uint16_t getTemperatureFractionalPart();
 
 // Read all registers from the DS3231
-//  Returns result of read from Hardware::i2c_transfer7()
-uint8_t refresh();
+//  Returns result of read from Hardware::i2cTransfer()
+bool refresh();
 
 // Read the time and temperature registers from the DS3231
-//  Returns result of read from Hardware::i2c_transfer7()
-uint8_t refreshTimeDateTemp();
+//  Returns result of read from Hardware::i2cTransfer()
+bool refreshTimeDateTemp();
 
 // Read the time and date registers from the DS3231
-//  Returns result of read from Hardware::i2c_transfer7()
-uint8_t refreshTimeDate();
+//  Returns result of read from Hardware::i2cTransfer()
+bool refreshTimeDate();
 
 }
 

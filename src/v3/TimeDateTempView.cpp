@@ -27,7 +27,7 @@ namespace kbxBinaryClock {
 
 // number of seconds in a day
 //
-const uint32_t TimeDateTempView::SecondsInADay = 60 * 60 * 24;
+const uint32_t TimeDateTempView::cSecondsInADay = 60 * 60 * 24;
 
 
 bool TimeDateTempView::_isDst()
@@ -135,7 +135,7 @@ void TimeDateTempView::loop()
 {
   FixedDisplayItem nextDisplayItem;
   RgbLed   color[2], defaultOff(0, 0, 0, _settings.getRawSetting(Settings::Setting::FadeRate));
-  uint32_t displayBitMask, changeDisplayTime;
+  uint32_t displayBitMask, changeDisplayTime, itemDisplayDuration;
 
   _currentTime = Hardware::getDateTime();
 
@@ -159,24 +159,26 @@ void TimeDateTempView::loop()
     switch (_fixedDisplayItem)
     {
       case FixedDisplayItem::Date:
-      changeDisplayTime = _lastSwitchTime + _settings.getRawSetting(Settings::Setting::DateDisplayDuration);
+      itemDisplayDuration = _settings.getRawSetting(Settings::Setting::DateDisplayDuration);
       nextDisplayItem = FixedDisplayItem::Temperature;
       break;
 
       case FixedDisplayItem::Temperature:
-      changeDisplayTime = _lastSwitchTime + _settings.getRawSetting(Settings::Setting::TemperatureDisplayDuration);
+      itemDisplayDuration = _settings.getRawSetting(Settings::Setting::TemperatureDisplayDuration);
       nextDisplayItem = FixedDisplayItem::Time;
       break;
 
       default:
-      changeDisplayTime = _lastSwitchTime + _settings.getRawSetting(Settings::Setting::TimeDisplayDuration);
+      itemDisplayDuration = _settings.getRawSetting(Settings::Setting::TimeDisplayDuration);
       nextDisplayItem = FixedDisplayItem::Date;
       break;
     }
 
+    changeDisplayTime = _lastSwitchTime + itemDisplayDuration;
+
     // rotate the display if it's time to do so
-    if (((changeDisplayTime >= SecondsInADay) && (_currentTime.secondsSinceMidnight(false) + SecondsInADay >= changeDisplayTime)) ||
-        (_currentTime.secondsSinceMidnight(false) >= changeDisplayTime))
+    if ((_currentTime.secondsSinceMidnight(false) >= changeDisplayTime) ||
+        (_currentTime.secondsSinceMidnight(false) + cSecondsInADay == changeDisplayTime))
     {
       _fixedDisplayItem = nextDisplayItem;
       _lastSwitchTime = _currentTime.secondsSinceMidnight(false);

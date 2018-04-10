@@ -46,6 +46,7 @@
 #include "Hardware.h"
 #include "Keys.h"
 #include "LM75.h"
+#include "MCP9808.h"
 #include "RgbLed.h"
 
 
@@ -247,7 +248,7 @@ static const int32_t cVddCalibrationVoltage = 3300;
 
 // USART baud rates
 //
-static const uint32_t cUsart1BaudRate = 9600;
+static const uint32_t cUsart1BaudRate = 115200;
 static const uint32_t cUsart2BaudRate = 250000;
 
 
@@ -1188,6 +1189,12 @@ void initialize()
   if (LM75::isConnected() == true)
   {
     _externalTemperatureSensor = TempSensorType::LM7x;
+    startupDisplayBitmap |= 0x20;   // this will appear on the startup display
+  }
+
+  if (MCP9808::isConnected() == true)
+  {
+    _externalTemperatureSensor = TempSensorType::MCP9808;
     startupDisplayBitmap |= 0x10;   // this will appear on the startup display
   }
 
@@ -1271,6 +1278,7 @@ void refresh()
     _currentDateTime.setTime(hour, minute, second);
     // _rtcIsSet = RTC_ISR & RTC_ISR_INITS;
   }
+
   // we do this here to give DMA time to complete before reading the temp sensor
   if (_displayRefreshNow == true)
   {
@@ -1294,6 +1302,10 @@ void refresh()
       _temperatureXcBaseMultiplier += ((LM75::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
       break;
     case TempSensorType::MCP9808:
+      MCP9808::refreshTemp();
+      _temperatureXcBaseMultiplier =  MCP9808::getTemperatureWholePart() * cBaseMultiplier;
+      _temperatureXcBaseMultiplier += ((MCP9808::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
+      break;
     default:
       const int32_t cTsCal1Temperature = 30 * cBaseMultiplier;
       // Get the averages of the last several readings
@@ -1761,7 +1773,16 @@ bool i2cTransfer(const uint8_t addr, const uint8_t *bufferTx, size_t numberTx, u
 {
   // this could be arranged a little better but this way prevents the DMA
   //  complete interrupt from being called before the receive data is populated
-  if (_i2cState == I2cState::I2cIdle)
+  if (_i2cState != I2cState::I2cIdle)
+  {
+    if (_i2cBusyFailCount++ > cI2cMaxFailBusyCount)
+    {
+      _i2cRecover();
+    }
+    // Let the caller know it was busy if so
+    return false;
+  }
+  else
   {
     if (numberTx > 0)
     {
@@ -1776,7 +1797,6 @@ bool i2cTransfer(const uint8_t addr, const uint8_t *bufferTx, size_t numberTx, u
       return i2cReceive(addr, bufferRx, numberRx, true);
     }
   }
-  return false;
 }
 
 
@@ -1908,6 +1928,12 @@ bool i2cTransmit(const uint8_t addr, const uint8_t *bufferTx, const size_t numbe
   }
 
   return true;
+}
+
+
+void i2cAbort()
+{
+  _i2cRecover();
 }
 
 

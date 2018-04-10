@@ -146,9 +146,22 @@ namespace Hardware {
   //
   uint32_t writeFlash(uint32_t startAddress, uint8_t *inputData, uint16_t numElements);
 
-  // Reads and/or writes data to/from specified I2C interface
+  // Reads and/or writes data to/from specified I2C interface via DMA
   //
-  uint8_t  i2c_transfer7(const uint32_t i2c, const uint8_t addr, const uint8_t *w, size_t wn, uint8_t *r, size_t rn);
+  bool     i2cTransfer(const uint8_t addr, const uint8_t *bufferTx, size_t numberTx, uint8_t *bufferRx, size_t numberRx);
+
+  // Reads and/or writes data to/from the I2C1 interface via DMA
+  //
+  bool     i2cReceive(const uint8_t addr, uint8_t *bufferRx, const size_t numberRx, const bool autoEndXfer);
+  bool     i2cTransmit(const uint8_t addr, const uint8_t *bufferTx, const size_t numberTx, const bool autoEndXfer);
+
+  // Aborts a transfer initiated by i2cTransfer()
+  //
+  void     i2cAbort();
+
+  // Permits checking the status of the I2C; returns true if busy
+  //
+  bool     i2cIsBusy();
 
   // Reads data from the serial port with DMA
   //  Returns false if failure (the USART was busy)

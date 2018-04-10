@@ -35,6 +35,10 @@ static const uint8_t cChipAddress = 0x48;
 //
 static const uint8_t cNumberOfRegisters = 7;
 
+// How long we'll wait for I2C acknowledgement during isConnected()
+//
+static const uint16_t cI2cTimeout = 1000;
+
 // Registers of interest
 //
 static const uint8_t cTemperatureRegister = 0x00;   // two bytes
@@ -49,19 +53,28 @@ static uint8_t lm75Register[cNumberOfRegisters];
 // Read and Write buffers
 //
 static uint8_t readBuffer[4];
-static uint8_t writeBuffer[2];
+// static uint8_t writeBuffer[2];
 
 
 bool isConnected()
 {
+  uint16_t timeout = cI2cTimeout;
+  lm75Register[cConfigurationRegister + 1] = 0xff;  // foolproofing
   // Address the config register and read one byte
   while (Hardware::i2cTransfer(cChipAddress, &cConfigurationRegister, 1, readBuffer, 1) == false);
-  while (Hardware::i2cIsBusy() == true);
+  while ((Hardware::i2cIsBusy() == true) && (--timeout > 0));
 
-  lm75Register[cConfigurationRegister + 1] = readBuffer[0];
+  if (timeout > 0)
+  {
+    lm75Register[cConfigurationRegister + 1] = readBuffer[0];
+  }
+  else
+  {
+    Hardware::i2cAbort();
+  }
 
   // If bits 4 through 6 are zero and there wasn't a timeout, the IC is probably connected
-  return (((lm75Register[cConfigurationRegister + 1] & 0xe0) == 0)); // && (result == 0));
+  return (((lm75Register[cConfigurationRegister + 1] & 0xe0) == 0));
 }
 
 

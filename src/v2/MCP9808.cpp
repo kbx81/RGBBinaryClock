@@ -35,58 +35,73 @@ static const uint8_t cChipAddress = 0x18;
 //
 static const uint16_t cManufacturerId = 0x0054;
 
-// The number of 8-bit registers in the chip
+// The number of 16-bit registers in the chip
 //
 static const uint8_t cNumberOfRegisters = 9;
+
+// Size of registers in bytes
+//
+static const uint8_t cRegisterSizeInBytes = 2;
+
+// How long we'll wait for I2C acknowledgement during isConnected()
+//
+static const uint16_t cI2cTimeout = 1000;
 
 // Registers of interest
 //
 static const uint8_t cRegisterPointer = 0x00;
-static const uint8_t cConfigurationRegister = 0x01;
-static const uint8_t cUpperLimitRegister = 0x02;
-static const uint8_t cLowerLimitRegister = 0x03;
-static const uint8_t cCriticalLimitRegister = 0x04;
+// static const uint8_t cConfigurationRegister = 0x01;
+// static const uint8_t cUpperLimitRegister = 0x02;
+// static const uint8_t cLowerLimitRegister = 0x03;
+// static const uint8_t cCriticalLimitRegister = 0x04;
 static const uint8_t cTemperatureRegister = 0x05;
 static const uint8_t cManufacturerIdRegister = 0x06;
-static const uint8_t cDeviceIdRegister = 0x07;
-static const uint8_t cResolutionRegister = 0x08;
+// static const uint8_t cDeviceIdRegister = 0x07;
+// static const uint8_t cResolutionRegister = 0x08;
 
 // A full copy of MCP9808 registers, refreshed by calling refresh() functions
 //
-static uint16_t mcp9808Register[cNumberOfRegisters];
+static uint8_t mcp9808Register[cNumberOfRegisters * cRegisterSizeInBytes];
 
 // Read and Write buffers
 //
-static uint16_t readBuffer[4];
-static uint16_t writeBuffer[2];
+static uint8_t readBuffer[cNumberOfRegisters * cRegisterSizeInBytes];
+// static uint16_t writeBuffer[2];
 
 
 bool isConnected()
 {
+  uint16_t timeout = cI2cTimeout, manufacturerId = 0;
   // Address the config register and read one byte
-  while (Hardware::i2cTransfer(cChipAddress, &cManufacturerIdRegister, 1, (uint8_t*)readBuffer, 2) == false);
-  while (Hardware::i2cIsBusy() == true);
+  while (Hardware::i2cTransfer(cChipAddress, &cManufacturerIdRegister, 1, mcp9808Register + (cManufacturerIdRegister * cRegisterSizeInBytes), 2) == false);
+  while ((Hardware::i2cIsBusy() == true) && (--timeout > 0));
 
-  mcp9808Register[cManufacturerIdRegister] = readBuffer[0];
-
+  if (timeout > 0)
+  {
+    manufacturerId = (mcp9808Register[cManufacturerIdRegister * cRegisterSizeInBytes] << 8) | mcp9808Register[(cManufacturerIdRegister * cRegisterSizeInBytes) + 1];
+  }
+  else
+  {
+    Hardware::i2cAbort();
+  }
   // If the device ID is as expected, the IC is probably connected
-  return (mcp9808Register[cManufacturerIdRegister] == cManufacturerId);
+  return (manufacturerId == cManufacturerId);
 }
 
 
 uint16_t getTemperatureRegister()
 {
-  return mcp9808Register[cTemperatureRegister];
+  return (mcp9808Register[cTemperatureRegister * cRegisterSizeInBytes] << 8) | mcp9808Register[(cTemperatureRegister * cRegisterSizeInBytes) + 1];
 }
 
 
 int16_t getTemperatureWholePart()
 {
-  int16_t temperature = mcp9808Register[cTemperatureRegister];
+  int16_t temperature = (mcp9808Register[cTemperatureRegister * cRegisterSizeInBytes] << 8) | mcp9808Register[(cTemperatureRegister * cRegisterSizeInBytes) + 1];
 
   temperature = (temperature & 0x0ff0) >> 4;
 
-  if ((mcp9808Register[cTemperatureRegister] & 0x1000) == true)
+  if ((mcp9808Register[cTemperatureRegister * cRegisterSizeInBytes] & 0x10) == true)
   {
     temperature *= -1;
   }
@@ -97,21 +112,21 @@ int16_t getTemperatureWholePart()
 
 uint16_t getTemperatureFractionalPart()
 {
-  return (mcp9808Register[cTemperatureRegister] & 0x000f);
+  return (mcp9808Register[(cTemperatureRegister * cRegisterSizeInBytes) + 1] & 0x0f);
 }
 
 
 bool refresh()
 {
   // Address the first (temperature) register, then read all the registers
-  return Hardware::i2cTransfer(cChipAddress, &cRegisterPointer, 1, (uint8_t*)mcp9808Register, cNumberOfRegisters * 2);
+  return Hardware::i2cTransfer(cChipAddress, &cRegisterPointer, 1, mcp9808Register, cNumberOfRegisters * cRegisterSizeInBytes);
 }
 
 
 bool refreshTemp()
 {
   // Address the temperature register
-  return Hardware::i2cTransfer(cChipAddress, &cTemperatureRegister, 1, (uint8_t*)(mcp9808Register + cTemperatureRegister), 2);
+  return Hardware::i2cTransfer(cChipAddress, &cTemperatureRegister, 1, mcp9808Register + (cTemperatureRegister * cRegisterSizeInBytes), 2);
 }
 
 

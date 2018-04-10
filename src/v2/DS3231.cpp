@@ -35,6 +35,10 @@ static const uint8_t cChipAddress = 0x68;
 //
 static const uint8_t cNumberOfRegisters = 19;
 
+// How long we'll wait for I2C acknowledgement during isConnected()
+//
+static const uint16_t cI2cTimeout = 1000;
+
 // Registers of interest
 //
 static const uint8_t cSecondsRegister = 0x00;
@@ -136,12 +140,20 @@ void setDateTime(const DateTime &dateTime)
 
 bool isConnected()
 {
+  uint16_t timeout = cI2cTimeout;
   // Address the status register and read one byte
   while (Hardware::i2cTransfer(cChipAddress, &cControlRegister, 1, readBuffer, 2) == false);
-  while (Hardware::i2cIsBusy() == true);
+  while ((Hardware::i2cIsBusy() == true) && (--timeout > 0));
 
-  ds3231Register[cControlRegister] = readBuffer[0];
-  ds3231Register[cStatusRegister] = readBuffer[1];
+  if (timeout > 0)
+  {
+    ds3231Register[cControlRegister] = readBuffer[0];
+    ds3231Register[cStatusRegister] = readBuffer[1];
+  }
+  else
+  {
+    Hardware::i2cAbort();
+  }
 
   // If bits 4 through 6 are zero and there wasn't a timeout, the IC is probably connected
   return (((ds3231Register[cStatusRegister] & 0x70) == 0));

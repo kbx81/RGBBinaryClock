@@ -49,14 +49,13 @@ enum DstState : uint8_t
 // The view which displays either the date, time, temperature, or a rotation
 //
 public: // Implement the TimeDateTempView class
-  static const uint32_t SecondsInADay;
+  static const uint32_t cSecondsInADay;
 
   virtual void enter() override;
   virtual void keyHandler(Keys::Key key) override;
   virtual void loop() override;
 
 private:
-
   // determines if we're in DST or not
   //
   bool _isDst();
