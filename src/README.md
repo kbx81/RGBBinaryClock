@@ -39,7 +39,7 @@ The STM32F072 microcontroller is a rich device with a lot of peripherals. Many
 * FLASH controller - erases and writes settings to a dedicated block of FLASH so
   settings are retained across power failures and do not depend on the battery
 * GPIO - because how else do you toggle pins on/off or read input signals?
-* I2C - interfaces (via DMA) with the RTC and temperature sensor on v2 boards
+* I2C - interfaces (via DMA) with the DS3231 and temperature sensor on v2 boards
 * IWDG - the watchdog timer makes sure the MCU gets reset in the event of some
   catastrophic software crash/failure
 * NVIC - none of this would be possible without interrupts.
