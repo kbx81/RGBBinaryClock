@@ -103,7 +103,7 @@ namespace kbxBinaryClock {
     _setting[static_cast<uint8_t>(CurrentDrive)] = 0;
     _setting[static_cast<uint8_t>(TemperatureCalibration)] = 10;
     _setting[static_cast<uint8_t>(BeeperVolume)] = 7;
-    _setting[static_cast<uint8_t>(DmxAddress)] = 1;
+    _setting[static_cast<uint8_t>(DmxAddress)] = 0;
 
     _color0[Slot::Slot1] = defaultRed;    // 0130
     _color1[Slot::Slot1] = defaultOrange;
@@ -133,6 +133,8 @@ namespace kbxBinaryClock {
     _color1[Slot::SlotSet] = defaultRed;
     _color0[Slot::SlotSetDim] = defaultGreenDim;
     _color1[Slot::SlotSetDim] = defaultRedDim;
+    _color0[Slot::SlotDmx] = defaultOff;
+    _color1[Slot::SlotDmx] = defaultGray;
     _color0[Slot::SlotCalculated] = defaultGreen;
     _color1[Slot::SlotCalculated] = defaultRed;
 
@@ -285,7 +287,8 @@ namespace kbxBinaryClock {
 
   void Settings::setColors(const uint8_t slot, const RgbLed color0, const RgbLed color1)
   {
-    if (slot <= static_cast<uint8_t>(Slot::SlotSet))
+    if ((slot <= static_cast<uint8_t>(Slot::SlotSet)) ||
+        (slot == static_cast<uint8_t>(Slot::SlotDmx)))
     {
       _color0[slot] = color0;
       _color1[slot] = color1;

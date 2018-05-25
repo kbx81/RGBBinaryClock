@@ -30,6 +30,14 @@ namespace kbxBinaryClock {
 
 class TimerCounterView : public View {
 
+enum TimerMode : uint8_t
+{
+  TimerStop = ViewMode::ViewMode0,
+  TimerRunUp = ViewMode::ViewMode1,
+  TimerRunDown = ViewMode::ViewMode2,
+  TimerReset = ViewMode::ViewMode3
+};
+
 // The view which displays the timer/counter
 //
 public: // Implement the TimerCounterView class
@@ -52,17 +60,13 @@ private:
   //
   uint16_t _fadeRate;
 
-  // should the timer be running?
-  //
-  bool _timerRun;
-
   // direction for the timer to count
   //
   bool _countUp;
 
   // Settings to be used by the view
   //
-  Settings _settings;
+  Settings *_pSettings;
 
 };
 

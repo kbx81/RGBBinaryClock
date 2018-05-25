@@ -165,7 +165,7 @@ namespace Hardware {
 
   // Reads data from the serial port with DMA
   //  Returns false if failure (the USART was busy)
-  bool     readSerial(const uint32_t usart, const uint32_t length, const char* data);
+  bool     readSerial(const uint32_t usart, const uint32_t length, char* data);
 
   // Writes data to the serial port with DMA
   //  Returns false if failure (the USART was busy)
@@ -205,6 +205,8 @@ namespace Hardware {
   //
   void     dmaIsr();
   void     systickIsr();
+  void     tim15Isr();
+  void     tim16Isr();
   void     tscIsr();
   void     usart1Isr();
   void     usart2Isr();

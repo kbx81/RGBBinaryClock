@@ -17,18 +17,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 //
 
-#include <cstdint>
-#include <stdio.h>
-#include <errno.h>
 #include <libopencm3/cm3/nvic.h>
-#include <libopencm3/cm3/systick.h>
-#include <libopencm3/stm32/dma.h>
-#include <libopencm3/stm32/gpio.h>
-#include <libopencm3/stm32/i2c.h>
-#include <libopencm3/stm32/rcc.h>
-#include <libopencm3/stm32/spi.h>
-#include <libopencm3/stm32/tsc.h>
-#include <libopencm3/stm32/usart.h>
 #include "Hardware.h"
 #include "Application.h"
 
@@ -50,6 +39,7 @@ void dma1_channel2_3_isr(void)
 }
 
 
+/* I2C and USART transmit/receive completed with DMA */
 void dma1_channel4_5_isr()
 {
 	Hardware::dmaIsr();
@@ -60,6 +50,20 @@ void dma1_channel4_5_isr()
 void sys_tick_handler(void)
 {
 	Hardware::systickIsr();
+}
+
+
+/* Timer 15 interrupt -- used for DMX-512 break length measurement */
+void tim15_isr()
+{
+  Hardware::tim15Isr();
+}
+
+
+/* Timer 16 interrupt -- used for DMX-512 signal monitoring */
+void tim16_isr()
+{
+  Hardware::tim16Isr();
 }
 
 
@@ -84,6 +88,7 @@ void usart2_isr(void)
 }
 
 
+/* Where all life begins...more or less */
 int main()
 {
 	Hardware::initialize();

@@ -30,7 +30,7 @@ void SetTimeDateView::enter()
 {
   DateTime setDateTime;
 
-  _mode = Application::getMode();
+  _mode = Application::getOperatingMode();
 
   _settings = Application::getSettings();
 
@@ -167,13 +167,7 @@ void SetTimeDateView::keyHandler(Keys::Key key)
 
   if (key == Keys::Key::E)
   {
-    // Make sure these are off before we leave
-    Hardware::autoRefreshStatusLed(false);
-    Hardware::blueLed(0);
-    Hardware::greenLed(0);
-    Hardware::redLed(0);
-
-    Application::setMode(Application::OperatingMode::OperatingModeMainMenu);
+    Application::setOperatingMode(Application::OperatingMode::OperatingModeMainMenu);
   }
 }
 

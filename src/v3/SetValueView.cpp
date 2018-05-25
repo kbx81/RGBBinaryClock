@@ -27,7 +27,7 @@ namespace kbxBinaryClock {
 
 void SetValueView::enter()
 {
-  _mode = Application::getMode();
+  _mode = Application::getOperatingMode();
 
   _settings = Application::getSettings();
 
@@ -83,23 +83,29 @@ void SetValueView::keyHandler(Keys::Key key)
 
   if (key == Keys::Key::E)
   {
-    Application::setMode(Application::OperatingMode::OperatingModeMainMenu);
+    Application::setOperatingMode(Application::OperatingMode::OperatingModeMainMenu);
   }
 }
 
 
 void SetValueView::loop()
 {
-  uint32_t displayBitMask;
+  uint32_t displayBitMask, displayedValue = _setValue;
+
+  // this is because DMX-512 starts counting at one and not at zero
+  if (_mode == Application::OperatingMode::OperatingModeSetDMX512Address)
+  {
+    displayedValue += 1;
+  }
 
   // display value in BCD if settings say so
   if (_settings.getSetting(Settings::SystemOptions, Settings::SystemOptionsBits::DisplayBCD))
   {
-    displayBitMask = Hardware::uint32ToBcd(_setValue);
+    displayBitMask = Hardware::uint32ToBcd(displayedValue);
   }
   else
   {
-    displayBitMask = _setValue;
+    displayBitMask = displayedValue;
   }
 
   // now we can create a new display object with the right colors and bitmask

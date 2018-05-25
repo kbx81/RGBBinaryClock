@@ -44,6 +44,17 @@ void MainMenuView::enter()
   {
     _selectedMode = Application::OperatingMode::OperatingModeSetDate;
   }
+
+  // Verify/restore hardware settings
+  Hardware::autoRefreshStatusLed(false);
+  Hardware::currentDrive(_settings.getRawSetting(Settings::Setting::CurrentDrive));
+  Hardware::autoAdjustIntensities(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
+  Hardware::displayBlank(false);
+  Hardware::setVolume(_settings.getRawSetting(Settings::Setting::BeeperVolume));
+  // Make sure the status LEDs are off
+  Hardware::blueLed(0);
+  Hardware::greenLed(0);
+  Hardware::redLed(0);
 }
 
 
@@ -64,12 +75,12 @@ void MainMenuView::keyHandler(Keys::Key key)
 
   if (key == Keys::Key::B)
   {
-    Application::setMode(Application::OperatingMode::OperatingModeFixedDisplay);
+    Application::setOperatingMode(Application::OperatingMode::OperatingModeFixedDisplay);
   }
 
   if (key == Keys::Key::C)
   {
-    Application::setMode(Application::OperatingMode::OperatingModeToggleDisplay);
+    Application::setOperatingMode(Application::OperatingMode::OperatingModeToggleDisplay);
   }
 
   if (key == Keys::Key::D)
@@ -94,7 +105,7 @@ void MainMenuView::keyHandler(Keys::Key key)
   {
     if (_selectedMode <= static_cast<uint8_t>(Application::OperatingMode::OperatingModeSetColors))
     {
-      Application::setMode((Application::OperatingMode)_selectedMode);
+      Application::setOperatingMode((Application::OperatingMode)_selectedMode);
     }
   }
 }

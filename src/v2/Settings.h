@@ -91,7 +91,8 @@ public:
     SlotMenu = 11,
     SlotSet = 12,
     SlotSetDim = 13,
-    SlotCalculated = 14
+    SlotDmx = 14,
+    SlotCalculated = 15
   };
 
 

@@ -20,6 +20,9 @@
 
 #include "Application.h"
 #include "AlarmHandler.h"
+#include "Dmx-512-Controller.h"
+#include "Dmx-512-Rx.h"
+#include "Dmx-512-View.h"
 #include "Keys.h"
 #include "Settings.h"
 #include "MainMenuView.h"
@@ -46,6 +49,7 @@ static View* const cModeViews[] = {
     new MainMenuView(),
     new TimeDateTempView(),
     new TimerCounterView(),
+    new Dmx512View(),
     new SetTimeDateView(),
     new SetBitsView(),
     new SetValueView(),
@@ -55,7 +59,7 @@ static View* const cModeViews[] = {
 // Structure defining menu views
 //
 struct viewDescriptor {
-  uint8_t  displayNumber;
+  uint8_t  menuItemDisplayNumber;
   ViewEnum view;
 };
 
@@ -67,6 +71,7 @@ static viewDescriptor const cViewDescriptor[] = {
     {  1, ViewEnum::TimeDateTempViewEnum }, // OperatingModeFixedDisplay
     {  2, ViewEnum::TimeDateTempViewEnum }, // OperatingModeToggleDisplay
     {  3, ViewEnum::TimerCounterViewEnum }, // OperatingModeTimerCounter
+    {  4, ViewEnum::Dmx512ViewEnum },       // OperatingModeDmx512Display
     {  5, ViewEnum::SetTimeDateViewEnum },  // OperatingModeSetClock
     {  6, ViewEnum::SetTimeDateViewEnum },  // OperatingModeSetDate
     { 10, ViewEnum::SetBitsViewEnum },      // OperatingModeSetSystemOptions
@@ -112,17 +117,17 @@ static viewDescriptor const cViewDescriptor[] = {
     { 62, ViewEnum::SetColorsViewEnum },    // OperatingModeSetColors
 };
 
-// The loop delay in milliseconds.
-//
-// static const uint8_t cLoopDelay = 20;
-
 // The maximum idle time before the application switches back to the default view
 //
 static const uint32_t cMaximumIdleCount = 80000;
 
-// The current mode and sub-mode (if used) of the application
+// The current mode of the application
 //
 OperatingMode _applicationMode;
+
+// The application's current view mode
+//
+ViewMode _viewMode;
 
 // The application's current settings
 //
@@ -132,6 +137,10 @@ Settings _settings;
 //
 // View *_currentView = cModeViews[static_cast<uint8_t>(OperatingMode::OperatingModeFixedDisplay)];
 View *_currentView = cModeViews[static_cast<uint8_t>(ViewEnum::TimeDateTempViewEnum)];
+
+// DMX-512 signal status the last time we checked
+//
+bool _previousDmxState = false;
 
 // Idle cycle counter
 //
@@ -158,13 +167,15 @@ void initialize()
   Hardware::setMinimumIntensity(_settings.getRawSetting(Settings::Setting::MinimumIntensity));
   Hardware::setTemperatureCalibration((int8_t)(-(_settings.getRawSetting(Settings::Setting::TemperatureCalibration))));
 
-  setMode(OperatingMode::OperatingModeFixedDisplay);
+  DMX512Controller::initialize();
+
+  setOperatingMode(OperatingMode::OperatingModeFixedDisplay);
 }
 
 
 uint8_t getModeDisplayNumber(OperatingMode mode)
 {
-  return cViewDescriptor[static_cast<uint8_t>(mode)].displayNumber;
+  return cViewDescriptor[static_cast<uint8_t>(mode)].menuItemDisplayNumber;
 }
 
 
@@ -172,7 +183,7 @@ uint8_t getModeDisplayNumber(uint8_t mode)
 {
   if (mode <= static_cast<uint8_t>(OperatingMode::OperatingModeSetColors))
   {
-    return cViewDescriptor[mode].displayNumber;
+    return cViewDescriptor[mode].menuItemDisplayNumber;
   }
   return 0;
 }
@@ -180,7 +191,7 @@ uint8_t getModeDisplayNumber(uint8_t mode)
 
 // Allows views to get the application operating mode
 //
-OperatingMode getMode()
+OperatingMode getOperatingMode()
 {
   return _applicationMode;
 }
@@ -188,14 +199,38 @@ OperatingMode getMode()
 
 // Sets the application operating mode
 //
-void setMode(OperatingMode mode)
+void setOperatingMode(OperatingMode mode)
 {
   if (_applicationMode != mode)
   {
     _applicationMode = mode;
-    _idleCounter = 0;
+    _viewMode = ViewMode::ViewMode0;
     _currentView = cModeViews[static_cast<uint8_t>(cViewDescriptor[static_cast<uint8_t>(mode)].view)];
     _currentView->enter();
+
+    if (mode == OperatingMode::OperatingModeMainMenu)
+    {
+      _idleCounter = 0;
+    }
+  }
+}
+
+
+// Allows views to get their desired mode
+//
+ViewMode getViewMode()
+{
+  return _viewMode;
+}
+
+
+// Sets the view's desired mode
+//
+void setViewMode(ViewMode mode)
+{
+  if (_viewMode != mode)
+  {
+    _viewMode = mode;
   }
 }
 
@@ -206,6 +241,15 @@ Settings getSettings()
 {
   return _settings;
 }
+
+
+// Allows other views to get a pointer to the application's active settings
+//
+Settings* getSettingsPtr()
+{
+  return &_settings;
+}
+
 
 // Apply new settings
 //
@@ -223,6 +267,8 @@ void setSettings(Settings settings)
   Hardware::currentDrive(_settings.getRawSetting(Settings::Setting::CurrentDrive));
   Hardware::setMinimumIntensity(_settings.getRawSetting(Settings::Setting::MinimumIntensity));
   Hardware::setTemperatureCalibration((int8_t)(-(_settings.getRawSetting(Settings::Setting::TemperatureCalibration))));
+
+  DMX512Controller::initialize();
 
   _settings.saveToFlash();
 }
@@ -261,14 +307,27 @@ void loop()
     // Process any necessary alarms
     AlarmHandler::loop();
 
+    if (DMX512Rx::signalIsActive() != _previousDmxState)
+    {
+      _previousDmxState = DMX512Rx::signalIsActive();
+      setOperatingMode(OperatingMode::OperatingModeDmx512Display);
+    }
+
     // If the idle counter has maxed out, kick us back to the toggling display
     if (_idleCounter++ > cMaximumIdleCount)
     {
-      _idleCounter = 0;
+      _idleCounter--;
       if (_applicationMode == OperatingMode::OperatingModeMainMenu)
       {
-        setMode(OperatingMode::OperatingModeToggleDisplay);
+        setOperatingMode(OperatingMode::OperatingModeToggleDisplay);
       }
+      // Allow the DMX-512 controller to do its thing
+      DMX512Controller::controller();
+    }
+    else if (_applicationMode == OperatingMode::OperatingModeDmx512Display)
+    {
+      // Allow the DMX-512 controller to do its thing
+      DMX512Controller::controller();
     }
   }
 }

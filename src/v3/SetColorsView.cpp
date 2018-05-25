@@ -33,7 +33,7 @@ void SetColorsView::enter()
 
   _delta = 0x80;
 
-  _mode = Application::getMode();
+  _mode = Application::getOperatingMode();
 
   _settings = Application::getSettings();
 
@@ -100,10 +100,7 @@ void SetColorsView::keyHandler(Keys::Key key)
 
   if (key == Keys::Key::E)
   {
-    // restore autoAdjustIntensities in case we changed it
-    Hardware::autoAdjustIntensities(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
-
-    Application::setMode(Application::OperatingMode::OperatingModeMainMenu);
+    Application::setOperatingMode(Application::OperatingMode::OperatingModeMainMenu);
   }
 }
 

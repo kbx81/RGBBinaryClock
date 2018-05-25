@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 //
+
+#include "Dmx-512-Rx.h"
 #include "Hardware.h"
 #include "Settings.h"
 #include "TimerCounterView.h"
@@ -31,10 +33,7 @@ const uint32_t TimerCounterView::cMaxBcdValue = 999999;
 
 void TimerCounterView::enter()
 {
-  _settings = Application::getSettings();
-
-  _timerRun = false;
-  _countUp = true;
+  _pSettings = Application::getSettingsPtr();
 }
 
 
@@ -42,49 +41,58 @@ void TimerCounterView::keyHandler(Keys::Key key)
 {
   if (key == Keys::Key::A)
   {
-    _timerRun = true;
-    _fadeRate = _settings.getRawSetting(Settings::Setting::FadeRate);
+    if (_countUp == true)
+    {
+      Application::setViewMode(static_cast<ViewMode>(TimerMode::TimerRunUp));
+    }
+    else
+    {
+      Application::setViewMode(static_cast<ViewMode>(TimerMode::TimerRunDown));
+    }
+
+    _fadeRate = _pSettings->getRawSetting(Settings::Setting::FadeRate);
   }
 
   if (key == Keys::Key::B)
   {
-    _timerRun = false;
+    Application::setViewMode(static_cast<ViewMode>(TimerMode::TimerStop));
   }
 
   if (key == Keys::Key::C)
   {
-    _timerValue = 0;
+    // _timerValue = 0;
+    Application::setViewMode(static_cast<ViewMode>(TimerMode::TimerReset));
   }
 
   if (key == Keys::Key::D)
   {
-    if (_timerRun == true)
-    {
-      _countUp = false;
-    }
-    else
+    if (static_cast<TimerMode>(Application::getViewMode()) == TimerMode::TimerStop)
     {
       _timerValue--;
       _fadeRate = 0;
+    }
+    else
+    {
+      _countUp = false;
     }
   }
 
   if (key == Keys::Key::U)
   {
-    if (_timerRun == true)
-    {
-      _countUp = true;
-    }
-    else
+    if (static_cast<TimerMode>(Application::getViewMode()) == TimerMode::TimerStop)
     {
       _timerValue++;
       _fadeRate = 0;
+    }
+    else
+    {
+      _countUp = true;
     }
   }
 
   if (key == Keys::Key::E)
   {
-    Application::setMode(Application::OperatingMode::OperatingModeMainMenu);
+    Application::setOperatingMode(Application::OperatingMode::OperatingModeMainMenu);
   }
 }
 
@@ -92,32 +100,48 @@ void TimerCounterView::keyHandler(Keys::Key key)
 void TimerCounterView::loop()
 {
   DateTime currentTime;
-  RgbLed color0, color1;
+  RgbLed   color[2];
   uint32_t displayBitMask;
+  TimerMode currentTimerMode = static_cast<TimerMode>(Application::getViewMode());
 
   currentTime = Hardware::getDateTime();
 
   // determine what colors we need to use, then determine the bitmask for the display
-  color0 = _settings.getColor0(Settings::Slot::SlotTimer);
-  color1 = _settings.getColor1(Settings::Slot::SlotTimer);
-  color0.setRate(_fadeRate);
-  color1.setRate(_fadeRate);
+  if (DMX512Rx::signalIsActive() == true)
+  {
+    color[0] = _pSettings->getColor0(Settings::Slot::SlotDmx);
+    color[1] = _pSettings->getColor1(Settings::Slot::SlotDmx);
+  }
+  else
+  {
+    color[0] = _pSettings->getColor0(Settings::Slot::SlotTimer);
+    color[1] = _pSettings->getColor1(Settings::Slot::SlotTimer);
+    color[0].setRate(_fadeRate);
+    color[1].setRate(_fadeRate);
+  }
 
-  if ((_timerRun == true) && (_lastTime != currentTime.secondsSinceMidnight(false)))
+  if ((currentTimerMode != TimerMode::TimerStop) && (_lastTime != currentTime.secondsSinceMidnight(false)))
   {
     _lastTime = currentTime.secondsSinceMidnight(false);
 
-    if (_countUp == true)
+    switch (currentTimerMode)
     {
-      _timerValue++;
-    }
-    else
-    {
-      _timerValue--;
+      case TimerMode::TimerRunUp:
+        _timerValue++;
+        break;
+
+      case TimerMode::TimerRunDown:
+        _timerValue--;
+        break;
+
+      case TimerMode::TimerReset:
+        _timerValue = 0;
+        Application::setViewMode(static_cast<ViewMode>(TimerMode::TimerStop));
+        break;
     }
   }
 
-  if ((_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD) == true) &&
+  if ((_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD) == true) &&
       (_timerValue > cMaxBcdValue))
   {
     // we'll use what the timer value is closer to to determine what it
@@ -133,7 +157,7 @@ void TimerCounterView::loop()
   }
 
   // display timer in BCD if settings say so
-  if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD) == true)
+  if (_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD) == true)
   {
     displayBitMask = Hardware::uint32ToBcd(_timerValue);
   }
@@ -143,7 +167,7 @@ void TimerCounterView::loop()
   }
 
   // now we can create a new display object with the right colors and bitmask
-  Display bcDisp(color0, color1, displayBitMask);
+  Display bcDisp(color[0], color[1], displayBitMask);
 
   Hardware::writeDisplay(bcDisp);
 }

@@ -22,6 +22,21 @@
 #include "Settings.h"
 
 
+/// @brief View operating modes
+///
+enum ViewMode : uint8_t
+{
+  ViewMode0,
+  ViewMode1,
+  ViewMode2,
+  ViewMode3,
+  ViewMode4,
+  ViewMode5,
+  ViewMode6,
+  ViewMode7
+};
+
+
 // This is the abstract base class for all views in this application
 //
 class View {

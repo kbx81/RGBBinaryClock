@@ -33,10 +33,10 @@ class TimeDateTempView : public View {
 
 enum FixedDisplayItem : uint8_t
 {
-  Time,
-  TimeSeconds,
-  Date,
-  Temperature
+  Time = ViewMode::ViewMode0,
+  TimeSeconds = ViewMode::ViewMode1,
+  Date = ViewMode::ViewMode2,
+  Temperature = ViewMode::ViewMode3
 };
 
 enum DstState : uint8_t
@@ -80,13 +80,9 @@ private:
   //
   DstState _dstState;
 
-  // the item we should display
-  //
-  FixedDisplayItem _fixedDisplayItem;
-
   // Settings to be used by the view
   //
-  Settings _settings;
+  Settings *_pSettings;
 
 };
 

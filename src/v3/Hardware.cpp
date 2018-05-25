@@ -30,6 +30,7 @@
 #include <libopencm3/stm32/flash.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/i2c.h>
+#include <libopencm3/stm32/iwdg.h>
 #include <libopencm3/stm32/pwr.h>
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/rtc.h>
@@ -41,6 +42,8 @@
 
 #include "DateTime.h"
 #include "Display.h"
+#include "Dmx-512-Controller.h"
+#include "Dmx-512-Rx.h"
 #include "DS1722.h"
 #include "DS3234.h"
 #include "Hardware.h"
@@ -66,9 +69,9 @@ namespace Hardware {
   // SPI1 state
   //
   enum SpiState : uint8_t {
-    Idle,
-    BusyPeripheral,
-    BusyDisplay
+    SpiIdle,
+    SpiBusyPeripheral,
+    SpiBusyDisplay
   };
 
 
@@ -234,9 +237,13 @@ static const uint8_t cTscSamplesToAverage = 32;
 //
 static const int32_t cVddCalibrationVoltage = 3300;
 
+// USARTs I/O port
+//
+static const uint32_t cUsartPort = GPIOA;
+
 // USART baud rates
 //
-static const uint32_t cUsart1BaudRate = 9600;
+static const uint32_t cUsart1BaudRate = 115200;
 static const uint32_t cUsart2BaudRate = 250000;
 
 
@@ -294,7 +301,7 @@ static bool _spiMisoIsDisplay = false;
 
 // tracks what the SPI is doing
 //
-volatile static SpiState _spiState = SpiState::Idle;
+volatile static SpiState _spiState = SpiState::SpiIdle;
 
 // tracks when to silence a tone
 //
@@ -356,6 +363,7 @@ static uint16_t _displayBufferOut[cPwmChannelsPerDevice * cPwmNumberOfDevices];
 //
 RgbLed _displayActiveAndStart[2][Display::cLedCount + 1];
 RgbLed _displayDesiredAndSpare[2][Display::cLedCount + 1];
+RgbLed _statusLed;
 
 // either a 1 or a 0 to indicate buffers in use
 //
@@ -381,6 +389,10 @@ static bool _autoRefreshStatusLed = false;
 //
 static bool _displayBlank = true;
 
+// indicates to displayBlank() that it should NOT clear the BLANK pin as a
+//  display write is in progress with flicker reduction active
+volatile static bool _displayBlankForWrite = false;
+
 // true if updater routine determine one or more LEDs needs to be refreshed
 //
 static bool _displayRefreshRequired = false;
@@ -388,6 +400,10 @@ static bool _displayRefreshRequired = false;
 // true if it's time to refresh the display
 //
 static bool _displayRefreshNow = false;
+
+// true if it's time to refresh the ADC sampling arrays
+//
+static bool _adcSampleRefreshNow = false;
 
 // true if RTC is set/valid
 //
@@ -456,24 +472,26 @@ void _clockSetup()
   // SYSCFG is needed to remap USART DMA channels
   rcc_periph_clock_enable(RCC_SYSCFG_COMP);
 
+  rcc_periph_clock_enable(RCC_DMA);
+
   rcc_periph_clock_enable(RCC_RTC);
+
+  rcc_periph_clock_enable(RCC_TIM1);
+  rcc_periph_clock_enable(RCC_TIM2);
+  rcc_periph_clock_enable(RCC_TIM15);
+  rcc_periph_clock_enable(RCC_TIM16);
+
+  rcc_periph_clock_enable(RCC_ADC);
 
   rcc_periph_clock_enable(RCC_GPIOA);
 	rcc_periph_clock_enable(RCC_GPIOB);
 	rcc_periph_clock_enable(RCC_GPIOC);
-
-  rcc_periph_clock_enable(RCC_TIM1);
-  rcc_periph_clock_enable(RCC_TIM2);
-
-  rcc_periph_clock_enable(RCC_ADC);
 
   rcc_periph_clock_enable(RCC_SPI1);
   rcc_periph_clock_enable(RCC_USART1);
   rcc_periph_clock_enable(RCC_USART2);
 
   rcc_periph_clock_enable(RCC_TSC);
-
-	rcc_periph_clock_enable(RCC_DMA);
 }
 
 
@@ -485,9 +503,9 @@ void _dmaIntEnable()
 	// nvic_enable_irq(NVIC_ADC_COMP_IRQ);
   // nvic_set_priority(NVIC_DMA1_CHANNEL1_IRQ, 0);
 	// nvic_enable_irq(NVIC_DMA1_CHANNEL1_IRQ);
-  nvic_set_priority(NVIC_DMA1_CHANNEL2_3_IRQ, 0);
+  nvic_set_priority(NVIC_DMA1_CHANNEL2_3_IRQ, 64);
 	nvic_enable_irq(NVIC_DMA1_CHANNEL2_3_IRQ);
-  nvic_set_priority(NVIC_DMA1_CHANNEL4_5_IRQ, 0);
+  nvic_set_priority(NVIC_DMA1_CHANNEL4_5_IRQ, 64);
 	nvic_enable_irq(NVIC_DMA1_CHANNEL4_5_IRQ);
 }
 
@@ -570,6 +588,15 @@ void _gpioSetup()
   gpio_set(cBlankDisplayPort, cBlankDisplayPin);
   gpio_clear(cCurrentDrivePort, cCurrentDriveLowPin | cCurrentDriveHighPin);
   gpio_clear(cLedXPort, cSparePin);
+}
+
+
+// Configure the Independent Watchdog Timer
+//
+void _iwdgSetup()
+{
+  iwdg_set_period_ms(5000);
+  iwdg_start();
 }
 
 
@@ -880,39 +907,47 @@ void _tscSetup()
 void _usartSetup()
 {
   // Setup GPIO pins for USART1 & USART2 transmit and recieve
-  gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE,
-                  GPIO9 | GPIO10 | GPIO1 | GPIO2 | GPIO3);
+  gpio_mode_setup(cUsartPort, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO9 | GPIO10 | GPIO1 | GPIO2 | GPIO3);
 
   // Setup USART1 & USART2 TX & RX pins as alternate function
-	gpio_set_af(GPIOA, GPIO_AF1, GPIO9 | GPIO10 | GPIO1 | GPIO2 | GPIO3);
+	gpio_set_af(cUsartPort, GPIO_AF1, GPIO9 | GPIO10 | GPIO1 | GPIO2 | GPIO3);
 
   // Setup USART1 parameters
+  usart_set_databits(USART1, 8);
 	usart_set_baudrate(USART1, cUsart1BaudRate);
-	usart_set_databits(USART1, 8);
+  usart_set_stopbits(USART1, USART_CR2_STOP_1_0BIT);
 	usart_set_parity(USART1, USART_PARITY_NONE);
-	usart_set_stopbits(USART1, USART_CR2_STOP_1_0BIT);
 	usart_set_mode(USART1, USART_MODE_TX_RX);
 	usart_set_flow_control(USART1, USART_FLOWCONTROL_NONE);
 
   // Setup USART2 parameters
+  usart_set_databits(USART2, 8);
 	usart_set_baudrate(USART2, cUsart2BaudRate);
-	usart_set_databits(USART2, 8);
+  usart_set_stopbits(USART2, USART_CR2_STOP_2_0BIT);
 	usart_set_parity(USART2, USART_PARITY_NONE);
-	usart_set_stopbits(USART2, USART_CR2_STOP_2_0BIT);
-	usart_set_mode(USART2, USART_MODE_TX_RX);
+	usart_set_mode(USART2, USART_MODE_RX);
 	usart_set_flow_control(USART2, USART_FLOWCONTROL_NONE);
+  // Enable the USART's RS-485 driver mode output
+  USART2_CR3 |= USART_CR3_DEM;
 
   // usart_enable_rx_interrupt(USART1);
   // usart_enable_rx_interrupt(USART2);
   // usart_enable_tx_interrupt(USART1);
   // usart_enable_tx_interrupt(USART2);
+  // usart_enable_error_interrupt(USART1);
+  usart_enable_error_interrupt(USART2);
 
-	// Enable the USARTs
+  // Enable the USARTs
   usart_enable(USART1);
   usart_enable(USART2);
 
   USART1_CR1 |= USART_CR1_TE;
-  USART2_CR1 |= USART_CR1_TE;
+  USART2_CR1 |= USART_CR1_RE;
+
+  // nvic_set_priority(NVIC_USART1_IRQ, 0);
+	// nvic_enable_irq(NVIC_USART1_IRQ);
+  nvic_set_priority(NVIC_USART2_IRQ, 64);
+	nvic_enable_irq(NVIC_USART2_IRQ);
 }
 
 
@@ -947,10 +982,18 @@ void _setPWMx3(const uint8_t ledNumber, const RgbLed &ledValue)
   // status LED
   else if (ledNumber == Display::cLedCount)
   {
-    timer_set_oc_value(TIM2, TIM_OC1, gamma_table[ledValue.getRed()]);
-    timer_set_oc_value(TIM2, TIM_OC3, gamma_table[ledValue.getGreen()]);
-    timer_set_oc_value(TIM2, TIM_OC4, gamma_table[ledValue.getBlue()]);
+    _statusLed = ledValue;
   }
+}
+
+
+// Refreshes the status LED from _statusLed
+//
+void _refreshStatusLed()
+{
+  timer_set_oc_value(TIM2, TIM_OC1, gamma_table[_statusLed.getRed()]);
+  timer_set_oc_value(TIM2, TIM_OC3, gamma_table[_statusLed.getGreen()]);
+  timer_set_oc_value(TIM2, TIM_OC4, gamma_table[_statusLed.getBlue()]);
 }
 
 
@@ -966,7 +1009,7 @@ void _refreshDisplay()
   if (_autoAdjustIntensities == true)
   {
     _intensityMultiplier = (lightLevel() * cBaseMultiplier) / Display::cLedMaxIntensity;
-
+    // make sure the intensity multiplier does not go below the minimum level
     if (_intensityMultiplier < _minimumIntensity)
     {
       _intensityMultiplier = _minimumIntensity;
@@ -1054,6 +1097,11 @@ void _refreshDisplay()
     {
       _displayRefreshRequired = false;
     }
+
+    if ((_autoRefreshStatusLed == true) && (_displayBlank == false))
+    {
+      _refreshStatusLed();
+    }
   }
 }
 
@@ -1068,6 +1116,7 @@ void initialize()
 
   // First, set up all the hardware things
   _clockSetup();
+  _iwdgSetup();
   _gpioSetup();
   _timerSetup();
   _dmaSetup();
@@ -1075,6 +1124,8 @@ void initialize()
   _spiSetup();
   _usartSetup();
   _tscSetup();
+
+  DMX512Rx::initialize();
 
   _systickSetup(1);   // tick every 1 mS
 
@@ -1123,7 +1174,7 @@ void initialize()
 
   if (_externalRtcConnected == true)
   {
-    while (_spiState != SpiState::Idle);
+    while (_spiState != SpiState::SpiIdle);
     // isConnected() refreshes the status register so this will work without a refresh()
     _rtcIsSet = DS3234::isValid();
     startupDisplayBitmap |= 0x10;   // this will appear on the startup display
@@ -1154,6 +1205,7 @@ void initialize()
   refresh();
   // set status LED off
   _setPWMx3(Display::cLedCount, startupOff);
+  _refreshStatusLed();
 }
 
 
@@ -1161,6 +1213,8 @@ void refresh()
 {
   uint32_t totalLight = 0, totalTemp = 0, totalVoltage = 0;
   uint8_t i = 0;
+
+  iwdg_reset();
 
   // Add up some values so we can compute some averages...
   for (i = 0; i < cAdcSamplesToAverage; i++)
@@ -1247,12 +1301,28 @@ void refresh()
       // break;
   }
 
+  // we do this here to give DMA time to complete before refreshing the display
+  if (_adcSampleRefreshNow == true)
+  {
+    if (++_adcSampleCounter >= cAdcSamplesToAverage)
+    {
+      _adcSampleCounter = 0;
+    }
+
+    _adcSampleSetLight[_adcSampleCounter] = _bufferADC[cAdcPhototransistor];
+    _adcSampleSetTemp[_adcSampleCounter] = _bufferADC[cAdcTemperature];
+    _adcSampleSetVoltage[_adcSampleCounter] = _bufferADC[cAdcVref];
+
+    _adcSampleRefreshNow = false;
+  }
+
   if (_displayRefreshNow == true)
   {
     _refreshDisplay();
 
     _displayRefreshNow = false;
   }
+
 }
 
 
@@ -1379,10 +1449,26 @@ void displayBlank(const bool blank)
   if (blank)
   {
     gpio_set(cBlankDisplayPort, cBlankDisplayPin);
+
+    if (_autoRefreshStatusLed == true)
+    {
+      timer_set_oc_value(TIM2, TIM_OC4, 0);
+      timer_set_oc_value(TIM2, TIM_OC3, 0);
+      timer_set_oc_value(TIM2, TIM_OC1, 0);
+    }
   }
-  else
+  else if (_displayBlankForWrite == false)
   {
     gpio_clear(cBlankDisplayPort, cBlankDisplayPin);
+
+    if (_autoRefreshStatusLed == true)
+    {
+      _refreshStatusLed();
+    }
+  }
+  else if (_autoRefreshStatusLed == true)
+  {
+    _refreshStatusLed();
   }
 }
 
@@ -1702,7 +1788,7 @@ uint32_t writeFlash(uint32_t startAddress, uint8_t *inputData, uint16_t numEleme
 }
 
 
-bool readSerial(const uint32_t usart, const uint32_t length, const char* data)
+bool readSerial(const uint32_t usart, const uint32_t length, char* data)
 {
   switch (usart)
   {
@@ -1839,13 +1925,13 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
   uint16_t mSize = DMA_CCR_MSIZE_8BIT, pSize = DMA_CCR_PSIZE_8BIT;
   volatile uint8_t temp_data __attribute__ ((unused));
 
-  if (_spiState != SpiState::Idle)
+  if (_spiState != SpiState::SpiIdle)
   {
     // Let the caller know it was busy if so
     return false;
   }
 
-  _spiState = SpiState::BusyPeripheral;
+  _spiState = SpiState::SpiBusyPeripheral;
 
   if (use16BitXfers == true)
   {
@@ -1904,9 +1990,10 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
       // Attempt to reduce flicker at very low intensities
       if ((_autoAdjustIntensities == false) || (lightLevel() > _blankingThreshold))
       {
+        _displayBlankForWrite = true;
         gpio_set(cBlankDisplayPort, cBlankDisplayPin);
       }
-      _spiState = SpiState::BusyDisplay;
+      _spiState = SpiState::SpiBusyDisplay;
       break;
 
     case SpiPeripheral::Rtc:
@@ -1941,7 +2028,7 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
 
 bool spiIsBusy()
 {
-  return _spiState != SpiState::Idle;
+  return _spiState != SpiState::SpiIdle;
 }
 
 
@@ -1950,10 +2037,12 @@ void blueLed(const uint32_t intensity)
   if (intensity <= Display::cLedMaxIntensity)
   {
     timer_set_oc_value(TIM2, TIM_OC4, gamma_table[intensity]);
+    _statusLed.setBlue(gamma_table[intensity]);
   }
   else
   {
     timer_set_oc_value(TIM2, TIM_OC4, Display::cLedMaxIntensity);
+    _statusLed.setBlue(Display::cLedMaxIntensity);
   }
 }
 
@@ -1963,10 +2052,12 @@ void greenLed(const uint32_t intensity)
   if (intensity <= Display::cLedMaxIntensity)
   {
     timer_set_oc_value(TIM2, TIM_OC3, gamma_table[intensity]);
+    _statusLed.setGreen(gamma_table[intensity]);
   }
   else
   {
     timer_set_oc_value(TIM2, TIM_OC3, Display::cLedMaxIntensity);
+    _statusLed.setGreen(Display::cLedMaxIntensity);
   }
 }
 
@@ -1976,10 +2067,12 @@ void redLed(const uint32_t intensity)
   if (intensity <= Display::cLedMaxIntensity)
   {
     timer_set_oc_value(TIM2, TIM_OC1, gamma_table[intensity]);
+    _statusLed.setRed(gamma_table[intensity]);
   }
   else
   {
     timer_set_oc_value(TIM2, TIM_OC1, Display::cLedMaxIntensity);
+    _statusLed.setRed(Display::cLedMaxIntensity);
   }
 }
 
@@ -2000,8 +2093,10 @@ void blinkStatusLed(const RgbLed led1, const RgbLed led2, uint32_t numberOfBlink
   while (numberOfBlinks-- > 0)
   {
     _setPWMx3(Display::cLedCount, led1);
+    _refreshStatusLed();
     delay(delayLength);
     _setPWMx3(Display::cLedCount, led2);
+    _refreshStatusLed();
     delay(delayLength);
   }
   // restore auto refresh state
@@ -2104,12 +2199,13 @@ void dmaIsr()
       gpio_set(cNssPort, cNssDisplayPin | cNssRtcPin | cNssTemperaturePin);
     }
 
-    if ((_spiState == SpiState::BusyDisplay) && (_displayBlank == false))
+    if ((_spiState == SpiState::SpiBusyDisplay) && (_displayBlank == false))
     {
       gpio_clear(cBlankDisplayPort, cBlankDisplayPin);
     }
+    _displayBlankForWrite = false;
 
-    _spiState = SpiState::Idle;
+    _spiState = SpiState::SpiIdle;
   }
 
   if (DMA1_ISR & DMA_ISR_TCIF4)
@@ -2143,6 +2239,8 @@ void dmaIsr()
 		usart_disable_rx_dma(USART2);
 
 		dma_disable_channel(DMA1, DMA_CHANNEL6);
+
+    DMX512Rx::rxCompleteIsr();
 	}
 
   if (DMA1_ISR & DMA_ISR_TCIF7)
@@ -2164,30 +2262,35 @@ void systickIsr()
   if (_adcSampleTimer++ >= cAdcSampleInterval)
   {
     _adcSampleTimer = 0;
-
-    if (++_adcSampleCounter >= cAdcSamplesToAverage)
-    {
-      _adcSampleCounter = 0;
-    }
-
-    _adcSampleSetLight[_adcSampleCounter] = _bufferADC[cAdcPhototransistor];
-    _adcSampleSetTemp[_adcSampleCounter] = _bufferADC[cAdcTemperature];
-    _adcSampleSetVoltage[_adcSampleCounter] = _bufferADC[cAdcVref];
+    _adcSampleRefreshNow = true;
   }
 
   // update the tone timer and turn off the tone if the timer has expired
   if (_toneTimer > 0)
   {
-    _toneTimer--;
-  }
-  else
-  {
-    timer_set_oc_value(TIM1, TIM_OC1, 0);
+    if (--_toneTimer == 0)
+    {
+      timer_set_oc_value(TIM1, TIM_OC1, 0);
+    }
   }
 
   Keys::repeatHandler();
 
+  DMX512Controller::strobeTimer();
+
   _displayRefreshNow = true;
+}
+
+
+void tim15Isr()
+{
+  DMX512Rx::timerUartIsr();
+}
+
+
+void tim16Isr()
+{
+  DMX512Rx::timerSupervisorIsr();
 }
 
 
@@ -2261,7 +2364,7 @@ void usart1Isr()
 
 void usart2Isr()
 {
-
+  DMX512Rx::rxIsr();
 }
 
 

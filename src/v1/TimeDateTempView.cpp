@@ -18,6 +18,7 @@
 //
 
 #include "DateTime.h"
+#include "Dmx-512-Rx.h"
 #include "Settings.h"
 #include "TimeDateTempView.h"
 
@@ -39,15 +40,15 @@ bool TimeDateTempView::_isDst()
   if (_dstStart.year(false) != _currentTime.year(false))
   {
     _dstState = DstState::Reset;
-    firstDay = ((_settings.getRawSetting(Settings::Setting::DstBeginDowOrdinal) - 1) * 7) + 1;
+    firstDay = ((_pSettings->getRawSetting(Settings::Setting::DstBeginDowOrdinal) - 1) * 7) + 1;
 
     do
     {
-      _dstStart.setDate(_currentTime.year(false), _settings.getRawSetting(Settings::Setting::DstBeginMonth), firstDay++);
+      _dstStart.setDate(_currentTime.year(false), _pSettings->getRawSetting(Settings::Setting::DstBeginMonth), firstDay++);
     }
-    while((_dstStart.dayOfWeek() != _settings.getRawSetting(Settings::Setting::DstSwitchDayOfWeek)) && (firstDay <= 31));
+    while((_dstStart.dayOfWeek() != _pSettings->getRawSetting(Settings::Setting::DstSwitchDayOfWeek)) && (firstDay <= 31));
 
-    _dstStart.setTime(_settings.getRawSetting(Settings::Setting::DstSwitchHour), 0, 0);
+    _dstStart.setTime(_pSettings->getRawSetting(Settings::Setting::DstSwitchHour), 0, 0);
 
     if (_currentTime >= _dstStart)
     {
@@ -57,15 +58,15 @@ bool TimeDateTempView::_isDst()
 
   if (_dstEnd.year(false) != _currentTime.year(false))
   {
-    firstDay = ((_settings.getRawSetting(Settings::Setting::DstEndDowOrdinal) - 1) * 7) + 1;
+    firstDay = ((_pSettings->getRawSetting(Settings::Setting::DstEndDowOrdinal) - 1) * 7) + 1;
 
     do
     {
-      _dstEnd.setDate(_currentTime.year(false), _settings.getRawSetting(Settings::Setting::DstEndMonth), firstDay++);
+      _dstEnd.setDate(_currentTime.year(false), _pSettings->getRawSetting(Settings::Setting::DstEndMonth), firstDay++);
     }
-    while((_dstEnd.dayOfWeek() != _settings.getRawSetting(Settings::Setting::DstSwitchDayOfWeek)) && (firstDay <= 31));
+    while((_dstEnd.dayOfWeek() != _pSettings->getRawSetting(Settings::Setting::DstSwitchDayOfWeek)) && (firstDay <= 31));
 
-    _dstEnd.setTime(_settings.getRawSetting(Settings::Setting::DstSwitchHour), 0, 0);
+    _dstEnd.setTime(_pSettings->getRawSetting(Settings::Setting::DstSwitchHour), 0, 0);
 
     if (_currentTime >= _dstEnd)
     {
@@ -82,15 +83,13 @@ void TimeDateTempView::enter()
 {
   _currentTime = Hardware::getDateTime();
 
-  _fixedDisplayItem = FixedDisplayItem::Time;
+  _mode = Application::getOperatingMode();
 
-  _mode = Application::getMode();
-
-  _settings = Application::getSettings();
+  _pSettings = Application::getSettingsPtr();
 
   _lastSwitchTime = _currentTime.secondsSinceMidnight(false);
 
-  Hardware::autoRefreshStatusLed(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::StatusLedAsAmPm));
+  Hardware::autoRefreshStatusLed(_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::StatusLedAsAmPm));
 }
 
 
@@ -100,46 +99,40 @@ void TimeDateTempView::keyHandler(Keys::Key key)
 
   if (key == Keys::Key::A)
   {
-    _fixedDisplayItem = FixedDisplayItem::Time;
+    Application::setViewMode(static_cast<ViewMode>(FixedDisplayItem::Time));
   }
 
   if (key == Keys::Key::B)
   {
-    _fixedDisplayItem = FixedDisplayItem::Date;
+    Application::setViewMode(static_cast<ViewMode>(FixedDisplayItem::Date));
   }
 
   if (key == Keys::Key::C)
   {
-    _fixedDisplayItem = FixedDisplayItem::Temperature;
+    Application::setViewMode(static_cast<ViewMode>(FixedDisplayItem::Temperature));
   }
 
   if (key == Keys::Key::D)
   {
-    _fixedDisplayItem = FixedDisplayItem::TimeSeconds;
+    Application::setViewMode(static_cast<ViewMode>(FixedDisplayItem::TimeSeconds));
   }
 
   if (key == Keys::Key::E)
   {
-    // Make sure these are off before we leave
-    Hardware::autoRefreshStatusLed(false);
-    Hardware::blueLed(0);
-    Hardware::greenLed(0);
-    Hardware::redLed(0);
-
-    Application::setMode(Application::OperatingMode::OperatingModeMainMenu);
+    Application::setOperatingMode(Application::OperatingMode::OperatingModeMainMenu);
   }
 }
 
 
 void TimeDateTempView::loop()
 {
-  FixedDisplayItem nextDisplayItem;
-  RgbLed   color[2], defaultOff(0, 0, 0, _settings.getRawSetting(Settings::Setting::FadeRate));
+  FixedDisplayItem nextDisplayItem, currentDisplayItem = static_cast<FixedDisplayItem>(Application::getViewMode());
+  RgbLed   color[2], defaultOff(0, 0, 0, _pSettings->getRawSetting(Settings::Setting::FadeRate));
   uint32_t displayBitMask, changeDisplayTime, itemDisplayDuration;
 
   _currentTime = Hardware::getDateTime();
 
-  if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DstEnable))
+  if (_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DstEnable))
   {
     if ((_currentTime >= _dstEnd) && (_dstState == DstState::Spring))
     {
@@ -156,20 +149,20 @@ void TimeDateTempView::loop()
 
   if (_mode == Application::OperatingMode::OperatingModeToggleDisplay)
   {
-    switch (_fixedDisplayItem)
+    switch (currentDisplayItem)
     {
       case FixedDisplayItem::Date:
-      itemDisplayDuration = _settings.getRawSetting(Settings::Setting::DateDisplayDuration);
+      itemDisplayDuration = _pSettings->getRawSetting(Settings::Setting::DateDisplayDuration);
       nextDisplayItem = FixedDisplayItem::Temperature;
       break;
 
       case FixedDisplayItem::Temperature:
-      itemDisplayDuration = _settings.getRawSetting(Settings::Setting::TemperatureDisplayDuration);
+      itemDisplayDuration = _pSettings->getRawSetting(Settings::Setting::TemperatureDisplayDuration);
       nextDisplayItem = FixedDisplayItem::Time;
       break;
 
       default:
-      itemDisplayDuration = _settings.getRawSetting(Settings::Setting::TimeDisplayDuration);
+      itemDisplayDuration = _pSettings->getRawSetting(Settings::Setting::TimeDisplayDuration);
       nextDisplayItem = FixedDisplayItem::Date;
       break;
     }
@@ -180,18 +173,26 @@ void TimeDateTempView::loop()
     if ((_currentTime.secondsSinceMidnight(false) >= changeDisplayTime) ||
         (_currentTime.secondsSinceMidnight(false) + cSecondsInADay == changeDisplayTime))
     {
-      _fixedDisplayItem = nextDisplayItem;
+      Application::setViewMode(static_cast<ViewMode>(nextDisplayItem));
       _lastSwitchTime = _currentTime.secondsSinceMidnight(false);
     }
   }
 
-  // Refresh display colors
-  _settings.refreshCalculatedColors();
-  color[0] = _settings.getColor0(Settings::Slot::SlotCalculated);
-  color[1] = _settings.getColor1(Settings::Slot::SlotCalculated);
+  // Determine and/or refresh display colors
+  if (DMX512Rx::signalIsActive() == true)
+  {
+    color[0] = _pSettings->getColor0(Settings::Slot::SlotDmx);
+    color[1] = _pSettings->getColor1(Settings::Slot::SlotDmx);
+  }
+  else
+  {
+    _pSettings->refreshCalculatedColors();
+    color[0] = _pSettings->getColor0(Settings::Slot::SlotCalculated);
+    color[1] = _pSettings->getColor1(Settings::Slot::SlotCalculated);
+  }
 
   // make the LSbs blink if the clock is not set
-  if ((Hardware::rtcIsSet() == false) && (_fixedDisplayItem != FixedDisplayItem::Temperature))
+  if ((Hardware::rtcIsSet() == false) && (currentDisplayItem != FixedDisplayItem::Temperature))
   {
     displayBitMask = ((_currentTime.second(false) << 16) | (_currentTime.second(false) << 8) | _currentTime.second(false)) & 0x010101;
     // also make the status LED blink
@@ -200,43 +201,52 @@ void TimeDateTempView::loop()
   }
   else
   {
-    switch (_fixedDisplayItem)
+    switch (currentDisplayItem)
     {
       case FixedDisplayItem::TimeSeconds:
-      displayBitMask = _currentTime.secondsSinceMidnight(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD));
+      displayBitMask = _currentTime.secondsSinceMidnight(_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD));
       break;
 
       case FixedDisplayItem::Date:
-      color[0] = _settings.getColor0(Settings::Slot::SlotDate);
-      color[1] = _settings.getColor1(Settings::Slot::SlotDate);
+      if (DMX512Rx::signalIsActive() == false)
+      {
+        color[0] = _pSettings->getColor0(Settings::Slot::SlotDate);
+        color[1] = _pSettings->getColor1(Settings::Slot::SlotDate);
+      }
 
-      displayBitMask = (_currentTime.yearShort(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)) << 16)
-                     | (_currentTime.month(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)) << 8)
-                     | _currentTime.day(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD));
+      displayBitMask = (_currentTime.yearShort(_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)) << 16)
+                     | (_currentTime.month(_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)) << 8)
+                     | _currentTime.day(_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD));
       break;
 
       case FixedDisplayItem::Temperature:
-      color[0] = _settings.getColor0(Settings::Slot::SlotTemperature);
-      color[1] = _settings.getColor1(Settings::Slot::SlotTemperature);
+      if (DMX512Rx::signalIsActive() == false)
+      {
+        color[0] = _pSettings->getColor0(Settings::Slot::SlotTemperature);
+        color[1] = _pSettings->getColor1(Settings::Slot::SlotTemperature);
+      }
 
-      displayBitMask = Hardware::temperature(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayFahrenheit),
-                        _settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)) << 8;
+      displayBitMask = Hardware::temperature(_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayFahrenheit),
+                        _pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)) << 8;
       break;
 
       default:
-      displayBitMask = (_currentTime.hour(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD),
-                        _settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour)) << 16)
-                     | (_currentTime.minute(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)) << 8)
-                     | _currentTime.second(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD));
+      displayBitMask = (_currentTime.hour(_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD),
+                        _pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour)) << 16)
+                     | (_currentTime.minute(_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)) << 8)
+                     | _currentTime.second(_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD));
       // break;
     }
 
-    color[0].setRate(_settings.getRawSetting(Settings::Setting::FadeRate));
-    color[1].setRate(_settings.getRawSetting(Settings::Setting::FadeRate));
-
-    if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::StatusLedAsAmPm))
+    if (DMX512Rx::signalIsActive() == false)
     {
-      if ((_fixedDisplayItem == FixedDisplayItem::Time) || (_fixedDisplayItem == FixedDisplayItem::TimeSeconds))
+      color[0].setRate(_pSettings->getRawSetting(Settings::Setting::FadeRate));
+      color[1].setRate(_pSettings->getRawSetting(Settings::Setting::FadeRate));
+    }
+
+    if (_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::StatusLedAsAmPm))
+    {
+      if ((currentDisplayItem == FixedDisplayItem::Time) || (currentDisplayItem == FixedDisplayItem::TimeSeconds))
       {
         if (_currentTime.isPM())
         {

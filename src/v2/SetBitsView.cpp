@@ -27,7 +27,7 @@ namespace kbxBinaryClock {
 
 void SetBitsView::enter()
 {
-  _mode = Application::getMode();
+  _mode = Application::getOperatingMode();
 
   _settings = Application::getSettings();
 
@@ -74,7 +74,7 @@ void SetBitsView::keyHandler(Keys::Key key)
 
   if (key == Keys::Key::E)
   {
-    Application::setMode(Application::OperatingMode::OperatingModeMainMenu);
+    Application::setOperatingMode(Application::OperatingMode::OperatingModeMainMenu);
   }
 }
 

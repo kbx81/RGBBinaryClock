@@ -22,6 +22,7 @@
 #include <cstdint>
 
 #include "Settings.h"
+#include "View.h"
 
 
 namespace kbxBinaryClock {
@@ -36,6 +37,7 @@ namespace Application {
     OperatingModeFixedDisplay,        ///< Fixed display mode
     OperatingModeToggleDisplay,       ///< Toggling display mode
     OperatingModeTimerCounter,        ///< Timer/counter mode
+    OperatingModeDmx512Display,       ///< DMX-512 display mode
     OperatingModeSetClock,            ///< Set timeclock mode
     OperatingModeSetDate,             ///< Set date mode
     OperatingModeSetSystemOptions,    ///< Set Binary/BCD and 24 hour bits mode
@@ -88,6 +90,7 @@ namespace Application {
       MainMenuViewEnum,
       TimeDateTempViewEnum,
       TimerCounterViewEnum,
+      Dmx512ViewEnum,
       SetTimeDateViewEnum,
       SetBitsViewEnum,
       SetValueViewEnum,
@@ -105,15 +108,24 @@ namespace Application {
 
   // Get application mode
   //
-  OperatingMode getMode();
+  OperatingMode getOperatingMode();
 
   // Set new application mode
   //
-  void setMode(OperatingMode mode);
+  void setOperatingMode(OperatingMode mode);
+
+  // Get view mode
+  //
+  ViewMode getViewMode();
+
+  // Set new view mode
+  //
+  void setViewMode(ViewMode mode);
 
   // Get application settings
   //
   Settings getSettings();
+  Settings* getSettingsPtr();
 
   // Set new application settings
   //

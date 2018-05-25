@@ -42,6 +42,8 @@
 
 #include "DateTime.h"
 #include "Display.h"
+#include "Dmx-512-Controller.h"
+#include "Dmx-512-Rx.h"
 #include "DS3231.h"
 #include "Hardware.h"
 #include "Keys.h"
@@ -246,6 +248,10 @@ static const uint8_t cTscSamplesToAverage = 32;
 //
 static const int32_t cVddCalibrationVoltage = 3300;
 
+// USARTs I/O port
+//
+static const uint32_t cUsartPort = GPIOA;
+
 // USART baud rates
 //
 static const uint32_t cUsart1BaudRate = 115200;
@@ -380,6 +386,7 @@ static uint16_t _displayBufferOut[cPwmChannelsPerDevice * cPwmNumberOfDevices];
 //
 RgbLed _displayActiveAndStart[2][Display::cLedCount + 1];
 RgbLed _displayDesiredAndSpare[2][Display::cLedCount + 1];
+RgbLed _statusLed;
 
 // either a 1 or a 0 to indicate buffers in use
 //
@@ -389,7 +396,7 @@ uint8_t _activeBufferSet[Display::cLedCount + 1];
 //
 static DateTime _currentDateTime;
 
-// contains the temperature in degrees Celsius times one hundred
+// contains the temperature in degrees Celsius times cBaseMultiplier
 //
 static int32_t _temperatureXcBaseMultiplier;
 
@@ -405,6 +412,10 @@ static bool _autoRefreshStatusLed = false;
 //
 static bool _displayBlank = true;
 
+// indicates to displayBlank() that it should NOT clear the BLANK pin as a
+//  display write is in progress with flicker reduction active
+volatile static bool _displayBlankForWrite = false;
+
 // true if updater routine determine one or more LEDs needs to be refreshed
 //
 static bool _displayRefreshRequired = false;
@@ -412,6 +423,10 @@ static bool _displayRefreshRequired = false;
 // true if it's time to refresh the display
 //
 static bool _displayRefreshNow = false;
+
+// true if it's time to refresh the ADC sampling arrays
+//
+static bool _adcSampleRefreshNow = false;
 
 // true if RTC is set/valid
 //
@@ -486,6 +501,8 @@ void _clockSetup()
 
   rcc_periph_clock_enable(RCC_TIM1);
   rcc_periph_clock_enable(RCC_TIM2);
+  rcc_periph_clock_enable(RCC_TIM15);
+  rcc_periph_clock_enable(RCC_TIM16);
 
   rcc_periph_clock_enable(RCC_ADC);
 
@@ -514,9 +531,9 @@ void _dmaIntEnable()
 	// nvic_enable_irq(NVIC_ADC_COMP_IRQ);
   // nvic_set_priority(NVIC_DMA1_CHANNEL1_IRQ, 0);
 	// nvic_enable_irq(NVIC_DMA1_CHANNEL1_IRQ);
-  nvic_set_priority(NVIC_DMA1_CHANNEL2_3_IRQ, 0);
+  nvic_set_priority(NVIC_DMA1_CHANNEL2_3_IRQ, 64);
 	nvic_enable_irq(NVIC_DMA1_CHANNEL2_3_IRQ);
-  nvic_set_priority(NVIC_DMA1_CHANNEL4_5_IRQ, 0);
+  nvic_set_priority(NVIC_DMA1_CHANNEL4_5_IRQ, 64);
 	nvic_enable_irq(NVIC_DMA1_CHANNEL4_5_IRQ);
 }
 
@@ -529,7 +546,7 @@ void _dmaSetup()
   //  SPI1 ties up the I2C1 & USART1 default DMA channels
   SYSCFG_CFGR1 |= (SYSCFG_CFGR1_USART1_RX_DMA_RMP |
                    SYSCFG_CFGR1_USART1_TX_DMA_RMP |
-                   SYSCFG_CFGR1_USART2_DMA_RMP |
+                   // SYSCFG_CFGR1_USART2_DMA_RMP |
                    SYSCFG_CFGR1_I2C1_DMA_RMP);
 
   // Reset DMA channels
@@ -549,7 +566,7 @@ void _dmaSetup()
   dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL1);
   dma_set_peripheral_size(DMA1, DMA_CHANNEL1, DMA_CCR_PSIZE_16BIT);
   dma_set_memory_size(DMA1, DMA_CHANNEL1, DMA_CCR_MSIZE_16BIT);
-  dma_set_priority(DMA1, DMA_CHANNEL1, DMA_CCR_PL_VERY_HIGH);
+  dma_set_priority(DMA1, DMA_CHANNEL1, DMA_CCR_PL_HIGH);
   dma_enable_circular_mode(DMA1, DMA_CHANNEL1);
   dma_enable_channel(DMA1, DMA_CHANNEL1);
 
@@ -922,6 +939,7 @@ void _tscSetup()
   // enable the end of acquisition and max count error interrupts
   TSC_ICR = TSC_ICR_EOAIC | TSC_ICR_MCEIC;
   TSC_IER = TSC_IER_EOAIE | TSC_IER_MCEIE;
+  nvic_set_priority(NVIC_TSC_IRQ, 128);
   nvic_enable_irq(NVIC_TSC_IRQ);
 
   // define the pulse generator prescaler value
@@ -950,39 +968,47 @@ void _tscSetup()
 void _usartSetup()
 {
   // Setup GPIO pins for USART1 & USART2 transmit and recieve
-  gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE,
-                  GPIO9 | GPIO10 | GPIO1 | GPIO2 | GPIO3);
+  gpio_mode_setup(cUsartPort, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO9 | GPIO10 | GPIO1 | GPIO2 | GPIO3);
 
   // Setup USART1 & USART2 TX & RX pins as alternate function
-	gpio_set_af(GPIOA, GPIO_AF1, GPIO9 | GPIO10 | GPIO1 | GPIO2 | GPIO3);
+	gpio_set_af(cUsartPort, GPIO_AF1, GPIO9 | GPIO10 | GPIO1 | GPIO2 | GPIO3);
 
   // Setup USART1 parameters
+  usart_set_databits(USART1, 8);
 	usart_set_baudrate(USART1, cUsart1BaudRate);
-	usart_set_databits(USART1, 8);
+  usart_set_stopbits(USART1, USART_CR2_STOP_1_0BIT);
 	usart_set_parity(USART1, USART_PARITY_NONE);
-	usart_set_stopbits(USART1, USART_CR2_STOP_1_0BIT);
 	usart_set_mode(USART1, USART_MODE_TX_RX);
 	usart_set_flow_control(USART1, USART_FLOWCONTROL_NONE);
 
   // Setup USART2 parameters
+  usart_set_databits(USART2, 8);
 	usart_set_baudrate(USART2, cUsart2BaudRate);
-	usart_set_databits(USART2, 8);
+  usart_set_stopbits(USART2, USART_CR2_STOP_2_0BIT);
 	usart_set_parity(USART2, USART_PARITY_NONE);
-	usart_set_stopbits(USART2, USART_CR2_STOP_2_0BIT);
-	usart_set_mode(USART2, USART_MODE_TX_RX);
+	usart_set_mode(USART2, USART_MODE_RX);
 	usart_set_flow_control(USART2, USART_FLOWCONTROL_NONE);
+  // Enable the USART's RS-485 driver mode output
+  USART2_CR3 |= USART_CR3_DEM;
 
   // usart_enable_rx_interrupt(USART1);
   // usart_enable_rx_interrupt(USART2);
   // usart_enable_tx_interrupt(USART1);
   // usart_enable_tx_interrupt(USART2);
+  // usart_enable_error_interrupt(USART1);
+  usart_enable_error_interrupt(USART2);
 
-	// Enable the USARTs
+  // Enable the USARTs
   usart_enable(USART1);
   usart_enable(USART2);
 
   USART1_CR1 |= USART_CR1_TE;
-  USART2_CR1 |= USART_CR1_TE;
+  USART2_CR1 |= USART_CR1_RE;
+
+  // nvic_set_priority(NVIC_USART1_IRQ, 0);
+	// nvic_enable_irq(NVIC_USART1_IRQ);
+  nvic_set_priority(NVIC_USART2_IRQ, 64);
+	nvic_enable_irq(NVIC_USART2_IRQ);
 }
 
 
@@ -1017,10 +1043,18 @@ void _setPWMx3(const uint8_t ledNumber, const RgbLed &ledValue)
   // status LED
   else if (ledNumber == Display::cLedCount)
   {
-    timer_set_oc_value(TIM2, TIM_OC3, gamma_table[ledValue.getRed()]);
-    timer_set_oc_value(TIM2, TIM_OC4, gamma_table[ledValue.getGreen()]);
-    timer_set_oc_value(TIM2, TIM_OC2, gamma_table[ledValue.getBlue()]);
+    _statusLed = ledValue;
   }
+}
+
+
+// Refreshes the status LED from _statusLed
+//
+void _refreshStatusLed()
+{
+  timer_set_oc_value(TIM2, TIM_OC3, gamma_table[_statusLed.getRed()]);
+  timer_set_oc_value(TIM2, TIM_OC4, gamma_table[_statusLed.getGreen()]);
+  timer_set_oc_value(TIM2, TIM_OC2, gamma_table[_statusLed.getBlue()]);
 }
 
 
@@ -1036,7 +1070,7 @@ void _refreshDisplay()
   if (_autoAdjustIntensities == true)
   {
     _intensityMultiplier = (lightLevel() * cBaseMultiplier) / Display::cLedMaxIntensity;
-
+    // make sure the intensity multiplier does not go below the minimum level
     if (_intensityMultiplier < _minimumIntensity)
     {
       _intensityMultiplier = _minimumIntensity;
@@ -1124,6 +1158,11 @@ void _refreshDisplay()
     {
       _displayRefreshRequired = false;
     }
+
+    if ((_autoRefreshStatusLed == true) && (_displayBlank == false))
+    {
+      _refreshStatusLed();
+    }
   }
 }
 
@@ -1147,6 +1186,8 @@ void initialize()
   _spiSetup();
   _usartSetup();
   _tscSetup();
+
+  DMX512Rx::initialize();
 
   _systickSetup(1);   // tick every 1 mS
 
@@ -1216,6 +1257,7 @@ void initialize()
   while (Hardware::i2cIsBusy() == true);
   // set status LED off
   _setPWMx3(Display::cLedCount, startupOff);
+  _refreshStatusLed();
 }
 
 
@@ -1280,6 +1322,20 @@ void refresh()
   }
 
   // we do this here to give DMA time to complete before reading the temp sensor
+  if (_adcSampleRefreshNow == true)
+  {
+    if (++_adcSampleCounter >= cAdcSamplesToAverage)
+    {
+      _adcSampleCounter = 0;
+    }
+
+    _adcSampleSetLight[_adcSampleCounter] = _bufferADC[cAdcPhototransistor];
+    _adcSampleSetTemp[_adcSampleCounter] = _bufferADC[cAdcTemperature];
+    _adcSampleSetVoltage[_adcSampleCounter] = _bufferADC[cAdcVref];
+
+    _adcSampleRefreshNow = false;
+  }
+
   if (_displayRefreshNow == true)
   {
     _refreshDisplay();
@@ -1446,10 +1502,26 @@ void displayBlank(const bool blank)
   if (blank)
   {
     gpio_set(cBlankDisplayPort, cBlankDisplayPin);
+
+    if (_autoRefreshStatusLed == true)
+    {
+      timer_set_oc_value(TIM2, TIM_OC3, 0);
+      timer_set_oc_value(TIM2, TIM_OC4, 0);
+      timer_set_oc_value(TIM2, TIM_OC2, 0);
+    }
   }
-  else
+  else if (_displayBlankForWrite == false)
   {
     gpio_clear(cBlankDisplayPort, cBlankDisplayPin);
+
+    if (_autoRefreshStatusLed == true)
+    {
+      _refreshStatusLed();
+    }
+  }
+  else if (_autoRefreshStatusLed == true)
+  {
+    _refreshStatusLed();
   }
 }
 
@@ -1943,29 +2015,29 @@ bool i2cIsBusy()
 }
 
 
-bool readSerial(const uint32_t usart, const uint32_t length, const char* data)
+bool readSerial(const uint32_t usart, const uint32_t length, char* data)
 {
   switch (usart)
   {
     case USART2:
-    if ((DMA1_ISR & DMA_ISR_TCIF6) || !(USART2_CR3 & USART_CR3_DMAR))
+    if ((DMA1_ISR & DMA_ISR_TCIF5) || !(USART2_CR3 & USART_CR3_DMAR))
     {
-      dma_channel_reset(DMA1, DMA_CHANNEL6);
+      dma_channel_reset(DMA1, DMA_CHANNEL5);
       // Set up rx dma, note it has higher priority to avoid overrun
-      dma_set_peripheral_address(DMA1, DMA_CHANNEL6, (uint32_t)&USART2_RDR);
-      dma_set_memory_address(DMA1, DMA_CHANNEL6, (uint32_t)data);
-      dma_set_number_of_data(DMA1, DMA_CHANNEL6, length);
-      dma_set_read_from_peripheral(DMA1, DMA_CHANNEL6);
-      dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL6);
-      dma_set_peripheral_size(DMA1, DMA_CHANNEL6, DMA_CCR_PSIZE_8BIT);
-      dma_set_memory_size(DMA1, DMA_CHANNEL6, DMA_CCR_MSIZE_8BIT);
-      dma_set_priority(DMA1, DMA_CHANNEL6, DMA_CCR_PL_VERY_HIGH);
+      dma_set_peripheral_address(DMA1, DMA_CHANNEL5, (uint32_t)&USART2_RDR);
+      dma_set_memory_address(DMA1, DMA_CHANNEL5, (uint32_t)data);
+      dma_set_number_of_data(DMA1, DMA_CHANNEL5, length);
+      dma_set_read_from_peripheral(DMA1, DMA_CHANNEL5);
+      dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL5);
+      dma_set_peripheral_size(DMA1, DMA_CHANNEL5, DMA_CCR_PSIZE_8BIT);
+      dma_set_memory_size(DMA1, DMA_CHANNEL5, DMA_CCR_MSIZE_8BIT);
+      dma_set_priority(DMA1, DMA_CHANNEL5, DMA_CCR_PL_VERY_HIGH);
 
       // Enable dma transfer complete interrupt
-    	dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL6);
+    	dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL5);
 
     	// Activate dma channel
-    	dma_enable_channel(DMA1, DMA_CHANNEL6);
+    	dma_enable_channel(DMA1, DMA_CHANNEL5);
 
       usart_enable_rx_dma(USART2);
     }
@@ -2014,22 +2086,22 @@ bool writeSerial(const uint32_t usart, const uint32_t length, const char* data)
     case USART2:
     if (USART2_ISR & USART_ISR_TC)
     {
-      dma_channel_reset(DMA1, DMA_CHANNEL7);
+      dma_channel_reset(DMA1, DMA_CHANNEL4);
       // Set up tx dma
-      dma_set_peripheral_address(DMA1, DMA_CHANNEL7, (uint32_t)&USART1_TDR);
-      dma_set_memory_address(DMA1, DMA_CHANNEL7, (uint32_t)data);
-      dma_set_number_of_data(DMA1, DMA_CHANNEL7, length);
-      dma_set_read_from_memory(DMA1, DMA_CHANNEL7);
-      dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL7);
-      dma_set_peripheral_size(DMA1, DMA_CHANNEL7, DMA_CCR_PSIZE_8BIT);
-      dma_set_memory_size(DMA1, DMA_CHANNEL7, DMA_CCR_MSIZE_8BIT);
-      dma_set_priority(DMA1, DMA_CHANNEL7, DMA_CCR_PL_HIGH);
+      dma_set_peripheral_address(DMA1, DMA_CHANNEL4, (uint32_t)&USART2_TDR);
+      dma_set_memory_address(DMA1, DMA_CHANNEL4, (uint32_t)data);
+      dma_set_number_of_data(DMA1, DMA_CHANNEL4, length);
+      dma_set_read_from_memory(DMA1, DMA_CHANNEL4);
+      dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL4);
+      dma_set_peripheral_size(DMA1, DMA_CHANNEL4, DMA_CCR_PSIZE_8BIT);
+      dma_set_memory_size(DMA1, DMA_CHANNEL4, DMA_CCR_MSIZE_8BIT);
+      dma_set_priority(DMA1, DMA_CHANNEL4, DMA_CCR_PL_HIGH);
 
       // Enable dma transfer complete interrupt
-    	dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL7);
+    	dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL4);
 
     	// Activate dma channel
-    	dma_enable_channel(DMA1, DMA_CHANNEL7);
+    	dma_enable_channel(DMA1, DMA_CHANNEL4);
 
       usart_enable_tx_dma(USART2);
     }
@@ -2115,7 +2187,7 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
   dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL2);
   dma_set_peripheral_size(DMA1, DMA_CHANNEL2, pSize);
   dma_set_memory_size(DMA1, DMA_CHANNEL2, mSize);
-  dma_set_priority(DMA1, DMA_CHANNEL2, DMA_CCR_PL_VERY_HIGH);
+  dma_set_priority(DMA1, DMA_CHANNEL2, DMA_CCR_PL_HIGH);
 
   // Set up tx dma
   dma_set_peripheral_address(DMA1, DMA_CHANNEL3, (uint32_t)&SPI1_DR);
@@ -2142,6 +2214,7 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
       // Attempt to reduce flicker at very low intensities
       if ((_autoAdjustIntensities == false) || (lightLevel() > _blankingThreshold))
       {
+        _displayBlankForWrite = true;
         gpio_set(cBlankDisplayPort, cBlankDisplayPin);
       }
       _spiState = SpiState::SpiBusyDisplay;
@@ -2175,10 +2248,12 @@ void blueLed(const uint32_t intensity)
   if (intensity <= Display::cLedMaxIntensity)
   {
     timer_set_oc_value(TIM2, TIM_OC2, gamma_table[intensity]);
+    _statusLed.setBlue(gamma_table[intensity]);
   }
   else
   {
     timer_set_oc_value(TIM2, TIM_OC2, Display::cLedMaxIntensity);
+    _statusLed.setBlue(Display::cLedMaxIntensity);
   }
 }
 
@@ -2188,10 +2263,12 @@ void greenLed(const uint32_t intensity)
   if (intensity <= Display::cLedMaxIntensity)
   {
     timer_set_oc_value(TIM2, TIM_OC4, gamma_table[intensity]);
+    _statusLed.setGreen(gamma_table[intensity]);
   }
   else
   {
     timer_set_oc_value(TIM2, TIM_OC4, Display::cLedMaxIntensity);
+    _statusLed.setGreen(Display::cLedMaxIntensity);
   }
 }
 
@@ -2201,10 +2278,12 @@ void redLed(const uint32_t intensity)
   if (intensity <= Display::cLedMaxIntensity)
   {
     timer_set_oc_value(TIM2, TIM_OC3, gamma_table[intensity]);
+    _statusLed.setRed(gamma_table[intensity]);
   }
   else
   {
     timer_set_oc_value(TIM2, TIM_OC3, Display::cLedMaxIntensity);
+    _statusLed.setRed(Display::cLedMaxIntensity);
   }
 }
 
@@ -2225,8 +2304,10 @@ void blinkStatusLed(const RgbLed led1, const RgbLed led2, uint32_t numberOfBlink
   while (numberOfBlinks-- > 0)
   {
     _setPWMx3(Display::cLedCount, led1);
+    _refreshStatusLed();
     delay(delayLength);
     _setPWMx3(Display::cLedCount, led2);
+    _refreshStatusLed();
     delay(delayLength);
   }
   // restore auto refresh state
@@ -2325,6 +2406,7 @@ void dmaIsr()
     {
       gpio_clear(cBlankDisplayPort, cBlankDisplayPin);
     }
+    _displayBlankForWrite = false;
 
     _spiState = SpiState::SpiIdle;
   }
@@ -2336,7 +2418,7 @@ void dmaIsr()
 		dma_disable_transfer_complete_interrupt(DMA1, DMA_CHANNEL4);
 
 		usart_disable_tx_dma(USART1);
-    // usart_disable_tx_dma(USART2);
+    usart_disable_tx_dma(USART2);
 
 		dma_disable_channel(DMA1, DMA_CHANNEL4);
 	}
@@ -2348,9 +2430,11 @@ void dmaIsr()
 		dma_disable_transfer_complete_interrupt(DMA1, DMA_CHANNEL5);
 
 		usart_disable_rx_dma(USART1);
-    // usart_disable_rx_dma(USART2);
+    usart_disable_rx_dma(USART2);
 
 		dma_disable_channel(DMA1, DMA_CHANNEL5);
+
+    DMX512Rx::rxCompleteIsr();
 	}
 
   if (DMA1_ISR & DMA_ISR_TCIF6)
@@ -2395,30 +2479,35 @@ void systickIsr()
   if (_adcSampleTimer++ >= cAdcSampleInterval)
   {
     _adcSampleTimer = 0;
-
-    if (++_adcSampleCounter >= cAdcSamplesToAverage)
-    {
-      _adcSampleCounter = 0;
-    }
-
-    _adcSampleSetLight[_adcSampleCounter] = _bufferADC[cAdcPhototransistor];
-    _adcSampleSetTemp[_adcSampleCounter] = _bufferADC[cAdcTemperature];
-    _adcSampleSetVoltage[_adcSampleCounter] = _bufferADC[cAdcVref];
+    _adcSampleRefreshNow = true;
   }
 
   // update the tone timer and turn off the tone if the timer has expired
   if (_toneTimer > 0)
   {
-    _toneTimer--;
-  }
-  else
-  {
-    timer_set_oc_value(TIM1, TIM_OC1, 0);
+    if (--_toneTimer == 0)
+    {
+      timer_set_oc_value(TIM1, TIM_OC1, 0);
+    }
   }
 
   Keys::repeatHandler();
 
+  DMX512Controller::strobeTimer();
+
   _displayRefreshNow = true;
+}
+
+
+void tim15Isr()
+{
+  DMX512Rx::timerUartIsr();
+}
+
+
+void tim16Isr()
+{
+  DMX512Rx::timerSupervisorIsr();
 }
 
 
@@ -2492,7 +2581,7 @@ void usart1Isr()
 
 void usart2Isr()
 {
-
+  DMX512Rx::rxIsr();
 }
 
 
