@@ -24,11 +24,6 @@
 
 namespace kbxBinaryClock {
 
-/// @brief kbx Binary Clock Main Application
-///
-/// The main application class
-///
-
 class RgbLed
 {
 public:
@@ -42,11 +37,21 @@ public:
   RgbLed(const uint16_t red = 0, const uint16_t green = 0, const uint16_t blue = 0, const uint16_t rate = 0);
 
 public:
+  /// Important constants
+  ///
+  static const uint8_t cBaseMultiplier = 100;
+
+  /// 4096-step (12 bit) brightness table: gamma = 2.2
+  ///
+  static const uint16_t cGammaTable[4096];
+
   /// Compare this RgbLed to another
   ///
   bool operator==(const RgbLed &other) const;
   bool operator!=(const RgbLed &other) const;
 
+  /// Acessors for RgbLed parameters
+  ///
   void setRed(const uint16_t intensity);
   void setGreen(const uint16_t intensity);
   void setBlue(const uint16_t intensity);
@@ -57,6 +62,13 @@ public:
   uint16_t getGreen() const;
   uint16_t getBlue() const;
   uint16_t getRate() const;
+
+  /// Methods for adjusting and merging RgbLed objects
+  /// All percentages are times 100 -- e.g.: 8765 = 87.65%
+  ///
+  void adjustIntensity(const uint16_t percentageOfCurrentx100);
+  void mergeRgbLeds(const uint16_t percentageOfLed0x100, const RgbLed &led0, const RgbLed &led1);
+  void gammaCorrect12bit();
 
 private:
   uint16_t _red, _green, _blue, _rate;  ///< Intensities for Red, Green, and Blue elements and Rate

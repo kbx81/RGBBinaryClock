@@ -151,8 +151,8 @@ namespace kbxBinaryClock {
 
   void Settings::loadFromFlash()
   {
-    RgbLed orange(2048, 768, 0, 0),
-           green(0, 2048, 0, 0);
+    RgbLed orange(1024, 120, 0, 0),
+           green(0, 768, 0, 0);
 
     Hardware::readFlash(cSettingsFlashAddress, sizeof(Settings), (uint8_t*)this);
 
@@ -160,7 +160,7 @@ namespace kbxBinaryClock {
     {
       initialize();
       // blink to alert that settings could not be loaded
-      Hardware::blinkStatusLed(green, orange, 6, 100000);
+      Hardware::blinkStatusLed(green, orange, 6, 120000);
     }
   }
 
@@ -390,30 +390,8 @@ namespace kbxBinaryClock {
         percentage = 10000 * (secondsSinceMidnight - _time[prevSlot].secondsSinceMidnight(false));
         percentage /= (nextSecs - _time[prevSlot].secondsSinceMidnight(false));
 
-        // new intensity = prev - ((prev - next) * percentage)
-        i = (int32_t)_color0[prevSlot].getRed() - (int32_t)_color0[nextSlot].getRed();
-        i = (int32_t)_color0[prevSlot].getRed() - ((i * percentage) / 10000);
-        _color0[Slot::SlotCalculated].setRed(i);
-
-        i = (int32_t)_color0[prevSlot].getGreen() - (int32_t)_color0[nextSlot].getGreen();
-        i = (int32_t)_color0[prevSlot].getGreen() - ((i * percentage) / 10000);
-        _color0[Slot::SlotCalculated].setGreen(i);
-
-        i = (int32_t)_color0[prevSlot].getBlue() - (int32_t)_color0[nextSlot].getBlue();
-        i = (int32_t)_color0[prevSlot].getBlue() - ((i * percentage) / 10000);
-        _color0[Slot::SlotCalculated].setBlue(i);
-
-        i = (int32_t)_color1[prevSlot].getRed() - (int32_t)_color1[nextSlot].getRed();
-        i = (int32_t)_color1[prevSlot].getRed() - ((i * percentage) / 10000);
-        _color1[Slot::SlotCalculated].setRed(i);
-
-        i = (int32_t)_color1[prevSlot].getGreen() - (int32_t)_color1[nextSlot].getGreen();
-        i = (int32_t)_color1[prevSlot].getGreen() - ((i * percentage) / 10000);
-        _color1[Slot::SlotCalculated].setGreen(i);
-
-        i = (int32_t)_color1[prevSlot].getBlue() - (int32_t)_color1[nextSlot].getBlue();
-        i = (int32_t)_color1[prevSlot].getBlue() - ((i * percentage) / 10000);
-        _color1[Slot::SlotCalculated].setBlue(i);
+        _color0[Slot::SlotCalculated].mergeRgbLeds(percentage, _color0[prevSlot], _color0[nextSlot]);
+        _color1[Slot::SlotCalculated].mergeRgbLeds(percentage, _color1[prevSlot], _color1[nextSlot]);
       }
       else
       {

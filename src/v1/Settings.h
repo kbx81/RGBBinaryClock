@@ -182,10 +182,6 @@ private:
   //
   uint16_t _setting[Setting::DmxAddress + 1];
 
-  // indicates validity of Settings data
-  //  used to determine if load from FLASH worked
-  uint32_t _validityKey;
-
   // array of stored times
   //
   DateTime _time[Slot::Slot8 + 1];
@@ -194,6 +190,10 @@ private:
   //
   RgbLed _color0[Slot::SlotCalculated + 1];
   RgbLed _color1[Slot::SlotCalculated + 1];
+
+  // indicates validity of Settings data
+  //  used to determine if load from FLASH worked
+  uint32_t _validityKey;
 };
 
 }

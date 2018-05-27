@@ -115,6 +115,40 @@ Display::Display(const RgbLed &color0, const RgbLed &color1, const uint8_t byte2
 }
 
 
+bool Display::operator==(const Display &other) const
+{
+  for (uint8_t i = 0; i < Display::cLedCount; i++)
+  {
+    if (_display[i] != other._display[i])
+    {
+      return false;
+    }
+  }
+
+  return _color0 == other._color0 &&
+          _color1 == other._color1 &&
+          _displayBitmap == other._displayBitmap &&
+          _displayBitmapMask == other._displayBitmapMask;
+}
+
+
+bool Display::operator!=(const Display &other) const
+{
+  for (uint8_t i = 0; i < Display::cLedCount; i++)
+  {
+    if (_display[i] != other._display[i])
+    {
+      return true;
+    }
+  }
+
+  return _color0 != other._color0 ||
+          _color1 != other._color1 ||
+          _displayBitmap != other._displayBitmap ||
+          _displayBitmapMask != other._displayBitmapMask;
+}
+
+
 void Display::setDisplayColor0(const RgbLed &color)
 {
   _color0 = color;

@@ -7,9 +7,6 @@
 1. The colors for the date display are sometimes incorrect on some (LSb?) pixels
  when TimeDateTempView displays the date in toggle mode. _Might be a weird race
  condition somewhere._
-1. Automatic display intensity adjustments based on the phototransistor's input
- are not smooth. It works but looks bad. _Figure out a better way to do this so
- that changes are fluid._
 1. Clock is advanced one hour if set during DST after a completely cold-start
  when DST auto-adjusting is enabled. _DST adjustments should perhaps not be
  handled by TimeDateTempView. Determine a better way to manage this._

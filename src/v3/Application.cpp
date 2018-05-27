@@ -121,6 +121,10 @@ static viewDescriptor const cViewDescriptor[] = {
 //
 static const uint32_t cMaximumIdleCount = 80000;
 
+// The maximum idle time before the application switches back to the default view
+//
+static const uint8_t cMinimumIntensityMultiplier = 10;
+
 // The current mode of the application
 //
 OperatingMode _applicationMode;
@@ -164,7 +168,7 @@ void initialize()
   Hardware::setFlickerReduction(_settings.getRawSetting(Settings::Setting::FlickerReduction));
   Hardware::setVolume(_settings.getRawSetting(Settings::Setting::BeeperVolume));
   Hardware::currentDrive(_settings.getRawSetting(Settings::Setting::CurrentDrive));
-  Hardware::setMinimumIntensity(_settings.getRawSetting(Settings::Setting::MinimumIntensity));
+  Hardware::setMinimumIntensity(_settings.getRawSetting(Settings::Setting::MinimumIntensity) * cMinimumIntensityMultiplier);
   Hardware::setTemperatureCalibration((int8_t)(-(_settings.getRawSetting(Settings::Setting::TemperatureCalibration))));
 
   DMX512Controller::initialize();
@@ -265,7 +269,7 @@ void setSettings(Settings settings)
   Hardware::setFlickerReduction(_settings.getRawSetting(Settings::Setting::FlickerReduction));
   Hardware::setVolume(_settings.getRawSetting(Settings::Setting::BeeperVolume));
   Hardware::currentDrive(_settings.getRawSetting(Settings::Setting::CurrentDrive));
-  Hardware::setMinimumIntensity(_settings.getRawSetting(Settings::Setting::MinimumIntensity));
+  Hardware::setMinimumIntensity(_settings.getRawSetting(Settings::Setting::MinimumIntensity) * cMinimumIntensityMultiplier);
   Hardware::setTemperatureCalibration((int8_t)(-(_settings.getRawSetting(Settings::Setting::TemperatureCalibration))));
 
   DMX512Controller::initialize();

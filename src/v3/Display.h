@@ -63,9 +63,15 @@ public:
   Display(const RgbLed &color0, const RgbLed &color1, const uint8_t byte2, const uint8_t byte1, const uint8_t byte0);
 
 public:
-
+  /// Important constants
+  ///
   static const uint8_t cLedCount = 24;
   static const uint16_t cLedMaxIntensity = 4095;
+
+  /// Compare this Display to another
+  ///
+  bool operator==(const Display &other) const;
+  bool operator!=(const Display &other) const;
 
   /// @brief Set this display's foreground color
   ///
