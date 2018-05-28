@@ -54,6 +54,14 @@ The STM32F072 microcontroller is a rich device with a lot of peripherals. Many
   RS-485 transceiver. This firmware enables a DMX-512 signal to be received on
   USART2 so that the LEDs can be individually controlled remotely.
 
+## Important!
+The major version number of the firmware must match the major version number of
+ the hardware. That is, version 3.x of the firmware will not work properly on
+ version 2.x of the hardware. In other words, version 2.x firmware is _only_ for
+ version 2.x hardware. Version 3.x firmware is _only_ for version 3.x hardware.
+ Loading a mismatched version of the firmware onto your hardware probably won't
+ break anything, but it will cause some things to not work properly...or at all!
+
 ## I want to hack. Where do I start?
 
 `RGBBinaryClock.cpp` is where it all begins. This connects the various

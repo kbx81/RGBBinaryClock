@@ -104,7 +104,10 @@ In this repository you'll find everything needed to put one together. It is
  directory contains the [KiCad](http://kicad.org) project files used to create
  the printed circuit board. The `src` directory contains the source code needed
  to compile and run the application on the microcontroller. It is built on top
- of [libopencm3](http://libopencm3.org).
+ of [libopencm3](http://libopencm3.org). Finally, then `bin` directory contains
+ compiled binary files you may flash directly onto the microcontroller...great
+ for folks who want to solder something together but don't want to be bothered
+ with compiling code!
 
 Additional details regarding the hardware and software can be found in the
  `README.md` files located in each respective directory.
