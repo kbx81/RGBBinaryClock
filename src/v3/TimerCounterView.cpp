@@ -17,7 +17,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 //
 
-#include "Dmx-512-Rx.h"
+#include "Application.h"
 #include "Hardware.h"
 #include "Settings.h"
 #include "TimerCounterView.h"
@@ -107,7 +107,7 @@ void TimerCounterView::loop()
   currentTime = Hardware::getDateTime();
 
   // determine what colors we need to use, then determine the bitmask for the display
-  if (DMX512Rx::signalIsActive() == true)
+  if (Application::getExternalControlState() == Application::ExternalControl::Dmx512ExtControlEnum)
   {
     color[0] = _pSettings->getColor0(Settings::Slot::SlotDmx);
     color[1] = _pSettings->getColor1(Settings::Slot::SlotDmx);

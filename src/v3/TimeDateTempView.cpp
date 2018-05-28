@@ -17,8 +17,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 //
 
+#include "Application.h"
 #include "DateTime.h"
-#include "Dmx-512-Rx.h"
 #include "Settings.h"
 #include "TimeDateTempView.h"
 
@@ -179,7 +179,7 @@ void TimeDateTempView::loop()
   }
 
   // Determine and/or refresh display colors
-  if (DMX512Rx::signalIsActive() == true)
+  if (Application::getExternalControlState() == Application::ExternalControl::Dmx512ExtControlEnum)
   {
     color[0] = _pSettings->getColor0(Settings::Slot::SlotDmx);
     color[1] = _pSettings->getColor1(Settings::Slot::SlotDmx);
@@ -208,7 +208,7 @@ void TimeDateTempView::loop()
       break;
 
       case FixedDisplayItem::Date:
-      if (DMX512Rx::signalIsActive() == false)
+      if (Application::getExternalControlState() != Application::ExternalControl::Dmx512ExtControlEnum)
       {
         color[0] = _pSettings->getColor0(Settings::Slot::SlotDate);
         color[1] = _pSettings->getColor1(Settings::Slot::SlotDate);
@@ -220,7 +220,7 @@ void TimeDateTempView::loop()
       break;
 
       case FixedDisplayItem::Temperature:
-      if (DMX512Rx::signalIsActive() == false)
+      if (Application::getExternalControlState() != Application::ExternalControl::Dmx512ExtControlEnum)
       {
         color[0] = _pSettings->getColor0(Settings::Slot::SlotTemperature);
         color[1] = _pSettings->getColor1(Settings::Slot::SlotTemperature);
@@ -238,7 +238,7 @@ void TimeDateTempView::loop()
       // break;
     }
 
-    if (DMX512Rx::signalIsActive() == false)
+    if (Application::getExternalControlState() != Application::ExternalControl::Dmx512ExtControlEnum)
     {
       color[0].setRate(_pSettings->getRawSetting(Settings::Setting::FadeRate));
       color[1].setRate(_pSettings->getRawSetting(Settings::Setting::FadeRate));

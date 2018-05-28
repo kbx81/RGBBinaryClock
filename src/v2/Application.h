@@ -97,6 +97,16 @@ namespace Application {
       SetColorsViewEnum
   };
 
+  /// @brief Enums for views
+  ///
+  enum ExternalControl : uint8_t
+  {
+      NoActiveExtControlEnum,
+      SerialExtControlEnum,
+      Dmx512ExtControlEnum
+  };
+
+
   // Initialize the application
   //
   void initialize();
@@ -121,6 +131,10 @@ namespace Application {
   // Set new view mode
   //
   void setViewMode(ViewMode mode);
+
+  // Get external control status
+  //
+  ExternalControl getExternalControlState();
 
   // Get application settings
   //

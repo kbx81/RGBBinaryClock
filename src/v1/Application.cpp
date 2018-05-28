@@ -133,6 +133,10 @@ OperatingMode _applicationMode;
 //
 ViewMode _viewMode;
 
+// The application's current external control mode
+//
+ExternalControl _externalControlMode = ExternalControl::NoActiveExtControlEnum;
+
 // The application's current settings
 //
 Settings _settings;
@@ -239,6 +243,14 @@ void setViewMode(ViewMode mode)
 }
 
 
+// Get external control status
+//
+ExternalControl getExternalControlState()
+{
+  return _externalControlMode;
+}
+
+
 // Allows other views to get the active settings
 //
 Settings getSettings()
@@ -314,6 +326,14 @@ void loop()
     if (DMX512Rx::signalIsActive() != _previousDmxState)
     {
       _previousDmxState = DMX512Rx::signalIsActive();
+      if (_previousDmxState == true)
+      {
+        _externalControlMode = ExternalControl::Dmx512ExtControlEnum;
+      }
+      else
+      {
+        _externalControlMode = ExternalControl::NoActiveExtControlEnum;
+      }
       setOperatingMode(OperatingMode::OperatingModeDmx512Display);
     }
 

@@ -272,7 +272,7 @@ static uint16_t _minimumIntensity = 1000;
 
 // multiplier used to adjust display intensity
 //   1000 = 10%
-static uint16_t _intensityPercentage = 1000;
+volatile static uint16_t _intensityPercentage = 1000;
 
 // inverts NSS state during SPI transfers (for DS1722) if true
 //
@@ -297,6 +297,11 @@ volatile static SpiState _spiState = SpiState::SpiIdle;
 // tracks when to silence a tone
 //
 static uint16_t _toneTimer = 0;
+
+// contains the next tone's duration and frequency, if any (not zero)
+//
+static uint16_t _toneTimerNext = 0;
+static uint16_t _toneFrequencyNext = 0;
 
 // volume level for tones
 //
@@ -1010,6 +1015,8 @@ void _updateLed(const uint8_t ledNumber, const RgbLed &led)
     inactiveBufferSet = (_activeBufferSet[ledNumber] + 1) & 1;
     // put the new LED values into the buffer...
     _displayDesiredAndSpare[inactiveBufferSet][ledNumber] = led;
+    // the Start (now Active) LED object contains the fade counter - reset it.
+    _displayActiveAndStart[inactiveBufferSet][ledNumber].setRate(0);
     // ...and update active buffer index
     _activeBufferSet[ledNumber] = inactiveBufferSet;
   }
@@ -1104,13 +1111,17 @@ void _refreshLedIntensities()
   for (i = 0; i <= Display::cLedCount; i++)
   {
     inactiveBufferSet = (_activeBufferSet[i] + 1) & 1;
+    // where we are
     activeLed = _displayActiveAndStart[_activeBufferSet[i]][i];
+    // where we started
     startLed = _displayActiveAndStart[inactiveBufferSet][i];
+    // where we're going
     desiredLed = _displayDesiredAndSpare[_activeBufferSet[i]][i];
-
+    // where we are (in the fade)
     currentTick = activeLed.getRate();
+    // how long we have to get there
     totalTicks = desiredLed.getRate();
-
+    // prevent division by zero
     if (totalTicks == 0)
     {
       totalTicks = 1;
@@ -1119,22 +1130,15 @@ void _refreshLedIntensities()
     if (currentTick <= totalTicks)
     {
       _crossfadeInProgress = true;
-
-      percentTicks = (baseMultiplier * currentTick) / totalTicks;
-
       _displayRefreshRequired = true;
       refreshThisLed = true;
+
+      percentTicks = (baseMultiplier * currentTick) / totalTicks;
 
       activeLed.mergeRgbLeds(percentTicks, startLed, desiredLed);
       activeLed.setRate(currentTick + 1);
 
       _displayActiveAndStart[_activeBufferSet[i]][i] = activeLed;
-
-      if (currentTick == 0)
-      {
-        startLed.setRate(0);
-        _displayActiveAndStart[inactiveBufferSet][i] = startLed;
-      }
     }
 
     if ((refreshThisLed == true) && ((i < Display::cLedCount) || (_autoRefreshStatusLed == true)))
@@ -1409,6 +1413,13 @@ bool tone(const uint16_t frequency, const uint16_t duration)
     }
 
     _toneTimer = duration;
+
+    return true;
+  }
+  else if (_toneTimerNext == 0)
+  {
+    _toneTimerNext = duration;
+    _toneFrequencyNext = frequency;
 
     return true;
   }
@@ -1724,6 +1735,18 @@ void setVolume(const uint8_t volumeLevel)
 }
 
 
+// The display workflow might be the most confusing thing in this codebase.
+// Here is a diagram to help clarify:
+// writeDisplay() ->
+//   _unadjustedDisplay ->
+//     _adjustedDisplay via _refreshAdjustedDisplay() ->
+//       _updateLedBuffer() / _updateLed() ->
+//         _displayDesiredAndSpare[] crossfade buffers ->
+//           _refreshLedIntensities() updates levels based on crossfade(s) ->
+//             _setPWMx3() ->
+//               _displayBufferOut[] ->
+//                 DMA to SPI to drivers
+//
 void writeDisplay(const Display &display)
 {
   if (_unadjustedDisplay != display)
@@ -2338,7 +2361,16 @@ void systickIsr()
   {
     if (--_toneTimer == 0)
     {
-      timer_set_oc_value(TIM1, TIM_OC1, 0);
+      if (_toneTimerNext > 0)
+      {
+        tone(_toneFrequencyNext, _toneTimerNext);
+        _toneFrequencyNext = 0;
+        _toneTimerNext = 0;
+      }
+      else
+      {
+        timer_set_oc_value(TIM1, TIM_OC1, 0);
+      }
     }
   }
 
