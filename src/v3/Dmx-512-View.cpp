@@ -19,6 +19,7 @@
 
 #include "Application.h"
 #include "Display.h"
+#include "Dmx-512-Packet.h"
 #include "Dmx-512-Rx.h"
 #include "Dmx-512-View.h"
 #include "Settings.h"
@@ -53,32 +54,33 @@ void Dmx512View::keyHandler(Keys::Key key)
 
 void Dmx512View::loop()
 {
+  Dmx512Packet* currentPacket = Dmx512Rx::getLastPacket();
   Display dmxDisplay;
   RgbLed currentLed;
   uint8_t level;
   uint16_t rate, address = _pSettings->getRawSetting(Settings::Setting::DmxAddress);
 
-  if (DMX512Rx::signalIsActive() == true)
+  if (Application::getExternalControlState() == Application::ExternalControl::Dmx512ExtControlEnum)
   {
-    if (DMX512Rx::startCode() == 0)
+    if (currentPacket->startCode() == 0)
     {
       if (_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DmxExtended) == true)
       {
         address += 4;
 
-        rate = (DMX512Rx::channel(address++) * 4) + 50;
+        rate = (currentPacket->channel(address++) * 4) + 50;
         currentLed.setRate(rate);
       }
       // Set display blanking/driver current level
-      level = DMX512Rx::channel(address++) / 52;
+      level = currentPacket->channel(address++) / 52;
 
       if (level > 0)
       {
         for (uint8_t i = 0; i <= Display::cLedCount; i++)
         {
-          currentLed.setRed(DMX512Rx::channel((i * 3) + address) << 4);
-          currentLed.setGreen(DMX512Rx::channel((i * 3) + address + 1) << 4);
-          currentLed.setBlue(DMX512Rx::channel((i * 3) + address + 2) << 4);
+          currentLed.setRed(currentPacket->channel((i * 3) + address) << 4);
+          currentLed.setGreen(currentPacket->channel((i * 3) + address + 1) << 4);
+          currentLed.setBlue(currentPacket->channel((i * 3) + address + 2) << 4);
           if (i < Display::cLedCount)
           {
             dmxDisplay.setLedFromRaw(i, currentLed);

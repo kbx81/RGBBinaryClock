@@ -23,13 +23,14 @@
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/stm32/usart.h>
+#include "Dmx-512-Packet.h"
 #include "Dmx-512-Rx.h"
 #include "Hardware.h"
 
 
 namespace kbxBinaryClock {
 
-namespace DMX512Rx {
+namespace Dmx512Rx {
 
 
 // DMX-512 receive states
@@ -39,14 +40,6 @@ enum DmxRxState : uint8_t {
   DmxRxReceiving,
   DmxRxComplete,
   DmxRxError
-};
-
-// DMX-512 buffer states
-//
-enum DmxBufferState : uint8_t {
-  DmxBufferValid,
-  DmxBufferInvalid,
-  DmxBufferBeingWritten
 };
 
 
@@ -72,15 +65,9 @@ static const uint32_t cUsartPort = GPIOA;
 
 // DMX-512 received data buffers
 //
-volatile static uint8_t _dmxData[2][513];
-
-// DMX-512 received data buffer states
-//
-volatile static DmxBufferState _dmxBufferState[2];
-
-// DMX-512 buffer being written
-//
-volatile static uint8_t _dmxBusyBuffer = 0;
+static Dmx512Packet* _pDmxPacketActive = new Dmx512Packet;
+static Dmx512Packet* _pDmxPacketReady = new Dmx512Packet;
+static Dmx512Packet* _pDmxPacketLast = new Dmx512Packet;
 
 // state of the DMX-512 receive process
 //
@@ -108,7 +95,7 @@ void _readSerialSetup()
   dma_channel_reset(DMA1, DMA_CHANNEL5);
   // Set up Rx DMA, note it has higher priority to avoid overrun
   dma_set_peripheral_address(DMA1, DMA_CHANNEL5, (uint32_t)&USART2_RDR);
-  dma_set_memory_address(DMA1, DMA_CHANNEL5, (uint32_t)_dmxData[_dmxBusyBuffer]);
+  dma_set_memory_address(DMA1, DMA_CHANNEL5, (uint32_t)_pDmxPacketActive);
   dma_set_number_of_data(DMA1, DMA_CHANNEL5, 513);
   dma_set_read_from_peripheral(DMA1, DMA_CHANNEL5);
   dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL5);
@@ -168,25 +155,29 @@ void initialize()
 }
 
 
-uint8_t channel(const uint16_t channel)
-{
-  if (channel < 512)
-  {
-    return _dmxData[(_dmxBusyBuffer + 1) & 1][channel + 1];
-  }
-  return _dmxData[(_dmxBusyBuffer + 1) & 1][1];
-}
-
-
-uint8_t startCode()
-{
-  return _dmxData[(_dmxBusyBuffer + 1) & 1][0];
-}
-
-
 bool signalIsActive()
 {
   return _dmxSignalActive;
+}
+
+
+Dmx512Packet* getLastPacket()
+{
+  // check if the "Ready" packet is actually ready
+  if (_pDmxPacketReady->getBufferState() == Dmx512Packet::DmxBufferValid)
+  {
+    // clean up the old object if it exists
+    if (_pDmxPacketLast != nullptr)
+    {
+      delete _pDmxPacketLast;
+    }
+    // save the current "Ready" packet as the "Last" (returnetd) packet
+    _pDmxPacketLast = _pDmxPacketReady;
+    // create a new Dmx512Packet object for the next "Ready" packet
+    _pDmxPacketReady = new Dmx512Packet;
+  }
+
+  return _pDmxPacketLast;
 }
 
 
@@ -217,18 +208,25 @@ void rxIsr()
 
 void rxCompleteIsr()
 {
+  Dmx512Packet* temp;
   if (_dmxState == DmxRxState::DmxRxReceiving)
   {
     // If we finish and _dmxState is still DmxRxReceiving, no errors occured so
-    //  the data in the buffer should be valid. We flag it as such and toggle
-    //  the active buffer so that the next packet goes into it, instead.
-    ++_dmxBusyBuffer &= 1;
-    _dmxBufferState[_dmxBusyBuffer] = DmxBufferState::DmxBufferValid;
+    //  the data in the buffer should be valid. We flag it as such and swap
+    //  pointers so that the next packet goes into the other buffer, instead.
+    _pDmxPacketActive->setBufferState(Dmx512Packet::DmxBufferValid);
+    // now swap buffer pointers
+    temp = _pDmxPacketReady;
+    _pDmxPacketReady = _pDmxPacketActive;
+    _pDmxPacketActive = temp;
+    // set receiver state
     _dmxState = DmxRxState::DmxRxComplete;
+    // the now-active buffer is now being written
+    _pDmxPacketActive->setBufferState(Dmx512Packet::DmxBufferBeingWritten);
   }
   else
   {
-    _dmxBufferState[_dmxBusyBuffer] = DmxBufferState::DmxBufferInvalid;
+    _pDmxPacketActive->setBufferState(Dmx512Packet::DmxBufferInvalid);
   }
 }
 

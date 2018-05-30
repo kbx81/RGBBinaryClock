@@ -1185,7 +1185,7 @@ void initialize()
   _usartSetup();
   _tscSetup();
 
-  DMX512Rx::initialize();
+  Dmx512Rx::initialize();
 
   _systickSetup(1);   // tick every 1 mS
 
@@ -2331,7 +2331,7 @@ void dmaIsr()
 
 		dma_disable_channel(DMA1, DMA_CHANNEL6);
 
-    DMX512Rx::rxCompleteIsr();
+    Dmx512Rx::rxCompleteIsr();
 	}
 
   if (DMA1_ISR & DMA_ISR_TCIF7)
@@ -2376,7 +2376,7 @@ void systickIsr()
 
   Keys::repeatHandler();
 
-  DMX512Controller::strobeTimer();
+  Dmx512Controller::strobeTimer();
 
   _updateIntensityPercentage();
 
@@ -2386,13 +2386,13 @@ void systickIsr()
 
 void tim15Isr()
 {
-  DMX512Rx::timerUartIsr();
+  Dmx512Rx::timerUartIsr();
 }
 
 
 void tim16Isr()
 {
-  DMX512Rx::timerSupervisorIsr();
+  Dmx512Rx::timerSupervisorIsr();
 }
 
 
@@ -2466,7 +2466,7 @@ void usart1Isr()
 
 void usart2Isr()
 {
-  DMX512Rx::rxIsr();
+  Dmx512Rx::rxIsr();
 }
 
 

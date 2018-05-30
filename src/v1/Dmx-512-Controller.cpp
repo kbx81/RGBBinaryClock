@@ -19,6 +19,7 @@
 #include <cstdint>
 #include "Application.h"
 #include "Dmx-512-Controller.h"
+#include "Dmx-512-Packet.h"
 #include "Dmx-512-Rx.h"
 #include "Hardware.h"
 #include "Settings.h"
@@ -27,7 +28,7 @@
 
 namespace kbxBinaryClock {
 
-namespace DMX512Controller {
+namespace Dmx512Controller {
 
 
 // Duration of strobe pulses (here, in milliseconds)
@@ -59,6 +60,7 @@ void initialize()
 
 void controller()
 {
+  Dmx512Packet* currentPacket = Dmx512Rx::getLastPacket();
   uint16_t pitch, rate, address = _pSettings->getRawSetting(Settings::Setting::DmxAddress);
   uint8_t level;
   RgbLed dmxLed[2];
@@ -79,38 +81,42 @@ void controller()
                                ViewMode::ViewMode2,
                                ViewMode::ViewMode3};
 
-  if (DMX512Rx::signalIsActive() == true)
+  if (Application::getExternalControlState() == Application::ExternalControl::Dmx512ExtControlEnum)
   {
-    if (DMX512Rx::startCode() == 0)
+    if (currentPacket->startCode() == 0)
     {
       if (_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DmxExtended) == true)
       {
-        level = DMX512Rx::channel(address++) / 32;
+        level = currentPacket->channel(address++) / 32;
         Application::setOperatingMode(opMode[level]);
         Application::setViewMode(viewMode[level]);
 
-        level = DMX512Rx::channel(address++) >> 5;
+        level = currentPacket->channel(address++) >> 5;
         Hardware::setVolume(level);
 
-        pitch = DMX512Rx::channel(address++);
+        pitch = currentPacket->channel(address++);
         Hardware::tone(pitch * 16, 60);
 
-        _strobeDelay = DMX512Rx::channel(address++) * 4;
+        _strobeDelay = currentPacket->channel(address++) * 4;
+        if (_strobeDelay > 0)
+        {
+          _strobeDelay += 20;
+        }
 
-        rate = DMX512Rx::channel(address++) * 4;
+        rate = currentPacket->channel(address++) * 4;
         dmxLed[0].setRate(rate);
         dmxLed[1].setRate(rate);
 
         // Set display blanking/driver current level
-        _masterIntensityLevel = DMX512Rx::channel(address++) / 52;
+        _masterIntensityLevel = currentPacket->channel(address++) / 52;
 
-        dmxLed[0].setRed(DMX512Rx::channel(address++) << 4);
-        dmxLed[0].setGreen(DMX512Rx::channel(address++) << 4);
-        dmxLed[0].setBlue(DMX512Rx::channel(address++) << 4);
+        dmxLed[0].setRed(currentPacket->channel(address++) << 4);
+        dmxLed[0].setGreen(currentPacket->channel(address++) << 4);
+        dmxLed[0].setBlue(currentPacket->channel(address++) << 4);
 
-        dmxLed[1].setRed(DMX512Rx::channel(address++) << 4);
-        dmxLed[1].setGreen(DMX512Rx::channel(address++) << 4);
-        dmxLed[1].setBlue(DMX512Rx::channel(address++) << 4);
+        dmxLed[1].setRed(currentPacket->channel(address++) << 4);
+        dmxLed[1].setGreen(currentPacket->channel(address++) << 4);
+        dmxLed[1].setBlue(currentPacket->channel(address++) << 4);
 
         _pSettings->setColors(Settings::Slot::SlotDmx, dmxLed[0], dmxLed[1]);
 
@@ -122,7 +128,7 @@ void controller()
       else
       {
         // Set display blanking/driver current level
-        _masterIntensityLevel = DMX512Rx::channel(address) / 52;
+        _masterIntensityLevel = currentPacket->channel(address) / 52;
       }
     }
   }
@@ -131,28 +137,25 @@ void controller()
 
 void strobeTimer()
 {
-  if (DMX512Rx::signalIsActive() == true)
+  if (Application::getExternalControlState() == Application::ExternalControl::Dmx512ExtControlEnum)
   {
-    if (DMX512Rx::startCode() == 0)
+    if (_strobeDelay > 0)
     {
-      if (_strobeDelay > 0)
-      {
-        _strobeCounter++;
-      }
+      _strobeCounter++;
+    }
 
-      if (((_masterIntensityLevel > 0) && (_strobeDelay == 0)) ||
-          ((_masterIntensityLevel > 0) && (_strobeDelay > 0) && (_strobeCounter > _strobeDelay)))
+    if (((_masterIntensityLevel > 0) && (_strobeDelay == 0)) ||
+        ((_masterIntensityLevel > 0) && (_strobeDelay > 0) && (_strobeCounter > _strobeDelay)))
+    {
+      Hardware::displayBlank(false);
+      if (_strobeCounter > _strobeDelay + cStrobeDuration)
       {
-        Hardware::displayBlank(false);
-        if (_strobeCounter > _strobeDelay + cStrobeDuration)
-        {
-          _strobeCounter = 0;
-        }
+        _strobeCounter = 0;
       }
-      else
-      {
-        Hardware::displayBlank(true);
-      }
+    }
+    else
+    {
+      Hardware::displayBlank(true);
     }
   }
 }

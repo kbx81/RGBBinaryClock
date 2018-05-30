@@ -23,7 +23,7 @@
 
 namespace kbxBinaryClock {
 
-namespace DMX512Controller {
+namespace Dmx512Controller {
 
 
 // Initialize it all

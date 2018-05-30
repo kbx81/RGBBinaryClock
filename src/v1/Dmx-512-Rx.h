@@ -19,28 +19,25 @@
 #pragma once
 
 #include <cstdint>
+#include "Dmx-512-Packet.h"
 
 
 namespace kbxBinaryClock {
 
-namespace DMX512Rx {
+namespace Dmx512Rx {
 
 
 // Initialize it all
 //
 void initialize();
 
-// Returns the level of the specified DMX-512 channel
-//  Valid channels are 0 to 511
-uint8_t channel(const uint16_t channel);
-
-// Returns the start code of the current DMX-512 packet
-//
-uint8_t startCode();
-
-// Returns true if a DM-512 signal is being received
+// Returns true if a DMX-512 signal is being received
 //
 bool signalIsActive();
+
+// Returns a pointer to the last DMX-512 packet received
+//
+Dmx512Packet* getLastPacket();
 
 // Interrupt service routines
 //

@@ -175,7 +175,7 @@ void initialize()
   Hardware::setMinimumIntensity(_settings.getRawSetting(Settings::Setting::MinimumIntensity) * cMinimumIntensityMultiplier);
   Hardware::setTemperatureCalibration((int8_t)(-(_settings.getRawSetting(Settings::Setting::TemperatureCalibration))));
 
-  DMX512Controller::initialize();
+  Dmx512Controller::initialize();
 
   setOperatingMode(OperatingMode::OperatingModeFixedDisplay);
 }
@@ -284,7 +284,7 @@ void setSettings(Settings settings)
   Hardware::setMinimumIntensity(_settings.getRawSetting(Settings::Setting::MinimumIntensity) * cMinimumIntensityMultiplier);
   Hardware::setTemperatureCalibration((int8_t)(-(_settings.getRawSetting(Settings::Setting::TemperatureCalibration))));
 
-  DMX512Controller::initialize();
+  Dmx512Controller::initialize();
 
   _settings.saveToFlash();
 }
@@ -323,9 +323,9 @@ void loop()
     // Process any necessary alarms
     AlarmHandler::loop();
 
-    if (DMX512Rx::signalIsActive() != _previousDmxState)
+    if (Dmx512Rx::signalIsActive() != _previousDmxState)
     {
-      _previousDmxState = DMX512Rx::signalIsActive();
+      _previousDmxState = Dmx512Rx::signalIsActive();
       if (_previousDmxState == true)
       {
         _externalControlMode = ExternalControl::Dmx512ExtControlEnum;
@@ -333,6 +333,7 @@ void loop()
       else
       {
         _externalControlMode = ExternalControl::NoActiveExtControlEnum;
+        Hardware::displayBlank(false);
       }
       setOperatingMode(OperatingMode::OperatingModeDmx512Display);
     }
@@ -346,12 +347,12 @@ void loop()
         setOperatingMode(OperatingMode::OperatingModeToggleDisplay);
       }
       // Allow the DMX-512 controller to do its thing
-      DMX512Controller::controller();
+      Dmx512Controller::controller();
     }
     else if (_applicationMode == OperatingMode::OperatingModeDmx512Display)
     {
       // Allow the DMX-512 controller to do its thing
-      DMX512Controller::controller();
+      Dmx512Controller::controller();
     }
   }
 }

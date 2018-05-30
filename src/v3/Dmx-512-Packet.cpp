@@ -1,5 +1,5 @@
 //
-// kbx81's binary clock DMX-512 controller class
+// kbx81's binary clock DMX-512 Packet class
 // ---------------------------------------------------------------------------
 // (c)2017 by kbx81. See LICENSE for details.
 //
@@ -16,29 +16,51 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 //
-#pragma once
 
-#include <cstdint>
+#include "Dmx-512-Packet.h"
 
 
 namespace kbxBinaryClock {
 
-namespace Dmx512Controller {
 
-
-// Initialize it all
-//
-void initialize();
-
-// Returns true if a DM-512 signal is being received
-//
-void controller();
-
-// Should be called by a timer (systick) once every millisecond (ideally)
-//
-void strobeTimer();
-
-
+Dmx512Packet::Dmx512Packet()
+: _bufferState(DmxBufferState::DmxBufferInvalid)
+{
 }
+
+
+uint8_t Dmx512Packet::channel(const uint16_t channel) const
+{
+  if (channel < 512)
+  {
+    return _dmxPacket[channel + 1];
+  }
+  return _dmxPacket[1];
+}
+
+
+uint8_t Dmx512Packet::startCode() const
+{
+  return _dmxPacket[0];
+}
+
+
+uint8_t* Dmx512Packet::getBufferPtr()
+{
+  return _dmxPacket;
+}
+
+
+Dmx512Packet::DmxBufferState Dmx512Packet::getBufferState() const
+{
+  return _bufferState;
+}
+
+
+void Dmx512Packet::setBufferState(DmxBufferState newState)
+{
+  _bufferState = newState;
+}
+
 
 }
