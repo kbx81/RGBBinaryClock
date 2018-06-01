@@ -31,7 +31,7 @@ namespace kbxBinaryClock {
   const uint32_t Settings::cSettingsValidationKey = 0x55aa55aa;
 
   // conatins a mask for bitfields and a maximum value for other types of data
-  const uint16_t Settings::cSettingData[] = { 0x01ff,   // SystemOptions
+  const uint16_t Settings::cSettingData[] = { 0x03ff,   // SystemOptions
                                               0x00ff,   // BeepStates
                                               0x00ff,   // BlinkStates
                                               0x00ff,   // ColorStates
@@ -65,11 +65,9 @@ namespace kbxBinaryClock {
              rate = 100;
     uint8_t  i = 0;
     RgbLed   defaultRed(intensity, 0, 0, rate),
-             defaultRedDim(intensity / 4, 0, 0, rate),
              defaultOrange(intensity, intensity / 3, 0, rate),
              defaultYellow(intensity, intensity, 0, rate),
              defaultGreen(0, intensity, 0, rate),
-             defaultGreenDim(0, intensity / 4, 0, rate),
              defaultCyan(0, intensity, intensity, rate),
              defaultBlue(0, 0, intensity, rate),
              defaultViolet(intensity / 8, 0, intensity, rate),
@@ -84,7 +82,7 @@ namespace kbxBinaryClock {
       _time[i].setTime((3 * i) + 1, 30, 0);
     }
 
-    _setting[static_cast<uint8_t>(SystemOptions)] = 0x0c1;
+    _setting[static_cast<uint8_t>(SystemOptions)] = 0x2c1;
     _setting[static_cast<uint8_t>(BeepStates)] = 0x00;
     _setting[static_cast<uint8_t>(BlinkStates)] = 0x00;
     _setting[static_cast<uint8_t>(ColorStates)] = 0xff;
@@ -131,8 +129,6 @@ namespace kbxBinaryClock {
     _color1[Slot::SlotMenu] = defaultWhite;
     _color0[Slot::SlotSet] = defaultGreen;
     _color1[Slot::SlotSet] = defaultRed;
-    _color0[Slot::SlotSetDim] = defaultGreenDim;
-    _color1[Slot::SlotSetDim] = defaultRedDim;
     _color0[Slot::SlotDmx] = defaultOff;
     _color1[Slot::SlotDmx] = defaultGray;
     _color0[Slot::SlotCalculated] = defaultGreen;
@@ -142,8 +138,6 @@ namespace kbxBinaryClock {
     _color1[Slot::SlotMenu].setRate(0);
     _color0[Slot::SlotSet].setRate(0);
     _color1[Slot::SlotSet].setRate(0);
-    _color0[Slot::SlotSetDim].setRate(0);
-    _color1[Slot::SlotSetDim].setRate(0);
 
     _validityKey = cSettingsValidationKey;  // settings are now valid
 }
@@ -287,22 +281,10 @@ namespace kbxBinaryClock {
 
   void Settings::setColors(const uint8_t slot, const RgbLed color0, const RgbLed color1)
   {
-    if ((slot <= static_cast<uint8_t>(Slot::SlotSet)) ||
-        (slot == static_cast<uint8_t>(Slot::SlotDmx)))
+    if ((slot <= static_cast<uint8_t>(Slot::SlotDmx)))
     {
       _color0[slot] = color0;
       _color1[slot] = color1;
-
-      if (slot == static_cast<uint8_t>(Slot::SlotSet))
-      {
-        _color0[slot + 1].setRed(color0.getRed() / 4);
-        _color0[slot + 1].setGreen(color0.getGreen() / 4);
-        _color0[slot + 1].setBlue(color0.getBlue() / 4);
-        _color1[slot + 1].setRed(color1.getRed() / 4);
-        _color1[slot + 1].setGreen(color1.getGreen() / 4);
-        _color1[slot + 1].setBlue(color1.getBlue() / 4);
-      }
-
     }
   }
 

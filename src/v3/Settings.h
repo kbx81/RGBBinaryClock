@@ -70,7 +70,8 @@ public:
     DisplayFahrenheit = 5,
     FadeAcrossSlots = 6,
     AutoAdjustIntensity = 7,
-    DmxExtended = 8
+    DmxExtended = 8,
+    StartupToToggle = 9
   };
 
   // @brief Enums for time slots
@@ -90,9 +91,8 @@ public:
     SlotTimer = 10,
     SlotMenu = 11,
     SlotSet = 12,
-    SlotSetDim = 13,
-    SlotDmx = 14,
-    SlotCalculated = 15
+    SlotDmx = 13,
+    SlotCalculated = 14
   };
 
 

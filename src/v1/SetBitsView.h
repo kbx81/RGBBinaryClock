@@ -30,6 +30,11 @@ namespace kbxBinaryClock {
 
 class SetBitsView : public View {
 
+public:
+// Percentage of configured LED color intensities used for lowlight
+//
+static const uint16_t cLowlightPercentage;
+
 // The view which displays the UI for setting times and dates
 //
 public: // Implement the SetValue class

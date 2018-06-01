@@ -177,7 +177,14 @@ void initialize()
 
   Dmx512Controller::initialize();
 
-  setOperatingMode(OperatingMode::OperatingModeFixedDisplay);
+  if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::StartupToToggle) == true)
+  {
+    setOperatingMode(OperatingMode::OperatingModeToggleDisplay);
+  }
+  else
+  {
+    setOperatingMode(OperatingMode::OperatingModeFixedDisplay);
+  }
 }
 
 
@@ -344,7 +351,14 @@ void loop()
       _idleCounter--;
       if (_applicationMode == OperatingMode::OperatingModeMainMenu)
       {
-        setOperatingMode(OperatingMode::OperatingModeToggleDisplay);
+        if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::StartupToToggle) == true)
+        {
+          setOperatingMode(OperatingMode::OperatingModeToggleDisplay);
+        }
+        else
+        {
+          setOperatingMode(OperatingMode::OperatingModeFixedDisplay);
+        }
       }
       // Allow the DMX-512 controller to do its thing
       Dmx512Controller::controller();

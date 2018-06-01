@@ -25,6 +25,10 @@
 
 namespace kbxBinaryClock {
 
+// Percentage of configured LED color intensities used for lowlight
+//  (Percentages are times 100 -- e.g.: 2500 = 25.00%)
+const uint16_t SetTimeDateView::cLowlightPercentage = 2500;
+
 
 void SetTimeDateView::enter()
 {
@@ -174,9 +178,16 @@ void SetTimeDateView::keyHandler(Keys::Key key)
 
 void SetTimeDateView::loop()
 {
+  RgbLed color0Highlight = _settings.getColor0(Settings::Slot::SlotSet),
+         color1Highlight = _settings.getColor1(Settings::Slot::SlotSet),
+         color0Lowlight = _settings.getColor0(Settings::Slot::SlotSet),
+         color1Lowlight = _settings.getColor1(Settings::Slot::SlotSet);
   uint8_t  i, adjustedHour = _setValues[2],
            workingByte = _setValues[_selectedByte];
   uint32_t displayBitMask;
+
+  color0Lowlight.adjustIntensity(SetTimeDateView::cLowlightPercentage);
+  color1Lowlight.adjustIntensity(SetTimeDateView::cLowlightPercentage);
 
   // display AM/PM on the status LED if we're in 12-hour mode and adjust
   //  the displayed hour to match what's expected
@@ -186,11 +197,11 @@ void SetTimeDateView::loop()
     if (adjustedHour >= 12)
     {
       adjustedHour = adjustedHour - 12;
-      Hardware::setStatusLed(_settings.getColor1(Settings::Slot::SlotSet));
+      Hardware::setStatusLed(color1Highlight);
     }
     else
     {
-      Hardware::setStatusLed(_settings.getColor0(Settings::Slot::SlotSet));
+      Hardware::setStatusLed(color0Highlight);
     }
 
     if (adjustedHour == 0)
@@ -217,7 +228,7 @@ void SetTimeDateView::loop()
   }
 
   // now we can create a new display object with the right colors and bitmask
-  Display bcDisp(_settings.getColor0(Settings::Slot::SlotSetDim), _settings.getColor1(Settings::Slot::SlotSetDim), displayBitMask);
+  Display bcDisp(color0Lowlight, color1Lowlight, displayBitMask);
 
   // get the bitmap for the selected byte into displayBitMask
   if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD) == true)
@@ -233,11 +244,11 @@ void SetTimeDateView::loop()
   {
     if ((displayBitMask >> (i - (_selectedByte * 8))) & 1)
     {
-      bcDisp.setLedFromRaw(i, _settings.getColor1(Settings::Slot::SlotSet));
+      bcDisp.setLedFromRaw(i, color1Highlight);
     }
     else
     {
-      bcDisp.setLedFromRaw(i, _settings.getColor0(Settings::Slot::SlotSet));
+      bcDisp.setLedFromRaw(i, color0Highlight);
     }
   }
 

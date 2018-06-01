@@ -24,6 +24,10 @@
 
 namespace kbxBinaryClock {
 
+// Percentage of configured LED color intensities used for lowlight
+//  (Percentages are times 100 -- e.g.: 2500 = 25.00%)
+const uint16_t SetBitsView::cLowlightPercentage = 2500;
+
 
 void SetBitsView::enter()
 {
@@ -33,6 +37,8 @@ void SetBitsView::enter()
 
   _setBits = _settings.getRawSetting(static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSetSystemOptions));
   _bitsMask = Settings::cSettingData[static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSetSystemOptions)];
+
+  _selectedBit = 0;
 }
 
 
@@ -81,16 +87,24 @@ void SetBitsView::keyHandler(Keys::Key key)
 
 void SetBitsView::loop()
 {
+  RgbLed color0Highlight = _settings.getColor0(Settings::Slot::SlotSet),
+         color1Highlight = _settings.getColor1(Settings::Slot::SlotSet),
+         color0Lowlight = _settings.getColor0(Settings::Slot::SlotSet),
+         color1Lowlight = _settings.getColor1(Settings::Slot::SlotSet);
+
+  color0Lowlight.adjustIntensity(SetBitsView::cLowlightPercentage);
+  color1Lowlight.adjustIntensity(SetBitsView::cLowlightPercentage);
+
   // create a new display object with the right colors and bitmask
-  Display bcDisp(_settings.getColor0(Settings::Slot::SlotSetDim), _settings.getColor1(Settings::Slot::SlotSetDim), (uint32_t)_setBits);
+  Display bcDisp(color0Lowlight, color1Lowlight, (uint32_t)_setBits);
   // highlight the selected region
   if ((_setBits >> _selectedBit) & 1)
   {
-    bcDisp.setLedFromRaw(_selectedBit, _settings.getColor1(Settings::Slot::SlotSet));
+    bcDisp.setLedFromRaw(_selectedBit, color1Highlight);
   }
   else
   {
-    bcDisp.setLedFromRaw(_selectedBit, _settings.getColor0(Settings::Slot::SlotSet));
+    bcDisp.setLedFromRaw(_selectedBit, color0Highlight);
   }
 
   Hardware::writeDisplay(bcDisp);

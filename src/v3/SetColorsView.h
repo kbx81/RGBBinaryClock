@@ -30,26 +30,40 @@ namespace kbxBinaryClock {
 
 class SetColorsView : public View {
 
+  enum SCVDisplayItem : uint8_t
+  {
+    ColorMixer = ViewMode::ViewMode0,
+    DeltaValue = ViewMode::ViewMode1
+  };
+
 // The view which displays the UI for setting colors
 //
 public: // Implement the SetColorsView class
 // @brief Stored color values for time slots
 //
-enum Color : uint8_t
-{
-  Red0 = 0,
-  Green0 = 1,
-  Blue0 = 2,
-  Red1 = 3,
-  Green1 = 4,
-  Blue1 = 5
-};
+  enum Color : uint8_t
+  {
+    Red0 = 0,
+    Green0 = 1,
+    Blue0 = 2,
+    Red1 = 3,
+    Green1 = 4,
+    Blue1 = 5
+  };
 
   virtual void enter() override;
   virtual void keyHandler(Keys::Key key) override;
   virtual void loop() override;
 
 private:
+  // maximum amount we'll increase/decrease the color values by
+  //
+  static const uint16_t cMaxDelta;
+
+  // how much we'll shift (left) by
+  //
+  static const uint8_t cDeltaShiftAmt;
+
   // values the user will set
   //
   uint16_t _setValues[6];

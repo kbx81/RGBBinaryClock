@@ -27,20 +27,23 @@
 namespace kbxBinaryClock {
 
 
+const uint16_t SetColorsView::cMaxDelta = 256;
+const uint8_t SetColorsView::cDeltaShiftAmt = 4;  // shift (left) by eight bits
+
+
 void SetColorsView::enter()
 {
-  RgbLed color0, color1;
-
-  _delta = 0x80;
-
   _mode = Application::getOperatingMode();
 
   _settings = Application::getSettings();
 
+  _delta = cMaxDelta;
+  _selectedParam = Color::Red0;
+
   // Subtract the first in the OperatingModeSlotxColors series from the
   //   current mode to get the slot we're modifying
-  color0 = _settings.getColor0(static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSlot1Colors));
-  color1 = _settings.getColor1(static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSlot1Colors));
+  RgbLed color0(_settings.getColor0(static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSlot1Colors))),
+         color1(_settings.getColor1(static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSlot1Colors)));
 
   _setValues[Color::Red0] = color0.getRed();
   _setValues[Color::Green0] = color0.getGreen();
@@ -56,15 +59,10 @@ void SetColorsView::enter()
 
 void SetColorsView::keyHandler(Keys::Key key)
 {
-  RgbLed color0(_setValues[Color::Red0], _setValues[Color::Green0], _setValues[Color::Blue0], 0),
-         color1(_setValues[Color::Red1], _setValues[Color::Green1], _setValues[Color::Blue1], 0);
+  SCVDisplayItem currentDisplayMode = static_cast<SCVDisplayItem>(Application::getViewMode());
 
   if (key == Keys::Key::A)
   {
-    // Subtract the first in the OperatingModeSlotxColors series from the
-    //   current mode to get the slot we're modifying
-    _settings.setColors(static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSlot1Colors), color0, color1);
-
     Application::setSettings(_settings);
     Hardware::autoAdjustIntensities(false);   // keep this disabled for now
 
@@ -73,29 +71,60 @@ void SetColorsView::keyHandler(Keys::Key key)
 
   if (key == Keys::Key::B)
   {
-    _delta += 0x80;
-    _delta &= 0x7ff;
-    _delta |= 1;
+    if (currentDisplayMode == SCVDisplayItem::DeltaValue)
+    {
+      _delta = _delta << cDeltaShiftAmt;
+
+      if (_delta > cMaxDelta)
+      {
+        _delta = 1;
+      }
+    }
+    else
+    {
+      Application::setViewMode(static_cast<ViewMode>(SCVDisplayItem::DeltaValue));
+    }
   }
 
   if (key == Keys::Key::C)
   {
-    if (++_selectedParam > Color::Blue1)
+    if (currentDisplayMode == SCVDisplayItem::ColorMixer)
     {
-      _selectedParam = Color::Red0;
+      if (++_selectedParam > Color::Blue1)
+      {
+        _selectedParam = Color::Red0;
+      }
+    }
+    else
+    {
+      Application::setViewMode(static_cast<ViewMode>(SCVDisplayItem::ColorMixer));
     }
   }
 
   if (key == Keys::Key::D)
   {
-    _setValues[_selectedParam] -= _delta;
-    _setValues[_selectedParam] &= 0xfff;
+    if (currentDisplayMode == SCVDisplayItem::ColorMixer)
+    {
+      _setValues[_selectedParam] -= _delta;
+      _setValues[_selectedParam] &= 0xfff;
+    }
+    else
+    {
+      Application::setViewMode(static_cast<ViewMode>(SCVDisplayItem::ColorMixer));
+    }
   }
 
   if (key == Keys::Key::U)
   {
-    _setValues[_selectedParam] += _delta;
-    _setValues[_selectedParam] &= 0xfff;
+    if (currentDisplayMode == SCVDisplayItem::ColorMixer)
+    {
+      _setValues[_selectedParam] += _delta;
+      _setValues[_selectedParam] &= 0xfff;
+    }
+    else
+    {
+      Application::setViewMode(static_cast<ViewMode>(SCVDisplayItem::ColorMixer));
+    }
   }
 
   if (key == Keys::Key::E)
@@ -107,78 +136,81 @@ void SetColorsView::keyHandler(Keys::Key key)
 
 void SetColorsView::loop()
 {
-  uint16_t rate = 0;
-  uint32_t displayBitMask;
   DateTime current = Hardware::getDateTime();
-  RgbLed color0(_setValues[Color::Red0], _setValues[Color::Green0], _setValues[Color::Blue0], 0),
-         color1(_setValues[Color::Red1], _setValues[Color::Green1], _setValues[Color::Blue1], 0),
-         redHighlight(4095, 0, 0, rate),
-         greenHighlight(0, 4095, 0, rate),
-         blueHighlight(0, 0, 4095, rate),
-         redLowlight(512, 0, 0, rate),
-         greenLowlight(0, 512, 0, rate),
-         blueLowlight(0, 0, 512, rate),
-         white(4095, 4095, 4095, rate),
+  uint32_t secondsBitMask = current.second(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)),
+           displayBitMask = _setValues[_selectedParam];
+  uint16_t rate = 0;
+  SCVDisplayItem currentDisplayMode = static_cast<SCVDisplayItem>(Application::getViewMode());
+  RgbLed mixedColor0(_setValues[Color::Red0], _setValues[Color::Green0], _setValues[Color::Blue0], rate),
+         mixedColor1(_setValues[Color::Red1], _setValues[Color::Green1], _setValues[Color::Blue1], rate),
+         red(2048, 0, 0, rate),
+         green(0, 2048, 0, rate),
+         blue(0, 0, 2048, rate),
+         white(2048, 2048, 2048, rate),
+         gray(384, 384, 384, rate),
          off(0, 0, 0, rate);
-
-  // display value in BCD if settings say so
-  displayBitMask = current.second(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD));
-
-  // now we can create a new display object with the right colors and bitmask
-  Display bcDisp(color0, color1, displayBitMask);
-
-  bcDisp.setLedFromRaw( 8, off);
-  bcDisp.setLedFromRaw( 9, off);
-  bcDisp.setLedFromRaw(10, off);
-  bcDisp.setLedFromRaw(11, off);
-
-  bcDisp.setLedFromRaw(16, redLowlight);
-  bcDisp.setLedFromRaw(17, greenLowlight);
-  bcDisp.setLedFromRaw(18, blueLowlight);
-  bcDisp.setLedFromRaw(19, off);
-  bcDisp.setLedFromRaw(20, redLowlight);
-  bcDisp.setLedFromRaw(21, greenLowlight);
-  bcDisp.setLedFromRaw(22, blueLowlight);
-  bcDisp.setLedFromRaw(23, off);
-
-  for (uint8_t i = 12; i < 16; i++)
+  // bcDisp is initialized for DeltaValue view mode
+  Display bcDisp(off, white, _delta << 8);
+  // ...we change it here if we're not in that mode
+  if (currentDisplayMode == SCVDisplayItem::ColorMixer)
   {
-    if ((_delta >> (i - 5)) & 1)
+    // display value in BCD if settings say so
+    if (_settings.getSetting(Settings::SystemOptions, Settings::SystemOptionsBits::DisplayBCD))
     {
-      bcDisp.setLedFromRaw(i, white);
+     displayBitMask = Hardware::uint32ToBcd(_setValues[_selectedParam]);
+    }
+    // fix up bcDisp display object with the right colors and bitmask
+    switch (_selectedParam)
+    {
+      case Color::Blue0:
+        bcDisp.setDisplayColor0(blue);
+        bcDisp.setDisplayColor1(white);
+        break;
+
+      case Color::Green0:
+        bcDisp.setDisplayColor0(green);
+        bcDisp.setDisplayColor1(white);
+        break;
+
+      case Color::Red0:
+        bcDisp.setDisplayColor0(red);
+        bcDisp.setDisplayColor1(white);
+        break;
+
+      case Color::Blue1:
+        bcDisp.setDisplayColor0(gray);
+        bcDisp.setDisplayColor1(blue);
+        break;
+
+      case Color::Green1:
+        bcDisp.setDisplayColor0(gray);
+        bcDisp.setDisplayColor1(green);
+        break;
+
+      case Color::Red1:
+      default:
+        bcDisp.setDisplayColor0(gray);
+        bcDisp.setDisplayColor1(red);
+        // break;
+    }
+
+    bcDisp.setDisplayFromBitmap(displayBitMask << 8);
+  }
+
+  for (uint8_t i = 0; i < 8; i++)
+  {
+    if (((secondsBitMask >> i) & 1) == true)
+    {
+      bcDisp.setLedFromRaw(i, mixedColor1);
     }
     else
     {
-      bcDisp.setLedFromRaw(i, off);
+      bcDisp.setLedFromRaw(i, mixedColor0);
     }
   }
-
-  switch (_selectedParam)
-  {
-    case Red0:
-    bcDisp.setLedFromRaw(16, redHighlight);
-    break;
-
-    case Green0:
-    bcDisp.setLedFromRaw(17, greenHighlight);
-    break;
-
-    case Blue0:
-    bcDisp.setLedFromRaw(18, blueHighlight);
-    break;
-
-    case Red1:
-    bcDisp.setLedFromRaw(20, redHighlight);
-    break;
-
-    case Green1:
-    bcDisp.setLedFromRaw(21, greenHighlight);
-    break;
-
-    case Blue1:
-    bcDisp.setLedFromRaw(22, blueHighlight);
-    break;
-  }
+  // Subtract the first in the OperatingModeSlotxColors series from the
+  //   current mode to get the slot we're modifying
+  _settings.setColors(static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSlot1Colors), mixedColor0, mixedColor1);
 
   Hardware::writeDisplay(bcDisp);
 }
