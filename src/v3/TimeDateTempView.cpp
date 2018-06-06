@@ -31,54 +31,6 @@ namespace kbxBinaryClock {
 const uint32_t TimeDateTempView::cSecondsInADay = 60 * 60 * 24;
 
 
-bool TimeDateTempView::_isDst()
-{
-  uint8_t firstDay;
-
-  _currentTime = Hardware::getDateTime();
-
-  if (_dstStart.year(false) != _currentTime.year(false))
-  {
-    _dstState = DstState::Reset;
-    firstDay = ((_pSettings->getRawSetting(Settings::Setting::DstBeginDowOrdinal) - 1) * 7) + 1;
-
-    do
-    {
-      _dstStart.setDate(_currentTime.year(false), _pSettings->getRawSetting(Settings::Setting::DstBeginMonth), firstDay++);
-    }
-    while((_dstStart.dayOfWeek() != _pSettings->getRawSetting(Settings::Setting::DstSwitchDayOfWeek)) && (firstDay <= 31));
-
-    _dstStart.setTime(_pSettings->getRawSetting(Settings::Setting::DstSwitchHour), 0, 0);
-
-    if (_currentTime >= _dstStart)
-    {
-      _dstState = DstState::Spring;
-    }
-  }
-
-  if (_dstEnd.year(false) != _currentTime.year(false))
-  {
-    firstDay = ((_pSettings->getRawSetting(Settings::Setting::DstEndDowOrdinal) - 1) * 7) + 1;
-
-    do
-    {
-      _dstEnd.setDate(_currentTime.year(false), _pSettings->getRawSetting(Settings::Setting::DstEndMonth), firstDay++);
-    }
-    while((_dstEnd.dayOfWeek() != _pSettings->getRawSetting(Settings::Setting::DstSwitchDayOfWeek)) && (firstDay <= 31));
-
-    _dstEnd.setTime(_pSettings->getRawSetting(Settings::Setting::DstSwitchHour), 0, 0);
-
-    if (_currentTime >= _dstEnd)
-    {
-      _dstState = DstState::Fall;
-    }
-  }
-
-  // once everything is calculated above, it becomes this simple...
-  return (_currentTime >= _dstStart && _currentTime < _dstEnd);
-}
-
-
 void TimeDateTempView::enter()
 {
   _currentTime = Hardware::getDateTime();
@@ -131,21 +83,6 @@ void TimeDateTempView::loop()
   uint32_t displayBitMask, changeDisplayTime, itemDisplayDuration;
 
   _currentTime = Hardware::getDateTime();
-
-  if (_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DstEnable))
-  {
-    if ((_currentTime >= _dstEnd) && (_dstState == DstState::Spring))
-    {
-      _dstState = DstState::Fall;
-      Hardware::adjustForDst(_isDst());
-    }
-
-    if ((_currentTime >= _dstStart) && (_dstState == DstState::Reset))
-    {
-      _dstState = DstState::Spring;
-      Hardware::adjustForDst(_isDst());
-    }
-  }
 
   if (_mode == Application::OperatingMode::OperatingModeToggleDisplay)
   {

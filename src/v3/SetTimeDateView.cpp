@@ -97,6 +97,7 @@ void SetTimeDateView::keyHandler(Keys::Key key)
       case Application::OperatingMode::OperatingModeSetClock:
       case Application::OperatingMode::OperatingModeSetDate:
       Hardware::setDateTime(setDateTime);
+      Hardware::setDstState(Application::isDst(setDateTime), false);
       break;
 
       default:

@@ -46,6 +46,10 @@ namespace Hardware {
   //
   void     refresh();
 
+  // Generates a tick sound if no tone is active
+  //
+  bool     tick();
+
   // Generates a tone of frequency for duration milliseconds
   //  Returns true if tone was activated
   bool     tone(const uint16_t frequency, const uint16_t duration);
@@ -112,7 +116,7 @@ namespace Hardware {
 
   // Adjusts the clock for daylight savings
   //
-  void     adjustForDst(const bool enableDst);
+  void     setDstState(const bool enableDst, const bool adjustRtcHardware);
 
   // Sets the value used as a threshold for flicker reduction at low intensities
   //

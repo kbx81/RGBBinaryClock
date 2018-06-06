@@ -106,6 +106,15 @@ namespace Application {
       Dmx512ExtControlEnum
   };
 
+  /// @brief Enums for DST computation
+  ///
+  enum DstState : uint8_t
+  {
+    Reset,
+    Spring,
+    Fall
+  };
+
 
   // Initialize the application
   //
@@ -144,6 +153,12 @@ namespace Application {
   // Set new application settings
   //
   void setSettings(Settings settings);
+
+  // Handles DST date/time computation; maintains clock's DST state machine.
+  //  Intended for tracking DST clock adjustments, not for arbitrary use!
+  //  To reset state machine, call with year != year provided when last called.
+  //  Returns true if DST is active based on passed DateTime object
+  bool isDst(const DateTime &currentTime);
 
   // The main loop of the application.
   //

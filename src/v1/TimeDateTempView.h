@@ -39,26 +39,15 @@ enum FixedDisplayItem : uint8_t
   Temperature = ViewMode::ViewMode3
 };
 
-enum DstState : uint8_t
-{
-  Reset,
-  Spring,
-  Fall
-};
-
 // The view which displays either the date, time, temperature, or a rotation
 //
 public: // Implement the TimeDateTempView class
-  static const uint32_t cSecondsInADay;
-
   virtual void enter() override;
   virtual void keyHandler(Keys::Key key) override;
   virtual void loop() override;
 
 private:
-  // determines if we're in DST or not
-  //
-  bool _isDst();
+  static const uint32_t cSecondsInADay;
 
   // tracks the last time the display was switched
   //
@@ -71,14 +60,6 @@ private:
   // date & time
   //
   DateTime _currentTime;
-
-  // important daylight savings dates & times
-  //
-  DateTime _dstStart, _dstEnd;
-
-  // daylight savings state
-  //
-  DstState _dstState;
 
   // Settings to be used by the view
   //

@@ -20,6 +20,7 @@
 
 #include "Application.h"
 #include "AlarmHandler.h"
+#include "DateTime.h"
 #include "Dmx-512-Controller.h"
 #include "Dmx-512-Rx.h"
 #include "Dmx-512-View.h"
@@ -125,6 +126,14 @@ static const uint32_t cMaximumIdleCount = 80000;
 //
 static const uint8_t cMinimumIntensityMultiplier = 10;
 
+// important daylight savings dates & times
+//
+DateTime _currentTime, _dstStart, _dstEnd;
+
+// daylight savings state
+//
+DstState _dstState;
+
 // The current mode of the application
 //
 OperatingMode _applicationMode;
@@ -162,6 +171,10 @@ void initialize()
   Hardware::autoAdjustIntensities(true);
 
   _settings.loadFromFlash();
+
+  _currentTime = Hardware::getDateTime();
+  // Update DST start and end dates and times based on RTC
+  isDst(_currentTime);
 
   // Update alarms
   AlarmHandler::initialize();
@@ -297,6 +310,74 @@ void setSettings(Settings settings)
 }
 
 
+// Handles DST date/time computation and setup
+//
+bool isDst(const DateTime &currentTime)
+{
+  uint8_t firstDay;
+
+  if (_dstStart.year(false) != currentTime.year(false))
+  {
+    _dstState = DstState::Reset;
+    firstDay = ((_settings.getRawSetting(Settings::Setting::DstBeginDowOrdinal) - 1) * 7) + 1;
+
+    do
+    {
+      _dstStart.setDate(currentTime.year(false), _settings.getRawSetting(Settings::Setting::DstBeginMonth), firstDay++);
+    }
+    while((_dstStart.dayOfWeek() != _settings.getRawSetting(Settings::Setting::DstSwitchDayOfWeek)) && (firstDay <= 31));
+
+    _dstStart.setTime(_settings.getRawSetting(Settings::Setting::DstSwitchHour), 0, 0);
+
+    if (currentTime >= _dstStart)
+    {
+      _dstState = DstState::Spring;
+    }
+  }
+
+  if (_dstEnd.year(false) != currentTime.year(false))
+  {
+    firstDay = ((_settings.getRawSetting(Settings::Setting::DstEndDowOrdinal) - 1) * 7) + 1;
+
+    do
+    {
+      _dstEnd.setDate(currentTime.year(false), _settings.getRawSetting(Settings::Setting::DstEndMonth), firstDay++);
+    }
+    while((_dstEnd.dayOfWeek() != _settings.getRawSetting(Settings::Setting::DstSwitchDayOfWeek)) && (firstDay <= 31));
+
+    _dstEnd.setTime(_settings.getRawSetting(Settings::Setting::DstSwitchHour), 0, 0);
+
+    if (currentTime >= _dstEnd)
+    {
+      _dstState = DstState::Fall;
+    }
+  }
+
+  // once everything is calculated above, it becomes this simple...
+  return (currentTime >= _dstStart && currentTime < _dstEnd);
+}
+
+
+// Handles updating of the clock hardware for DST
+//
+void _refreshDst()
+{
+  _currentTime = Hardware::getDateTime();
+
+  if ((_currentTime >= _dstEnd) && (_dstState == DstState::Spring))
+  {
+    _dstState = DstState::Fall;
+    Hardware::setDstState(isDst(_currentTime), true);
+  }
+
+  if ((_currentTime >= _dstStart) && (_dstState == DstState::Reset))
+  {
+    _dstState = DstState::Spring;
+    Hardware::setDstState(isDst(_currentTime), true);
+  }
+}
+
+
 // Here lies the main application loop
 //
 void loop()
@@ -306,10 +387,17 @@ void loop()
     // Refresh hardware data (date, time, temperature, etc.)
     Hardware::refresh();
 
+    // Check up on DST and adjust the time if enabled based on settings
+    if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DstEnable) == true)
+    {
+      _refreshDst();
+    }
+
     // Check the buttons
     Keys::scanKeys();
     if (Keys::hasKeyPress())
     {
+      Hardware::tick();
       // Get the key from the buffer and process it
       auto key = Keys::getKeyPress();
 

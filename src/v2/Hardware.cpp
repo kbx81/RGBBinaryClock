@@ -183,7 +183,7 @@ static const int16_t cTempFracMultiplier = 125;
 
 // minimum frequency allowed for tones
 //
-static const uint8_t cToneFrequencyMinimum = 91;
+static const uint8_t cToneFrequencyMinimum = 92;
 
 // maximum volume level allowed for tones
 //
@@ -1446,13 +1446,19 @@ void refresh()
 }
 
 
+bool tick()
+{
+  return tone(cToneFrequencyMinimum * 8, 2);
+}
+
+
 bool tone(const uint16_t frequency, const uint16_t duration)
 {
   // period = (48000000 / 8 (prescaler)) / frequency
   // oc_value = period / 2
   if (_toneTimer == 0)
   {
-    if ((frequency > cToneFrequencyMinimum) && (_toneVolume < cToneVolumeMaximum))
+    if ((frequency >= cToneFrequencyMinimum) && (_toneVolume < cToneVolumeMaximum))
     {
       // proc speed divided by prescaler...
       uint32_t period = (48000000 / 8) / frequency,
@@ -1711,42 +1717,51 @@ void autoAdjustIntensities(const bool enable)
 }
 
 
-void adjustForDst(const bool enableDst)
+void setDstState(const bool enableDst, const bool adjustRtcHardware)
 {
+  // number of seconds in an hour
+  int16_t rtcAdjustment = 3600;
+  // bit to set in RTC_CR to adjust the STM32's internal RTC
+  uint32_t rtcDstAdjustBit = 0;
+  // get the current state of the hardware into dstHwState
   bool dstHwState = RTC_CR & RTC_CR_BKP;
-
+  // if the new state and the hardware state are not the same...
   if (enableDst != dstHwState)
   {
+    // get ready to toggle the BKP bit...
     pwr_disable_backup_domain_write_protect();
     rtc_unlock();
 
     if (enableDst == true)
     {
-      RTC_CR |= (RTC_CR_ADD1H | RTC_CR_BKP);
+      RTC_CR |= RTC_CR_BKP;
 
-      if (_externalRtcConnected == true)
-      {
-        // 60 seconds in a minute, 60 minutes in an hour
-        DS3231::setDateTime(_currentDateTime.addSeconds(60 * 60));
-      }
+      rtcDstAdjustBit = RTC_CR_ADD1H;
     }
     else
     {
-      RTC_CR |= RTC_CR_SUB1H;
       RTC_CR &= ~RTC_CR_BKP;
+
+      rtcDstAdjustBit = RTC_CR_SUB1H;
+
+      rtcAdjustment *= -1;
+    }
+
+    if (adjustRtcHardware == true)
+    {
+      RTC_CR |= rtcDstAdjustBit;
 
       if (_externalRtcConnected == true)
       {
-        // 60 seconds in a minute, 60 minutes in an hour
-        DS3231::setDateTime(_currentDateTime.addSeconds(-60 * 60));
+        DS3231::setDateTime(_currentDateTime.addSeconds(rtcAdjustment));
       }
+
+      doubleBlink();
     }
 
     rtc_lock();
     rtc_wait_for_synchro();
     pwr_enable_backup_domain_write_protect();
-
-    doubleBlink();
   }
 }
 
