@@ -38,6 +38,10 @@ public: // Implement the Dmx512View class
   virtual void loop() override;
 
 private:
+  // Channel multiplier - used to increase range of intensities and strobe rates
+  //
+  static const uint8_t cChannelMultiplier = 4;
+
   // the main application's mode
   //
   Application::OperatingMode _mode;

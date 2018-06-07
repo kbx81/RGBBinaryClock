@@ -57,7 +57,7 @@ void Dmx512View::loop()
   Dmx512Packet* currentPacket = Dmx512Rx::getLastPacket();
   Display dmxDisplay;
   RgbLed currentLed;
-  uint8_t level;
+  uint8_t i, level;
   uint16_t rate, address = _pSettings->getRawSetting(Settings::Setting::DmxAddress);
 
   if (Application::getExternalControlState() == Application::ExternalControl::Dmx512ExtControlEnum)
@@ -68,30 +68,27 @@ void Dmx512View::loop()
       {
         address += 4;
 
-        rate = (currentPacket->channel(address++) * 4) + 50;
+        rate = (currentPacket->channel(address++) * cChannelMultiplier) + cChannelMultiplier;
         currentLed.setRate(rate);
       }
       // Set display blanking/driver current level
       level = currentPacket->channel(address++) / 52;
 
-      if (level > 0)
+      for (i = 0; i <= Display::cLedCount; i++)
       {
-        for (uint8_t i = 0; i <= Display::cLedCount; i++)
+        currentLed.setRed(currentPacket->channel((i * 3) + address) << cChannelMultiplier);
+        currentLed.setGreen(currentPacket->channel((i * 3) + address + 1) << cChannelMultiplier);
+        currentLed.setBlue(currentPacket->channel((i * 3) + address + 2) << cChannelMultiplier);
+        if (i < Display::cLedCount)
         {
-          currentLed.setRed(currentPacket->channel((i * 3) + address) << 4);
-          currentLed.setGreen(currentPacket->channel((i * 3) + address + 1) << 4);
-          currentLed.setBlue(currentPacket->channel((i * 3) + address + 2) << 4);
-          if (i < Display::cLedCount)
-          {
-            dmxDisplay.setLedFromRaw(i, currentLed);
-          }
-          else
-          {
-            Hardware::setStatusLed(currentLed);
-          }
+          dmxDisplay.setLedFromRaw(i, currentLed);
         }
-        Hardware::writeDisplay(dmxDisplay);
+        else
+        {
+          Hardware::setStatusLed(currentLed);
+        }
       }
+      Hardware::writeDisplay(dmxDisplay);
     }
   }
   else
