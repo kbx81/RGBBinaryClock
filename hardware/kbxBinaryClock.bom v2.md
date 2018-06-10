@@ -1,5 +1,5 @@
-Reference | Qty | Value | Footprint | Description | Documentation/Vendor
---------- | --- | ----- | --------- | ----------- | --------------------
+Reference | Qty | Value | Footprint | Description/Documentation/Vendor
+--------- | --- | ----- | --------- | --------------------------------
 BT1 | 1 | CR2032 | Battery_Holders:Keystone_103_1x20mm-CoinCell | [Battery cell](http://www.keyelco.com/product.cfm/product_id/719)
 BZ1 | 1 | Buzzer | Buzzers_Beepers:Buzzer_12x9.5RM7.6 | [Buzzer, polar](https://product.tdk.com/en/search/sw_piezo/sw_piezo/em-buzzer/info?part_no=SD1614TT-B1)
 C1, C2 | 2 | 12.5 pF | Capacitors_SMD:C_0805 | Unpolarized capacitor
