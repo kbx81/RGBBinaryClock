@@ -24,9 +24,9 @@ Q1, Q2, Q3, Q4 | 4 | 2N7002 | TO_SOT_Packages_SMD:SOT-23 | [50V Vds, 0.22 A Id, 
 Q5 | 1 | Q_Photo_NPN | LEDs:LED_D5.0mm | [Phototransistor NPN, 2-pin (C=1, E=2)](https://www.vishay.com/docs/84768/tept5600.pdf)
 Q6, Q7, Q8, Q9, Q10, Q11 | 6 | Q_NPN_BCE | TO_SOT_Packages_SMD:SOT-23 | [NPN Transistor](https://www.diodes.com/assets/Datasheets/ds30036.pdf)
 R1, R5, R6, R7, R10 | 5 | 1M | Resistors_SMD:R_0805 | Resistor
-R2, R3, R4, R11, R12, R13, R14, R15, R16, R23, R27, R28, R32, R33, R37 | 15 | 1K | Resistors_SMD:R_0805 | Resistor
-R8, R9, R17, R18, R19, R20, R21, R22, R26, R31, R36, R40, R41 | 13 | 10K | Resistors_SMD:R_0805 | Resistor
-R24, R29, R34 | 3 | 4K7 | Resistors_SMD:R_0805 | Resistor
+R2*, R3*, R4*, R11, R12, R13, R14, R15, R16, R23, R27, R28, R32, R33, R37 | 15 | 1K | Resistors_SMD:R_0805 | Resistor
+R8, R9, R17, R18, R19, R20, R21, R22, R26*, R31*, R36*, R40, R41 | 13 | 10K | Resistors_SMD:R_0805 | Resistor
+R24*, R29*, R34* | 3 | 4K7 | Resistors_SMD:R_0805 | Resistor
 R25, R30, R35 | 3 | 24K6 | Resistors_SMD:R_0805 | Resistor
 R38, R39 | 2 | 3K3 | Resistors_SMD:R_0805 | Resistor
 RV1 | 1 | 100K | Potentiometers:Potentiometer_Trimmer_Vishay_TS53YJ | [Potentiometer](http://www.bourns.com/docs/Product-Datasheets/TC33.PDF)
@@ -40,3 +40,5 @@ U8 | 1 | MCP9804 | Housings_SSOP:MSOP-8_3x3mm_Pitch0.65mm | [MCP9804/MCP9808](ht
 U9 | 1 | MAX485E | Housings_SOIC:SOIC-8_3.9x4.9mm_Pitch1.27mm | [Half duplex RS-485/RS-422, 2.5 Mbps, �15kV electro-static discharge (ESD) protection](http://www.st.com/content/ccc/resource/technical/document/datasheet/81/93/fa/ed/87/47/46/00/CD00003136.pdf/files/CD00003136.pdf/jcr:content/translations/en.CD00003136.pdf)
 Y1 | 1 | 32.768 KHz | Crystals:Crystal_SMD_3215-2pin_3.2x1.5mm | [Two pin crystal](https://www.ecsxtal.com/store/pdf/ECX-.327-CDX-1293.pdf)
 Y2 | 1 | 8 MHz | Crystals:Crystal_SMD_5032-4pin_5.0x3.2mm | [Two pin crystal](http://www.abracon.com/Resonators/abm3b.pdf)
+
+* = These resistor values may require adjusting based on RGB LED current requirements. As specified, they will work well with the aforementioned LEDs.
