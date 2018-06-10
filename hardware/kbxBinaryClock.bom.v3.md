@@ -6,11 +6,11 @@ C1, C2 | 2 | 12.5 pF | Capacitors_SMD:C_0805 | Unpolarized capacitor
 C3, C4 | 2 | 10 pF | Capacitors_SMD:C_0805 | Unpolarized capacitor
 C5, C6, C8, C9, C10, C17, C18, C19, C21, C23, C24, C25, C26 | 13 | 100 nF | Capacitors_SMD:C_0805 | Unpolarized capacitor
 C7 | 1 | 10 nF | Capacitors_SMD:C_0805 | Unpolarized capacitor
-C11 | 1 | 1 �F | Capacitors_SMD:C_0805 | Unpolarized capacitor
-C12, C13 | 2 | 4.7 �F | Capacitors_SMD:C_0805 | Unpolarized capacitor
+C11 | 1 | 1 µF | Capacitors_SMD:C_0805 | Unpolarized capacitor
+C12, C13 | 2 | 4.7 µF | Capacitors_SMD:C_0805 | Unpolarized capacitor
 C14, C15, C16 | 3 | 47 nF | Capacitors_SMD:C_0805 | Unpolarized capacitor
-C20 | 1 | 100 �F | Capacitors_SMD:CP_Elec_8x10 | [Polarized capacitor](https://industrial.panasonic.com/ww/products/capacitors/polymer-capacitors/os-con/svf/25SVF100M)
-C22 | 1 | 10 �F | Capacitors_SMD:C_0805 | Unpolarized capacitor
+C20 | 1 | 100 µF | Capacitors_SMD:CP_Elec_8x10 | [Polarized capacitor](https://industrial.panasonic.com/ww/products/capacitors/polymer-capacitors/os-con/svf/25SVF100M)
+C22 | 1 | 10 µF | Capacitors_SMD:C_0805 | Unpolarized capacitor
 D1 | 1 | 1N4148 | Diodes_SMD:D_SOD-123 | [Diode](https://www.diodes.com/assets/Datasheets/ds30086.pdf)
 D2 | 1 | S3A | Diodes_SMD:D_SMC | [Diode](http://www.onsemi.com/pub/Collateral/S3N-D.PDF)
 F1 | 1 | ~2A Polyfuse | Fuse_Holders_and_Fuses:Fuse_SMD2920 | [Resettable fuse, polymeric positive temperature coefficient (PPTC)](http://m.littelfuse.com/~/media/electronics/datasheets/resettable_ptcs/littelfuse_ptc_2920l_datasheet.pdf.pdf)
