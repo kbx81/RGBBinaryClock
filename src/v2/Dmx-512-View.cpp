@@ -57,7 +57,6 @@ void Dmx512View::loop()
   Dmx512Packet* currentPacket = Dmx512Rx::getLastPacket();
   Display dmxDisplay;
   RgbLed currentLed;
-  uint8_t i, level;
   uint16_t rate, address = _pSettings->getRawSetting(Settings::Setting::DmxAddress);
 
   if (Application::getExternalControlState() == Application::ExternalControl::Dmx512ExtControlEnum)
@@ -71,10 +70,10 @@ void Dmx512View::loop()
         rate = (currentPacket->channel(address++) * cChannelMultiplier) + cChannelMultiplier;
         currentLed.setRate(rate);
       }
-      // Set display blanking/driver current level
-      level = currentPacket->channel(address++) / 52;
+      // Skip over the display blanking/driver current level parameter
+      address++;
 
-      for (i = 0; i <= Display::cLedCount; i++)
+      for (uint8_t i = 0; i <= Display::cLedCount; i++)
       {
         currentLed.setRed(currentPacket->channel((i * 3) + address) << cChannelMultiplier);
         currentLed.setGreen(currentPacket->channel((i * 3) + address + 1) << cChannelMultiplier);

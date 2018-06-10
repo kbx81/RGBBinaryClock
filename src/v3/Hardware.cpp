@@ -21,7 +21,7 @@
 #include <cstdint>
 // #include <errno.h>
 // #include <stdio.h>
-// #include <stdlib.h>
+#include <stdlib.h>
 // #include <string.h>
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/cm3/systick.h>
@@ -132,9 +132,14 @@ static const uint16_t cAdcSampleInterval = 500;
 //
 static const uint8_t cAdcSamplesToAverage = 16;
 
+// threshold above which an automatic display intensity adjustment is made
+//
+static const uint8_t cAutoIntensityAdjThreshold = 100;
+
 // value used to increase precision in our maths
 //
 static const int16_t cBaseMultiplier = 1000;
+static const int16_t cIntensityBaseMultiplier = 10000;
 
 // length of delays used for doubleBlink confirmation
 //
@@ -258,10 +263,6 @@ static uint16_t _adcSampleSetTemp[cAdcSamplesToAverage];
 //
 static uint16_t _adcSampleSetVoltage[cAdcSamplesToAverage];
 
-// determines if display intensity is adjusted in real-time
-//
-static bool _autoAdjustIntensities = false;
-
 // threshold above which we do not BLANK during display refreshes
 //  used when autoAdjustIntensities is true
 static uint16_t _blankingThreshold = 300;
@@ -274,13 +275,9 @@ static uint16_t _minimumIntensity = 1000;
 //   1000 = 10%
 volatile static uint16_t _intensityPercentage = 1000;
 
-// inverts NSS state during SPI transfers (for DS1722) if true
-//
-static bool _invertCsForTemperatureSensor = false;
-
 // previous percentage used to adjust display intensity
 //
-static uint32_t _lastIntensityPercentage = _intensityPercentage;
+static uint16_t _lastIntensityPercentage = _intensityPercentage;
 
 // a place for data from the ADC to live
 //
@@ -385,6 +382,10 @@ static uint16_t _lightLevel = 0;
 //
 static bool _adcSampleRefreshNow = false;
 
+// determines if display intensity is adjusted in real-time
+//
+static bool _autoAdjustIntensities = false;
+
 // true if status LED should be refreshed by the display refresher function
 //
 static bool _autoRefreshStatusLed = false;
@@ -404,6 +405,14 @@ volatile static bool _displayBlankForWrite = false;
 // true if updater routine determine one or more LEDs needs to be refreshed
 //
 static bool _displayRefreshRequired = false;
+
+// true when an intensity adjustment has been completed
+//
+static bool _intensityAdjustmentComplete = false;
+
+// inverts NSS state during SPI transfers (for DS1722) if true
+//
+static bool _invertCsForTemperatureSensor = false;
 
 // true if it's time to refresh the display
 //
@@ -883,6 +892,7 @@ void _tscSetup()
   // enable the end of acquisition and max count error interrupts
   TSC_ICR = TSC_ICR_EOAIC | TSC_ICR_MCEIC;
   TSC_IER = TSC_IER_EOAIE | TSC_IER_MCEIE;
+  nvic_set_priority(NVIC_TSC_IRQ, 128);
   nvic_enable_irq(NVIC_TSC_IRQ);
 
   // define the pulse generator prescaler value
@@ -1075,23 +1085,36 @@ void _refreshAdjustedDisplay()
 //
 void _updateIntensityPercentage()
 {
-  const uint16_t baseMultiplier = cBaseMultiplier * 10;
   // determine the new value for _intensityPercentage
-  _intensityPercentage = (lightLevel() * baseMultiplier) / Display::cLedMaxIntensity;
+  uint16_t currentPercentage = (lightLevel() * cIntensityBaseMultiplier) / Display::cLedMaxIntensity,
+           currentDifference = abs(currentPercentage - _lastIntensityPercentage);
+  // if the difference is above the threshold, enable adjustments
+  if (currentDifference > cAutoIntensityAdjThreshold)
+  {
+    _intensityAdjustmentComplete = false;
+  }
+  // if the levels have met, we're done until the threshold is exceeded again
+  else if (currentPercentage == _lastIntensityPercentage)
+  {
+    _intensityAdjustmentComplete = true;
+  }
 
-  // make sure the intensity multiplier does not go below the minimum level
+  if (_intensityAdjustmentComplete == false)
+  {
+    // this makes changes more gradual
+    if (currentPercentage < _lastIntensityPercentage)
+    {
+      _intensityPercentage = --_lastIntensityPercentage;
+    }
+    if (currentPercentage > _lastIntensityPercentage)
+    {
+      _intensityPercentage = ++_lastIntensityPercentage;
+    }
+  }
+  // make sure the intensity does not go below the minimum level
   if (_intensityPercentage < _minimumIntensity)
   {
     _intensityPercentage = _minimumIntensity;
-  }
-  // this part makes changes more gradual
-  if (_intensityPercentage < _lastIntensityPercentage)
-  {
-    _intensityPercentage = --_lastIntensityPercentage;
-  }
-  if (_intensityPercentage > _lastIntensityPercentage)
-  {
-    _intensityPercentage = ++_lastIntensityPercentage;
   }
 }
 
@@ -1100,7 +1123,6 @@ void _updateIntensityPercentage()
 //  (an) active crossfade(s)
 void _refreshLedIntensities()
 {
-  const uint16_t baseMultiplier = cBaseMultiplier * 10;
   bool refreshThisLed = false;
   int32_t currentTick, totalTicks, percentTicks;
   uint8_t i, inactiveBufferSet;
@@ -1133,7 +1155,7 @@ void _refreshLedIntensities()
       _displayRefreshRequired = true;
       refreshThisLed = true;
 
-      percentTicks = (baseMultiplier * currentTick) / totalTicks;
+      percentTicks = (cIntensityBaseMultiplier * currentTick) / totalTicks;
 
       activeLed.mergeRgbLeds(percentTicks, startLed, desiredLed);
       activeLed.setRate(currentTick + 1);
@@ -1782,13 +1804,13 @@ void writeDisplay(const Display &display)
 
 uint32_t eraseFlash(uint32_t startAddress)
 {
-	uint32_t pageAddress = startAddress;
-	uint32_t flashStatus = 0;
+	uint32_t pageAddress = startAddress,
+	         flashStatus = 0;
 
 	// check if startAddress is in proper range
 	if ((startAddress - FLASH_BASE) >= (cFlashPageSize * (cFlashPageNumberMaximum + 1)))
   {
-    return 1;
+    return 0xff;
   }
 
 	// calculate current page address
@@ -1802,14 +1824,14 @@ uint32_t eraseFlash(uint32_t startAddress)
 	// Erase page(s)
 	flash_erase_page(pageAddress);
 	flashStatus = flash_get_status_flags();
-	if (flashStatus != FLASH_SR_EOP)
+	if (flashStatus == FLASH_SR_EOP)
   {
-    return flashStatus;
+    flashStatus = 0;
   }
 
   flash_lock();
 
-	return 0;
+	return flashStatus;
 }
 
 
@@ -1829,14 +1851,16 @@ void readFlash(uint32_t startAddress, uint16_t numElements, uint8_t *outputData)
 uint32_t writeFlash(uint32_t startAddress, uint8_t *inputData, uint16_t numElements)
 {
 	uint16_t i;
-	uint32_t currentAddress = startAddress;
-	uint32_t pageAddress = startAddress;
-	uint32_t flashStatus = 0;
+  const uint32_t erasedValue = 0xffffffff;
+	uint32_t currentAddress = startAddress,
+	         pageAddress = startAddress,
+	         flashStatus = 0,
+           returnStatus = 0;
 
 	// check if startAddress is in proper range
 	if ((startAddress - FLASH_BASE) >= (cFlashPageSize * (cFlashPageNumberMaximum + 1)))
   {
-    return 1;
+    return 0xff;
   }
 
 	// calculate current page address
@@ -1852,30 +1876,48 @@ uint32_t writeFlash(uint32_t startAddress, uint8_t *inputData, uint16_t numEleme
 	flashStatus = flash_get_status_flags();
 	if (flashStatus != FLASH_SR_EOP)
   {
-    return flashStatus;
+    returnStatus = flashStatus;
   }
-
-	// programming flash memory
-	for (i = 0; i < numElements; i += 4)
-	{
-		// programming word data
-		flash_program_word(currentAddress + i, *((uint32_t*)(inputData + i)));
-		flashStatus = flash_get_status_flags();
-		if (flashStatus != FLASH_SR_EOP)
-    {
-      return flashStatus;
+  else
+  {
+    // verify flash memory was completely erased
+  	for (i = 0; i < numElements; i += 4)
+  	{
+      // verify if address was erased properly
+  		if (*((uint32_t*)(currentAddress + i)) != erasedValue)
+      {
+        returnStatus = 0x40;
+        break;
+      }
     }
 
-		// verify if correct data is programmed
-		if (*((uint32_t*)(currentAddress + i)) != *((uint32_t*)(inputData + i)))
+    if (returnStatus == 0)
     {
-      return FLASH_SR_PGERR;
+      // programming flash memory
+    	for (i = 0; i < numElements; i += 4)
+    	{
+    		// programming word data
+    		flash_program_word(currentAddress + i, *((uint32_t*)(inputData + i)));
+    		flashStatus = flash_get_status_flags();
+    		if (flashStatus != FLASH_SR_EOP)
+        {
+          returnStatus = 0x80 | flashStatus;
+          break;
+        }
+
+    		// verify if correct data is programmed
+    		if (*((uint32_t*)(currentAddress + i)) != *((uint32_t*)(inputData + i)))
+        {
+          returnStatus = 0x80 | FLASH_SR_PGERR;
+          break;
+        }
+    	}
     }
-	}
+  }
 
   flash_lock();
 
-	return 0;
+	return returnStatus;
 }
 
 
@@ -2079,7 +2121,7 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
     case SpiPeripheral::LedDrivers:
       gpio_clear(cNssPort, cNssDisplayPin);
       // Attempt to reduce flicker at very low intensities
-      if ((_autoAdjustIntensities == false) || (lightLevel() > _blankingThreshold))
+      if ((_autoAdjustIntensities == false) || (_intensityPercentage > _blankingThreshold))
       {
         _displayBlankForWrite = true;
         gpio_set(cBlankDisplayPort, cBlankDisplayPin);

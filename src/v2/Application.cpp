@@ -159,6 +159,10 @@ View *_currentView = cModeViews[static_cast<uint8_t>(ViewEnum::TimeDateTempViewE
 //
 bool _previousDmxState = false;
 
+// True if settings need to be written to FLASH
+//
+bool _settingsModified = false;
+
 // Idle cycle counter
 //
 uint32_t _idleCounter = 0;
@@ -229,6 +233,26 @@ OperatingMode getOperatingMode()
 //
 void setOperatingMode(OperatingMode mode)
 {
+  const uint16_t writeLedIntensity = 1024;
+  // first, write settings to FLASH, if needed
+  if ((mode != OperatingMode::OperatingModeMainMenu) &&
+      (mode < static_cast<uint8_t>(OperatingMode::OperatingModeSetSystemOptions)) &&
+      (_settingsModified == true))
+  {
+    if (_settings.saveToFlash() == 0)
+    {
+      _settingsModified = false;
+      Hardware::greenLed(writeLedIntensity);
+    }
+    else
+    {
+      Hardware::redLed(writeLedIntensity);
+    }
+    Hardware::doubleBlink();
+    Hardware::greenLed(0);
+    Hardware::redLed(0);
+  }
+  // set new mode
   if (_applicationMode != mode)
   {
     _applicationMode = mode;
@@ -306,7 +330,7 @@ void setSettings(Settings settings)
 
   Dmx512Controller::initialize();
 
-  _settings.saveToFlash();
+  _settingsModified = true;
 }
 
 

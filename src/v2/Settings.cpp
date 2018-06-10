@@ -159,9 +159,9 @@ namespace kbxBinaryClock {
   }
 
 
-  void Settings::saveToFlash()
+  uint32_t Settings::saveToFlash()
   {
-    while (Hardware::writeFlash(cSettingsFlashAddress, (uint8_t*)this, sizeof(Settings)) != 0);
+    return Hardware::writeFlash(cSettingsFlashAddress, (uint8_t*)this, sizeof(Settings));
   }
 
 

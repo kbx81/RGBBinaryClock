@@ -130,36 +130,46 @@ namespace kbxBinaryClock {
   }
 
 
-  void RgbLed::adjustIntensity(const uint16_t percentageOfCurrentx100)
+  void RgbLed::adjustIntensity(uint16_t percentageOfCurrentx100)
   {
-    uint32_t top, bottom = cBaseMultiplier * cBaseMultiplier;
+    uint32_t top;
+
+    if (percentageOfCurrentx100 > cDivisor)
+    {
+      percentageOfCurrentx100 = cDivisor;
+    }
 
     top = _red * percentageOfCurrentx100;
-    _red = top / bottom;
+    _red = top / cDivisor;
 
     top = _green * percentageOfCurrentx100;
-    _green = top / bottom;
+    _green = top / cDivisor;
 
     top = _blue * percentageOfCurrentx100;
-    _blue = top / bottom;
+    _blue = top / cDivisor;
   }
 
 
-  void RgbLed::mergeRgbLeds(const uint16_t percentageOfLed0x100, const RgbLed &led0, const RgbLed &led1)
+  void RgbLed::mergeRgbLeds(uint16_t percentageOfLed0x100, const RgbLed &led0, const RgbLed &led1)
   {
-    int32_t intensity, bottom = cBaseMultiplier * cBaseMultiplier;
+    int32_t intensity;
+
+    if (percentageOfLed0x100 > cDivisor)
+    {
+      percentageOfLed0x100 = cDivisor;
+    }
 
     // new intensity = led0 - ((led0 - led1) * percentage)
     intensity = led0.getRed() - led1.getRed();
-    intensity = led0.getRed() - ((intensity * percentageOfLed0x100) / bottom);
+    intensity = led0.getRed() - ((intensity * percentageOfLed0x100) / cDivisor);
     _red = intensity;
 
     intensity = led0.getGreen() - led1.getGreen();
-    intensity = led0.getGreen() - ((intensity * percentageOfLed0x100) / bottom);
+    intensity = led0.getGreen() - ((intensity * percentageOfLed0x100) / cDivisor);
     _green = intensity;
 
     intensity = led0.getBlue() - led1.getBlue();
-    intensity = led0.getBlue() - ((intensity * percentageOfLed0x100) / bottom);
+    intensity = led0.getBlue() - ((intensity * percentageOfLed0x100) / cDivisor);
     _blue = intensity;
   }
 

@@ -37,14 +37,6 @@ public:
   RgbLed(const uint16_t red = 0, const uint16_t green = 0, const uint16_t blue = 0, const uint16_t rate = 0);
 
 public:
-  /// Important constants
-  ///
-  static const uint8_t cBaseMultiplier = 100;
-
-  /// 4096-step (12 bit) brightness table: gamma = 2.2
-  ///
-  static const uint16_t cGammaTable[4096];
-
   /// Compare this RgbLed to another
   ///
   bool operator==(const RgbLed &other) const;
@@ -66,11 +58,19 @@ public:
   /// Methods for adjusting and merging RgbLed objects
   /// All percentages are times 100 -- e.g.: 8765 = 87.65%
   ///
-  void adjustIntensity(const uint16_t percentageOfCurrentx100);
-  void mergeRgbLeds(const uint16_t percentageOfLed0x100, const RgbLed &led0, const RgbLed &led1);
+  void adjustIntensity(uint16_t percentageOfCurrentx100);
+  void mergeRgbLeds(uint16_t percentageOfLed0x100, const RgbLed &led0, const RgbLed &led1);
   void gammaCorrect12bit();
 
 private:
+  /// Important constants
+  ///
+  static const uint16_t cDivisor = 10000;
+
+  /// 4096-step (12 bit) brightness table: gamma = 2.2
+  ///
+  static const uint16_t cGammaTable[4096];
+
   uint16_t _red, _green, _blue, _rate;  ///< Intensities for Red, Green, and Blue elements and Rate
 };
 

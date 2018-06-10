@@ -125,7 +125,7 @@ public:
 
   // Saves settings to FLASH
   //
-  void saveToFlash();
+  uint32_t saveToFlash();
 
 
   // Returns a setting

@@ -147,7 +147,9 @@ namespace Hardware {
   void     readFlash(uint32_t startAddress, uint16_t numElements, uint8_t *outputData);
 
   // Writes the FLASH area used for app data
-  //
+  //  Returns 0xff if startAddress is out of range, flash_get_status_flags() if
+  //  erase request failed, 0x40 if erase verification failed,
+  //  (0x80 | flash_get_status_flags()) if programming failure
   uint32_t writeFlash(uint32_t startAddress, uint8_t *inputData, uint16_t numElements);
 
   // Reads and/or writes data to/from specified I2C interface via DMA
