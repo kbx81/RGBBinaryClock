@@ -6,8 +6,20 @@ _It's probably more than what you're thinking..._
 
 ## Another binary clock? Why?
 
-The world probably doesn't need another (binary) clock. There are plenty of
- them--all different shapes and sizes--so why build another one?
+I have to start by giving credit where credit is due. The
+ [Boldport Club](http://boldport.club), over the last couple of years, has
+ motivated me to dwell back into the world of electronics, at least as a
+ hobbyist. Both the kits themselves and the other members in the club are
+ amazing and helped inspire me to make something...so I began working on this
+ project. Some inspiration is taken from
+ [Touchy, BPC Project #7](https://www.boldport.com/products/touchy); this kit
+ enabled me to learn more about and actually experiment with capacitive touch.
+ It was clear early on that this would be a nice touch (pun intended) to add to
+ this project; visually, it is cleaner, it reduces the number of parts and, as a
+ result, it reduces the cost.
+
+That said, the world probably doesn't need another (binary) clock. There are
+ plenty of them--all different shapes and sizes--so why build another one?
 
 This project was started with two main goals in mind: I wanted a "simple"
  project I could use to help me get back into the world of electronics. The
