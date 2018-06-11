@@ -170,6 +170,18 @@ You'll need to flash the firmware onto the STM32 MCU. This can be done via the
  and flashing instructions in the `src` folder one level up in the repo's
  hierarchy.
 
+## Known Issues
+
+Heat from the LED drivers can skew the temperature reading from the sensor on
+ the board. This becomes more noticeable as the LEDs become brighter. Perhaps a
+ future revision of the board(s) will include a connection for mounting the
+ temperature sensors off-board somehow.
+
+Due to the nature of how the TLC5947 drivers work, frequent display refreshes
+ (such as when LEDs are fading between colors and/or intensities) sometimes
+ cause some faint flickering or pulsing of the LEDs. Perhaps a future version of
+ the binary clock will use different drivers.
+
 ## Legal stuff and License
 
 The circuit schematics and PCBs found here are licensed under the
