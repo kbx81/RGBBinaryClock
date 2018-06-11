@@ -170,4 +170,10 @@ You'll need to flash the firmware onto the STM32 MCU. This can be done via the
  and flashing instructions in the `src` folder one level up in the repo's
  hierarchy.
 
+## Legal stuff and License
+
+![Creative Commons License badge](https://i.creativecommons.org/l/by-sa/4.0/88x31.png)
+The circuit schematics and PCBs found here are licensed under the
+ [Creative Commons Attribution-ShareAlike 4.0 International License](http://creativecommons.org/licenses/by-sa/4.0/).
+
 _Happy building!_
