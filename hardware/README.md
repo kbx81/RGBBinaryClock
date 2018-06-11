@@ -170,12 +170,31 @@ You'll need to flash the firmware onto the STM32 MCU. This can be done via the
  and flashing instructions in the `src` folder one level up in the repo's
  hierarchy.
 
-## Known Issues
+## Known Issues and Noteworthy Items
 
-Heat from the LED drivers can skew the temperature reading from the sensor on
- the board. This becomes more noticeable as the LEDs become brighter. Perhaps a
- future revision of the board(s) will include a connection for mounting the
- temperature sensors off-board somehow.
+You may have noticed the "hefty" 2-amp power supply rating on the board. Why is
+ it so big? Well, each LED is rated for 20 milliamps (mA)...but are three colors
+ per physical LED, adding up to 60 mA each. Then there are 25 LEDs...which adds
+ up to 1500 mA -- a lot of current! We need a little extra for the other parts
+ of the clock, so a 2 amp supply covers that nicely. That said, under normal use
+ as a clock, it's unlikely that *all* of the LEDs would ever be fully on and
+ driven at a full 20 mA each; in this case, you can likely get away with a power
+ supply with a lesser rating. Under DMX-512 (or some other) control, however, it
+ is possible that this situation could occur, so the goal was to ensure that the
+ board could handle it. With that in mind, however, **if you wish to drive all
+ of the LEDs at their full rated current of 20 mA for more than a few seconds at
+ a time, you need to ensure three things happen:**
+* The PowerPAD on the drivers must be properly soldered to the PCB
+* Heatsinks should be glued (with appropriate thermal epoxy) to the driver ICs
+* The PCB should be manufactured with a 2 oz copper weight
+
+Damage to your board and/or the parts on it may occur if the heat is not
+ sufficiently dealt with -- the drivers can become VERY HOT!
+
+Speaking of heat, said heat from the LED drivers can skew the temperature
+ reading from the sensor on the board. This becomes more noticeable as the LEDs
+ become brighter. Perhaps a future version of the board(s) will include a
+ connection for mounting the temperature sensors off-board somehow.
 
 Due to the nature of how the TLC5947 drivers work, frequent display refreshes
  (such as when LEDs are fading between colors and/or intensities) sometimes
