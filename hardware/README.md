@@ -65,7 +65,6 @@ Once you've settled on the items above, read on (below) for more detail and
 ### Build details
 
 #### External RTC:
-**U6**
 
 The external RTC--the DS3231 (hardware version 2.x) or the DS3234 (hardware
  version 3.x+)--adds a level of precision to the clock that is likely difficult
@@ -106,8 +105,8 @@ Installing an external temperature sensor is a great solution to this problem.
  to them or to other ICs on the board.
 
 #### RS-485 transceiver:
-**U9 (hardware v2.x and v3.x)**
-**U6 (hardware v4.x)**
+**U9** (hardware v2.x and v3.x)
+**U6** (hardware v4.x)
 
 This part will enable the the second USART in the STM32 MCU to be used to
  communicate on an RS-485 bus. The original intention for this feature was to
@@ -159,7 +158,7 @@ The reset and boot buttons are of course not required, but it is convenient if
 
 A footprint for a 32.768 kHz crystal exists on all of the PCBs. It is used to
  drive the STM32's internal RTC mechanism. This crystal is particularly
- important if the DS323x IC (U6) is **not** installed; in this case, it must be
+ important if the DS323x IC is **not** installed; in this case, it must be
  connected to the MCU by creating a solder bridge across the appropriate two
  pads on `SB1`. Failure to do so--and if the DS323x is not installed--means the
  clock won't run (although things otherwise may seem to work).
@@ -229,8 +228,10 @@ Speaking of heat, said heat from the LED drivers can skew the temperature
 Due to the nature of how the TLC5947 drivers work, frequent display refreshes
  (such as when LEDs are fading between colors and/or intensities) sometimes
  cause some faint flickering or pulsing of the LEDs. Version 4.x of the hardware
- resolves this issue by using TLC5951 drivers which can be synchronized with
- display refreshes.
+ resolves this issue by using TLC5951 drivers. These have a clock input to the
+ PWM engine enabling writes to the data latches to be synchronized with PWM
+ cycles. The result is smooth fading of the LEDs at all intensities with some
+ additional benefits, as well!
 
 ## Legal stuff and License
 

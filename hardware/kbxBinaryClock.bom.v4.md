@@ -29,7 +29,6 @@ P1 | 1 | CONN_MICRO_USB_B | Connectors_USB:USB_Micro-B_Molex-105017-0001 | [Micr
 P2 | 1 | STM32_SWD_USART | Pin_Headers:Pin_Header_Straight_2x05_Pitch1.27mm_SMD | [Header](https://www.harwin.com/products/M50-3600542R/)
 Q1 | 1 | Q_Photo_NPN | LEDs:LED_D5.0mm | [Phototransistor NPN, 2-pin (C=1, E=2)](https://www.vishay.com/docs/84768/tept5600.pdf)
 Q2, Q3, Q4, Q5 | 4 | 2N7002 | TO_SOT_Packages_SMD:SOT-23 | [50V Vds, 0.22 A Id, N-channel MOSFET, SOT-23](https://www.diodes.com/assets/Datasheets/ds11303.pdf)
-Q6, Q7, Q8, Q9, Q10, Q11 | 6 | Q_NPN_BCE | TO_SOT_Packages_SMD:SOT-23 | [NPN Transistor](https://www.diodes.com/assets/Datasheets/ds30036.pdf)
 R1 | 1 | 47K | Resistors_SMD:R_0805 | Resistor
 R2 | 1 | 68K | Resistors_SMD:R_0805 | Resistor
 R5, R19, R25, R26, R27 | 5 | 1M | Resistors_SMD:R_0805 | Resistor

@@ -90,11 +90,12 @@ The "brain" is an STM32F072 microcontroller. This MCU alone has everything
  accuracy of the clock.
 
 Beyond the MCU itself, the board has 25 RGB LEDs on it; 24 of them form the main
- display and they are connected to TLC5947 constant-current PWM drivers. The MCU
- uses its SPI1 to communicate with these drivers. The remaining RGB LED is used
- as a "status" LED and it is connected (through FET drivers) to GPIO pins on the
- MCU. These pins double as timer output channels, meaning they can also generate
- a PWM signal, enabling the dimming of the status LED elements, as well.
+ display and they are connected to TLC5947 (pre-v4) or TLC5951 (v4+)
+ constant-current PWM drivers. The MCU uses its SPI1 to communicate with these
+ drivers. The remaining RGB LED is used as a "status" LED and it is connected
+ (through FET drivers) to GPIO pins on the MCU. These pins double as timer
+ output channels, meaning they can also generate a PWM signal, enabling the
+ dimming of the status LED elements, as well.
 
 The beeper is connected (also through a FET driver) to yet another GPIO pin
  that doubles as a timer output channel; this enables the beeper to generate a
@@ -105,9 +106,9 @@ The phototransistor is connected to the MCU's ADC channel zero.
 Two USARTs are exposed via pin headers on the right side of the board: USART1
  is brought out on a standard six pin header as is commonly found on many
  devices while USART2 is connected to an RS-485 line driver enabling
- communication on an RS-485 bus. (It's not implemented at the time of this
- writing but the idea is to enable it to receive a DMX-512 signal so the LEDs
- can be controlled from a standard entertainment lighting console!)
+ communication on an RS-485 bus. Through this interface, the application is able
+ to receive a DMX-512 signal so the LEDs can be controlled from an entertainment
+ lighting console, enabling another whole realm of possibilities...
 
 ## How do I get or build one?
 
