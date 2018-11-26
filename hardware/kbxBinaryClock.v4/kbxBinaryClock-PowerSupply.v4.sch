@@ -1,0 +1,356 @@
+EESchema Schematic File Version 4
+LIBS:kbxBinaryClock.v4-cache
+EELAYER 26 0
+EELAYER END
+$Descr A4 11693 8268
+encoding utf-8
+Sheet 5 5
+Title ""
+Date ""
+Rev ""
+Comp ""
+Comment1 ""
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Comp
+L kbxBinaryClock.v4-rescue:Jack-DC J5
+U 1 1 5A06C211
+P 2900 4000
+AR Path="/5A06C211" Ref="J5"  Part="1" 
+AR Path="/5A06BFE7/5A06C211" Ref="J5"  Part="1" 
+F 0 "J5" H 2900 4210 50  0000 C CNN
+F 1 "Jack-DC" H 2900 3825 50  0000 C CNN
+F 2 "kbxCustoms:BARREL_JACK" H 2950 3960 50  0001 C CNN
+F 3 "" H 2950 3960 50  0001 C CNN
+	1    2900 4000
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:C C25
+U 1 1 5A06C24E
+P 6100 4050
+F 0 "C25" H 6125 4150 50  0000 L CNN
+F 1 "10 µF" H 6125 3950 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0805" H 6138 3900 50  0001 C CNN
+F 3 "" H 6100 4050 50  0001 C CNN
+	1    6100 4050
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:C C24
+U 1 1 5A06C283
+P 5100 4050
+F 0 "C24" H 5125 4150 50  0000 L CNN
+F 1 "100 nF" H 5125 3950 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0805" H 5138 3900 50  0001 C CNN
+F 3 "" H 5100 4050 50  0001 C CNN
+	1    5100 4050
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:Battery_Cell BT1
+U 1 1 5A06C2CC
+P 8650 4200
+F 0 "BT1" H 8750 4300 50  0000 L CNN
+F 1 "CR2032" H 8750 4200 50  0000 L CNN
+F 2 "Battery_Holders:Keystone_103_1x20mm-CoinCell" V 8650 4260 50  0001 C CNN
+F 3 "http://www.keyelco.com/product.cfm/product_id/719" V 8650 4260 50  0001 C CNN
+F 4 "103" H 8650 4200 60  0001 C CNN "Part Number"
+	1    8650 4200
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:CP C23
+U 1 1 5A0AB81C
+P 4200 4050
+F 0 "C23" H 4225 4150 50  0000 L CNN
+F 1 "100 µF" H 4225 3950 50  0000 L CNN
+F 2 "Capacitors_SMD:CP_Elec_8x10" H 4238 3900 50  0001 C CNN
+F 3 "https://industrial.panasonic.com/ww/products/capacitors/polymer-capacitors/os-con/svf/25SVF100M" H 4200 4050 50  0001 C CNN
+F 4 "25SVF100M" H 4200 4050 60  0001 C CNN "Part Number"
+	1    4200 4050
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+3.3V #PWR044
+U 1 1 5A0AB93A
+P 6600 3600
+F 0 "#PWR044" H 6600 3450 50  0001 C CNN
+F 1 "+3.3V" H 6600 3740 50  0000 C CNN
+F 2 "" H 6600 3600 50  0001 C CNN
+F 3 "" H 6600 3600 50  0001 C CNN
+	1    6600 3600
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR045
+U 1 1 5A0ABA04
+P 4200 4400
+F 0 "#PWR045" H 4200 4150 50  0001 C CNN
+F 1 "GND" H 4200 4250 50  0000 C CNN
+F 2 "" H 4200 4400 50  0001 C CNN
+F 3 "" H 4200 4400 50  0001 C CNN
+	1    4200 4400
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR046
+U 1 1 5A0ABA30
+P 5100 4400
+F 0 "#PWR046" H 5100 4150 50  0001 C CNN
+F 1 "GND" H 5100 4250 50  0000 C CNN
+F 2 "" H 5100 4400 50  0001 C CNN
+F 3 "" H 5100 4400 50  0001 C CNN
+	1    5100 4400
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR047
+U 1 1 5A0ABA5C
+P 5600 4400
+F 0 "#PWR047" H 5600 4150 50  0001 C CNN
+F 1 "GND" H 5600 4250 50  0000 C CNN
+F 2 "" H 5600 4400 50  0001 C CNN
+F 3 "" H 5600 4400 50  0001 C CNN
+	1    5600 4400
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR048
+U 1 1 5A0ABA88
+P 6100 4400
+F 0 "#PWR048" H 6100 4150 50  0001 C CNN
+F 1 "GND" H 6100 4250 50  0000 C CNN
+F 2 "" H 6100 4400 50  0001 C CNN
+F 3 "" H 6100 4400 50  0001 C CNN
+	1    6100 4400
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR049
+U 1 1 5A0ABAB4
+P 8650 4400
+F 0 "#PWR049" H 8650 4150 50  0001 C CNN
+F 1 "GND" H 8650 4250 50  0000 C CNN
+F 2 "" H 8650 4400 50  0001 C CNN
+F 3 "" H 8650 4400 50  0001 C CNN
+	1    8650 4400
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:Polyfuse F1
+U 1 1 5A0B6BAC
+P 3450 3900
+F 0 "F1" V 3350 3900 50  0000 C CNN
+F 1 "~2A" V 3550 3900 50  0000 C CNN
+F 2 "Fuse_Holders_and_Fuses:Fuse_SMD2920" H 3500 3700 50  0001 L CNN
+F 3 "http://m.littelfuse.com/~/media/electronics/datasheets/resettable_ptcs/littelfuse_ptc_2920l_datasheet.pdf.pdf" H 3450 3900 50  0001 C CNN
+F 4 "2920L185DR" V 3450 3900 60  0001 C CNN "Part Number"
+	1    3450 3900
+	0    1    1    0   
+$EndComp
+$Comp
+L win:DIODE D3
+U 1 1 5A0B6C19
+P 3900 3900
+F 0 "D3" H 3900 4000 40  0000 C CNN
+F 1 "S3A" H 3900 3800 40  0000 C CNN
+F 2 "Diodes_SMD:D_SMC" H 3900 3900 60  0001 C CNN
+F 3 "http://www.onsemi.com/pub/Collateral/S3N-D.PDF" H 3900 3900 60  0001 C CNN
+F 4 "S3A" H 3900 3900 60  0001 C CNN "Part Number"
+	1    3900 3900
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR050
+U 1 1 5A0B6F52
+P 3300 4400
+F 0 "#PWR050" H 3300 4150 50  0001 C CNN
+F 1 "GND" H 3300 4250 50  0000 C CNN
+F 2 "" H 3300 4400 50  0001 C CNN
+F 3 "" H 3300 4400 50  0001 C CNN
+	1    3300 4400
+	1    0    0    -1  
+$EndComp
+$Comp
+L win:LD1117S33TR_SOT223 U9
+U 1 1 5A06C0AF
+P 5600 3900
+F 0 "U9" H 5450 4025 50  0000 C CNN
+F 1 "LD1117S33TR" H 5600 4025 50  0000 L CNN
+F 2 "TO_SOT_Packages_SMD:TO-252-2" H 5600 4100 50  0001 C CNN
+F 3 "http://www.st.com/content/ccc/resource/technical/document/datasheet/a5/c3/3f/c9/2b/15/40/49/CD00002116.pdf/files/CD00002116.pdf/jcr:content/translations/en.CD00002116.pdf" H 5700 3650 50  0001 C CNN
+F 4 "LD1117ADT33TR" H 5600 3900 60  0001 C CNN "Part Number"
+	1    5600 3900
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	3300 4100 3300 4400
+Wire Wire Line
+	3200 4100 3300 4100
+Wire Wire Line
+	3600 3900 3700 3900
+Wire Wire Line
+	3200 3900 3300 3900
+Wire Wire Line
+	6100 4400 6100 4200
+Wire Wire Line
+	5600 4200 5600 4400
+Wire Wire Line
+	5100 4400 5100 4200
+Wire Wire Line
+	4200 4200 4200 4400
+Connection ~ 6100 3900
+Wire Wire Line
+	6600 3900 6600 3600
+Wire Wire Line
+	5900 3900 6100 3900
+Connection ~ 5100 3900
+Connection ~ 4200 3900
+Wire Wire Line
+	4200 3900 4200 3600
+Wire Wire Line
+	4100 3900 4200 3900
+Wire Wire Line
+	3200 4000 3200 4100
+$Comp
+L kbxBinaryClock.v4-rescue:+V_IN #PWR051
+U 1 1 5A7F3BB0
+P 4200 3600
+AR Path="/5A7F3BB0" Ref="#PWR051"  Part="1" 
+AR Path="/5A06BFE7/5A7F3BB0" Ref="#PWR051"  Part="1" 
+F 0 "#PWR051" H 4200 3450 50  0001 C CNN
+F 1 "+V_IN" H 4200 3740 50  0000 C CNN
+F 2 "" H 4200 3600 50  0001 C CNN
+F 3 "" H 4200 3600 50  0001 C CNN
+	1    4200 3600
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:D_x2_Serial_AKC D4
+U 1 1 5B261F0B
+P 7400 3900
+F 0 "D4" H 7450 3800 50  0000 C CNN
+F 1 "BAT64-04" H 7400 4000 50  0000 C CNN
+F 2 "TO_SOT_Packages_SMD:SOT-23" H 7400 3900 50  0001 C CNN
+F 3 "https://www.infineon.com/dgdl/Infineon-BAT64SERIES-DS-v01_01-en.pdf?fileId=db3a304314dca3890115191757980ead" H 7400 3900 50  0001 C CNN
+	1    7400 3900
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:R R30
+U 1 1 5B261F78
+P 7400 4350
+F 0 "R30" V 7480 4350 50  0000 C CNN
+F 1 "56Ω 0.5W" V 7300 4350 50  0000 C CNN
+F 2 "Resistors_SMD:R_0805" V 7330 4350 50  0001 C CNN
+F 3 "" H 7400 4350 50  0001 C CNN
+	1    7400 4350
+	-1   0    0    1   
+$EndComp
+$Comp
+L Device:C C27
+U 1 1 5B262008
+P 7850 4150
+F 0 "C27" H 7875 4250 50  0000 L CNN
+F 1 "100 nF" H 7875 4050 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0805" H 7888 4000 50  0001 C CNN
+F 3 "" H 7850 4150 50  0001 C CNN
+	1    7850 4150
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:CP C26
+U 1 1 5B2620F6
+P 7400 4750
+F 0 "C26" H 7425 4850 50  0000 L CNN
+F 1 "470 mF" H 7425 4650 50  0000 L CNN
+F 2 "kbxCustoms:CP_Radial_D13.0mm_P5.00mm_HD1.5mm" H 7438 4600 50  0001 C CNN
+F 3 "http://www.cooperindustries.com/content/dam/public/bussmann/Electronics/Resources/product-datasheets/Bus_Elx_DS_4327_KR_Series.pdf" H 7400 4750 50  0001 C CNN
+F 4 "KR-5R5H474-R" H 7400 4750 60  0001 C CNN "Part Number"
+	1    7400 4750
+	1    0    0    -1  
+$EndComp
+Connection ~ 6600 3900
+Wire Wire Line
+	7400 4100 7400 4200
+Wire Wire Line
+	7400 4500 7400 4600
+$Comp
+L power:GND #PWR052
+U 1 1 5B26234F
+P 7400 5000
+F 0 "#PWR052" H 7400 4750 50  0001 C CNN
+F 1 "GND" H 7400 4850 50  0000 C CNN
+F 2 "" H 7400 5000 50  0001 C CNN
+F 3 "" H 7400 5000 50  0001 C CNN
+	1    7400 5000
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	7400 5000 7400 4900
+$Comp
+L power:GND #PWR053
+U 1 1 5B2623AE
+P 7850 4400
+F 0 "#PWR053" H 7850 4150 50  0001 C CNN
+F 1 "GND" H 7850 4250 50  0000 C CNN
+F 2 "" H 7850 4400 50  0001 C CNN
+F 3 "" H 7850 4400 50  0001 C CNN
+	1    7850 4400
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	7850 4300 7850 4400
+Wire Wire Line
+	7700 3900 7850 3900
+Wire Wire Line
+	7850 3600 7850 3900
+$Comp
+L power:+BATT #PWR054
+U 1 1 5B262432
+P 7850 3600
+F 0 "#PWR054" H 7850 3450 50  0001 C CNN
+F 1 "+BATT" H 7850 3740 50  0000 C CNN
+F 2 "" H 7850 3600 50  0001 C CNN
+F 3 "" H 7850 3600 50  0001 C CNN
+	1    7850 3600
+	1    0    0    -1  
+$EndComp
+Connection ~ 7850 3900
+$Comp
+L Device:D D5
+U 1 1 5B2628DF
+P 8250 3900
+F 0 "D5" H 8250 3800 50  0000 C CNN
+F 1 "BAT64-02V" H 8250 4000 50  0000 C CNN
+F 2 "Diodes_SMD:D_0603" H 8250 3900 50  0001 C CNN
+F 3 "https://www.infineon.com/dgdl/Infineon-BAT64SERIES-DS-v01_01-en.pdf?fileId=db3a304314dca3890115191757980ead" H 8250 3900 50  0001 C CNN
+	1    8250 3900
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	8650 4300 8650 4400
+Wire Wire Line
+	8650 4000 8650 3900
+Wire Wire Line
+	8650 3900 8400 3900
+Text Notes 7300 4850 2    50   ~ 0
+Supercapacitor\nEaton/PowerStor\nKR-5R5C474-R
+Text Notes 7250 4500 2    50   ~ 0
+Use anti-surge\n SMD chip!\nE.g.: Panasonic\nERJ-P6WF56R0V
+Wire Wire Line
+	6100 3900 6600 3900
+Wire Wire Line
+	5100 3900 5300 3900
+Wire Wire Line
+	4200 3900 5100 3900
+Wire Wire Line
+	6600 3900 7100 3900
+Wire Wire Line
+	7850 3900 8100 3900
+Wire Wire Line
+	7850 3900 7850 4000
+$EndSCHEMATC

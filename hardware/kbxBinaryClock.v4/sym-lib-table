@@ -1,0 +1,4 @@
+(sym_lib_table
+  (lib (name kbxBinaryClock.v4-rescue)(type Legacy)(uri ${KIPRJMOD}/kbxBinaryClock.v4-rescue.lib)(options "")(descr ""))
+  (lib (name win)(type Legacy)(uri ${KIPRJMOD}/win.lib)(options "")(descr ""))
+)
