@@ -366,10 +366,6 @@ uint16_t getMasterIntensity()
 }
 
 
-// 0 - 285: full range...
-// 0 - 39: BC & DC lookup in tables
-// 40 - 295: BC only, value derived by (value - 29)
-//
 void setMasterIntensity(const uint16_t intensity)
 {
   // v4+ math for BC
@@ -398,7 +394,7 @@ void setMasterIntensity(const uint16_t intensity)
   {
     // first, save it so we can check it next time we're called
     _intensityPercentage = safeIntensity;
-    // if bcValue is < the size of the lookup table, we'll use the lookup table
+    // if bcValue is less than the size of the lookup table, use the table
     if (bcValue < 41)
     {
       dcValue = cSubBCStepDCTable[bcValue];

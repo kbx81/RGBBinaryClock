@@ -86,12 +86,25 @@ Finally--and one could argue that no clock is complete without one--it has an
 The "brain" is an STM32F072 microcontroller. This MCU alone has everything
  that's necessary to have a functional time clock -- even a temperature sensor
  as a bonus. Still, it might not be quite as accurate as some of us would like.
- For those folks, the PCBs have footprints for a Maxim DS3231 or DS3234
- "extremely accurate" temperature-compensated crystal (TCXO) I2C real time clock
- IC as well as an LM75 (or compatible) I2C temperature sensor. Why both? The
- DS3231 and DS3234 are somewhat expensive and it's possible that one might want
- more accurate temperature sensing abilities but isn't as concerned with the
- accuracy of the clock.
+ For those folks, there are footprints for some additional ICs to improve the
+ accuracy of the time and/or temperature sensing.
+
+Version 2 boards have footprints for I2C devices:
+* A Maxim DS3231
+* An LM75 (or compatible)
+* A Microchip MCP9808
+
+Version 3+ boards have footprints for SPI devices:
+* A Maxim DS3234
+* An LM74
+* A Maxim DS1722
+
+Why footprints for both temperature sensors and the RTCs? The DS323x is somewhat
+ expensive and it's possible that one might want more accurate temperature
+ sensing abilities but isn't as concerned with the accuracy of the clock. It
+ should be noted that the DS323x devices have temperature sensors built in and
+ the application will use this sensor if a DS323x is installed but one of the
+ other external temperature sensors is not.
 
 Beyond the MCU itself, the board has 25 RGB LEDs on it; 24 of them form the main
  display and they are connected to TLC5947 (pre-v4) or TLC5951 (v4+)
@@ -103,7 +116,7 @@ Beyond the MCU itself, the board has 25 RGB LEDs on it; 24 of them form the main
 
 The beeper is connected (also through a FET driver) to yet another GPIO pin
  that doubles as a timer output channel; this enables the beeper to generate a
- wide range of tones -- it could potentially play a tune!
+ wide range of tones or even play a tune!
 
 The phototransistor is connected to the MCU's ADC channel zero.
 
