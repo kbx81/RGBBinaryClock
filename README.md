@@ -69,19 +69,23 @@ Another cool bit is that it uses capacitive sense touch keys for buttons; the
  little extra uniqueness to the clock, too.
 
 A CR2032 coin-cell battery back-up can be installed to keep the time valid in
- the event that the board loses power.
+ the event that the board loses power. Version 4 of the hardware also includes a
+ super capacitor, eliminating the need for the battery; even so, both can be
+ installed, adding flexibility to the build.
 
 Finally--and one could argue that no clock is complete without one--it has an
  alarm! The alarm can be set to beep at any of the eight times the user sets.
  There is also an hourly chime that one can enable which will beep out each hour
  in binary using high and/or low pitch tones...so you can hear the time when
- you're in another room!
+ you're in another room! The display can be configured to blink when an alarm
+ occurs. Version 4 of the clock also includes extra pin headers, some pins of
+ which can be used as inputs to trigger the alarm from an external device.
 
 ## Great, but what makes it tick?
 
 The "brain" is an STM32F072 microcontroller. This MCU alone has everything
- that's necessary to have a functional time clock -- temperature sensor
- included. Still, it might not be quite as accurate as some of us would like.
+ that's necessary to have a functional time clock -- even a temperature sensor
+ as a bonus. Still, it might not be quite as accurate as some of us would like.
  For those folks, the PCBs have footprints for a Maxim DS3231 or DS3234
  "extremely accurate" temperature-compensated crystal (TCXO) I2C real time clock
  IC as well as an LM75 (or compatible) I2C temperature sensor. Why both? The
@@ -107,8 +111,9 @@ Two USARTs are exposed via pin headers on the right side of the board: USART1
  is brought out on a standard six pin header as is commonly found on many
  devices while USART2 is connected to an RS-485 line driver enabling
  communication on an RS-485 bus. Through this interface, the application is able
- to receive a DMX-512 signal so the LEDs can be controlled from an entertainment
- lighting console, enabling another whole realm of possibilities...
+ to receive a DMX-512 signal so the LEDs can each be individually controlled
+ from an entertainment lighting console (or other application that speaks this
+ protocol), enabling another whole realm of possibilities...
 
 ## How do I get or build one?
 

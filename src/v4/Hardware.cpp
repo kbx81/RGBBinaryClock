@@ -357,10 +357,6 @@ static uint16_t _lightLevel = 0;
 //
 static bool _adcSampleRefreshNow = false;
 
-// indicates to displayBlank() that it should NOT clear the BLANK pin as a
-//  display write is in progress with flicker reduction active
-// volatile static bool _displayBlankForWrite = false;
-
 // state of the XBLNK pin
 //
 static bool _blankPinState = false;

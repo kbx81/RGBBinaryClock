@@ -62,7 +62,6 @@ void TimerCounterView::keyHandler(Keys::Key key)
 
   if (key == Keys::Key::C)
   {
-    // _timerValue = 0;
     Application::setViewMode(static_cast<ViewMode>(TimerMode::TimerReset));
   }
 
@@ -145,6 +144,7 @@ void TimerCounterView::loop()
         {
           _timerValue = _pSettings->getRawSetting(Settings::Setting::TimerResetValue);
         }
+        AlarmHandler::clearAlarm();   // in case of external control (DMX-512)
         Application::setViewMode(static_cast<ViewMode>(TimerMode::TimerStop));
         break;
     }

@@ -19,6 +19,6 @@
 
 ## v4 TODO
 
-1. Display brightness adjustments are not smooth at very low levels
+1. Display brightness adjustments could be smoother at very low levels
 1. Better match status LED colors with main display colors
-1. Color correction tweaks using DC?
+1. (Maybe) Color correction tweaks using DC

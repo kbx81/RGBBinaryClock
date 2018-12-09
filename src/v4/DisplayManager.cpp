@@ -40,6 +40,16 @@ namespace kbxBinaryClock {
 namespace DisplayManager
 {
 
+// 40-step table for 1/4-step BC via setMasterIntensity(), BC values
+//
+static const uint8_t cSubBCStepBCTable[41] = {
+  0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10 };
+
+// 40-step table for 1/4-step BC via setMasterIntensity(), DC values
+//
+static const uint8_t cSubBCStepDCTable[41] = {
+  0, 32, 64, 95, 127, 50, 75, 95, 127, 95, 106, 116, 127, 103, 111, 119, 127, 108, 114, 121, 127, 111, 116, 122, 127, 114, 118, 122, 127, 115, 119, 123, 127, 116, 120, 123, 127, 117, 121, 124, 127 };
+
 // length of delays used for doubleBlink confirmation
 //
 static const uint8_t cDoubleBlinkDuration = 50;
@@ -48,13 +58,22 @@ static const uint8_t cDoubleBlinkDuration = 50;
 //
 static const uint8_t cForceDisplayRefreshInterval = 250;
 
+// offset in gamma table to trim off some zeros
+//
+static const uint8_t cGammaLookupOffset = 68;
+
 // maximum value for BC in TLC5951s
 //
-static const uint8_t cMaxBcValue = 255;
+static const uint16_t cMaxBcValue = 285;
+
+// maximum value for DC in TLC5951s
+//
+static const uint8_t cMaxDcValue = 127;
 
 // maximum value for gamma-corrected BC in TLC5951s
 //
-static const uint16_t cMaxCorrectedBcValue = 1092;
+// static const uint16_t cMaxCorrectedBcValue = 1092;
+static const uint16_t cMaxCorrectedBcValue = 1220 - cGammaLookupOffset;
 
 // number of TLC59xx devices we're controlling/are linked together
 //
@@ -347,37 +366,62 @@ uint16_t getMasterIntensity()
 }
 
 
+// 0 - 285: full range...
+// 0 - 39: BC & DC lookup in tables
+// 40 - 295: BC only, value derived by (value - 29)
+//
 void setMasterIntensity(const uint16_t intensity)
 {
   // v4+ math for BC
   uint32_t _top = cMaxCorrectedBcValue * intensity;
-  uint16_t bcIntensity = (_top / cIntensityBaseMultiplier) + 40, safeIntensity = 0;
-  RgbLed led(bcIntensity, bcIntensity, bcIntensity, 0);
+  uint16_t adjustedIntensity = (_top / cIntensityBaseMultiplier) + cGammaLookupOffset,
+           safeIntensity = cIntensityBaseMultiplier;
+  uint8_t i = 0;
+  RgbLed led(adjustedIntensity, adjustedIntensity, adjustedIntensity, 0);
 
   led.gammaCorrect12bit();
 
-  uint8_t bcValue = led.getRed();
+  uint16_t bcValue = led.getRed();
+  uint8_t  dcValue = cMaxDcValue;
 
-  // make sure the values are good & safe
+  // ensure values are good & safe
   if (intensity <= cIntensityBaseMultiplier)
   {
     safeIntensity = intensity;
   }
   else
   {
-    safeIntensity = cIntensityBaseMultiplier;
     bcValue = cMaxBcValue;
   }
-
+  // if the new intensity is different, let's update some stuff
   if (_intensityPercentage != safeIntensity)
   {
+    // first, save it so we can check it next time we're called
     _intensityPercentage = safeIntensity;
-
-    for (uint8_t i = 0; i < cPwmNumberOfDevices; i++)
+    // if bcValue is < the size of the lookup table, we'll use the lookup table
+    if (bcValue < 41)
+    {
+      dcValue = cSubBCStepDCTable[bcValue];
+      bcValue = cSubBCStepBCTable[bcValue];
+    }
+    else
+    {
+      // ...otherwise, just use the computed value - 30...why? the lookup table
+      //  covers 41 values, but the BC range covered is 0 to 10, so 41 - 10 == 31
+      //  and we throw out the zero value, leaving us with 30.
+      bcValue -= 30;
+    }
+    // now we just write these lovely values into the TLC59xx buffers
+    for (i = 0; i < cPwmNumberOfDevices; i++)
     {
       _displayBufferOut.setBcRed(i, bcValue);
       _displayBufferOut.setBcGreen(i, bcValue);
       _displayBufferOut.setBcBlue(i, bcValue);
+    }
+    // update the display drivers' dot correction values
+    for (i = 0; i < Display::cLedCount; i++)
+    {
+      setDotCorrectionValue(i, dcValue);
     }
     // also refresh the values in _adjustedStatusLed if needed
     if (_autoRefreshStatusLed == true)

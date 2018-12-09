@@ -83,7 +83,13 @@ void TimeDateTempView::loop()
   RgbLed   color[2], statusLed(0, 0, 0, _pSettings->getRawSetting(Settings::Setting::FadeRate));
   uint32_t displayBitMask, changeDisplayTime, itemDisplayDuration, pixelOffBitMask = 0;
 
-  _currentTime = Hardware::getDateTime();
+  // update these only as needed -- keeps temperature from bouncing incessantly
+  if (_currentTime != Hardware::getDateTime())
+  {
+    _currentTime = Hardware::getDateTime();
+    _currentTemperature = Hardware::temperature(_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayFahrenheit),
+                            _pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD));
+  }
 
   if (_mode == Application::OperatingMode::OperatingModeToggleDisplay)
   {
@@ -164,8 +170,7 @@ void TimeDateTempView::loop()
         color[1] = _pSettings->getColor1(Settings::Slot::SlotTemperature);
       }
 
-      displayBitMask = Hardware::temperature(_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayFahrenheit),
-                        _pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)) << 8;
+      displayBitMask = (_currentTemperature << 8);
       pixelOffBitMask = 0xff00ff;
       break;
 

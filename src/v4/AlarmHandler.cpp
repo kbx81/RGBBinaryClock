@@ -110,24 +110,9 @@ void initialize()
 
 void keyHandler(Keys::Key key)
 {
-  DateTime current = Hardware::getDateTime();
-
   if (key == Keys::Key::A)
   {
-    for (uint8_t i = 0; i < 8; i++)
-    {
-      if (_activeAlarms & (1 << i))
-      {
-        _ackTime[i] = current;
-      }
-    }
-    _activeAlarms = 0;
-    _extLatchingAlarmActive = false;
-    _extMomentaryAlarmActive = false;
-    _beepCounter = 0;
-    // restore the display in case the alarm changed anything
-    Application::setIntensityAutoAdjust(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
-    DisplayManager::setDisplayBlanking(false);
+    clearAlarm();
   }
 }
 
@@ -188,102 +173,106 @@ void loop()
     _extLatchingAlarmActive = true;
   }
 
-  // finally, make beeping and blinking happen as necessary
-  if ((_activeAlarms != 0) || _extLatchingAlarmActive || _extMomentaryAlarmActive)
+  // we do not signal alarms if some external control is active
+  if (Application::getExternalControlState() == Application::ExternalControl::NoActiveExtControlEnum)
   {
-    for (i = static_cast<uint8_t>(Settings::Slot::Slot1); i <= static_cast<uint8_t>(Settings::Slot::Slot8) + cExtAlarmCount; i++)
+    // finally, make beeping and blinking happen as necessary
+    if ((_activeAlarms != 0) || _extLatchingAlarmActive || _extMomentaryAlarmActive)
     {
-      // first check if the alarm is enabled
-      if (_settings.getSetting(Settings::Setting::BeepStates, i) == true)
+      for (i = static_cast<uint8_t>(Settings::Slot::Slot1); i <= static_cast<uint8_t>(Settings::Slot::Slot8) + cExtAlarmCount; i++)
       {
-        // cancel this since some other, more important alarm is active
-        _hourlyAlarmActive = false;
-
-        if (_beepCounter >= sizeof(cAlarmToneDurations) / 2) // words / 2 = bytes
+        // first check if the alarm is enabled for beeping
+        if (_settings.getSetting(Settings::Setting::BeepStates, i) == true)
         {
-          _beepCounter = 0;
+          // cancel this since some other, more important alarm is active
+          _hourlyAlarmActive = false;
+
+          if (_beepCounter >= sizeof(cAlarmToneDurations) / 2) // words / 2 = bytes
+          {
+            _beepCounter = 0;
+          }
+
+          if (Hardware::tone(cAlarmToneFrequencies[_beepCounter], cAlarmToneDurations[_beepCounter]) == true)
+          {
+            _beepCounter++;
+          }
         }
 
-        if (Hardware::tone(cAlarmToneFrequencies[_beepCounter], cAlarmToneDurations[_beepCounter]) == true)
+        // first check if the alarm is enabled for blinking
+        if (_settings.getSetting(Settings::Setting::BlinkStates, i) == true)
         {
-          _beepCounter++;
+          // make the display bright!
+          Application::setIntensityAutoAdjust(false);
+          DisplayManager::setMasterIntensity(DisplayManager::cIntensityBaseMultiplier);
+          // blink based on seconds, or...
+          // DisplayManager::setDisplayBlanking(current.second(false) & 1);
+          // blink based on sub-seconds register for faster blinking
+          DisplayManager::setDisplayBlanking(RTC_SSR & (1 << 6));
         }
       }
-
-      // first check if the alarm is enabled
-      if (_settings.getSetting(Settings::Setting::BlinkStates, i) == true)
-      {
-        // make the display bright!
-        Application::setIntensityAutoAdjust(false);
-        DisplayManager::setMasterIntensity(DisplayManager::cIntensityBaseMultiplier);
-        // blink based on seconds, or...
-        // DisplayManager::setDisplayBlanking(current.second(false) & 1);
-        // blink based on sub-seconds register for faster blinking
-        DisplayManager::setDisplayBlanking(RTC_SSR & (1 << 6));
-      }
     }
-  }
-  else if (_hourlyAlarmActive == true)
-  {
-    uint8_t tone = 0, hour = current.hour(false, _settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour));
+    else if (_hourlyAlarmActive == true)
+    {
+      uint8_t tone = 0, hour = current.hour(false, _settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour));
 
-    if (hour == _lastHourlyBeepHour)
-    {
-      // ignore the request if we already beeped this hour
-      _hourlyAlarmActive = false;
-    }
-    else
-    {
-      // emit at least one (low) beep at hour zero
-      if (hour == 0)
+      if (hour == _lastHourlyBeepHour)
       {
-        Hardware::tone(cHourlyAlarmToneFrequencies[tone], cHourlyAlarmToneDuration);
-        _beepCounter = 0;
-        _lastHourlyBeepHour = hour;
+        // ignore the request if we already beeped this hour
         _hourlyAlarmActive = false;
       }
       else
       {
-        // we use bit 0 to determine if we should beep or pause/rest...so...
-        // below we roll bit 0 off to get the number of bits we need to rotate
-        tone = (hour >> (_beepCounter >> 1));
-
-        // if tone is greater than zero, let's make some (more) beeps!
-        if (tone > 0)
+        // emit at least one (low) beep at hour zero
+        if (hour == 0)
         {
-          // here we check if we should beep or pause by checking bit 0
-          if ((_beepCounter & 1) == 0)
-          {
-            // this makes a beep based on the LSb of the hour
-            if (Hardware::tone(cHourlyAlarmToneFrequencies[tone & 1], cHourlyAlarmToneDuration) == true)
-            {
-              // we end up here if Hardware accepted our beep, so we can move onto the next beep/bit
-              _beepCounter++;
-            }
-          }
-          else
-          {
-            // this produces a pause/rest
-            if (Hardware::tone(1, cHourlyAlarmToneDuration) == true)
-            {
-              // we end up here if Hardware accepted our beep, so we can move onto the next beep/bit
-              _beepCounter++;
-            }
-          }
-        }
-        else
-        {
-          // if tone was zero, there are no more (relevant) bits to beep about
+          Hardware::tone(cHourlyAlarmToneFrequencies[tone], cHourlyAlarmToneDuration);
           _beepCounter = 0;
           _lastHourlyBeepHour = hour;
           _hourlyAlarmActive = false;
         }
+        else
+        {
+          // we use bit 0 to determine if we should beep or pause/rest...so...
+          // below we roll bit 0 off to get the number of bits we need to rotate
+          tone = (hour >> (_beepCounter >> 1));
+
+          // if tone is greater than zero, let's make some (more) beeps!
+          if (tone > 0)
+          {
+            // here we check if we should beep or pause by checking bit 0
+            if ((_beepCounter & 1) == 0)
+            {
+              // this makes a beep based on the LSb of the hour
+              if (Hardware::tone(cHourlyAlarmToneFrequencies[tone & 1], cHourlyAlarmToneDuration) == true)
+              {
+                // we end up here if Hardware accepted our beep, so we can move onto the next beep/bit
+                _beepCounter++;
+              }
+            }
+            else
+            {
+              // this produces a pause/rest
+              if (Hardware::tone(1, cHourlyAlarmToneDuration) == true)
+              {
+                // we end up here if Hardware accepted our beep, so we can move onto the next beep/bit
+                _beepCounter++;
+              }
+            }
+          }
+          else
+          {
+            // if tone was zero, there are no more (relevant) bits to beep about
+            _beepCounter = 0;
+            _lastHourlyBeepHour = hour;
+            _hourlyAlarmActive = false;
+          }
+        }
       }
     }
-  }
-  else
-  {
-    _beepCounter = 0;
+    else
+    {
+      _beepCounter = 0;
+    }
   }
 }
 
@@ -303,6 +292,27 @@ void activateLatchingAlarm()
 void activateMomentaryAlarm()
 {
   _extMomentaryAlarmActive = true;
+}
+
+
+void clearAlarm()
+{
+  DateTime current = Hardware::getDateTime();
+
+  for (uint8_t i = 0; (i < 8) && (_activeAlarms != 0); i++)
+  {
+    if (_activeAlarms & (1 << i))
+    {
+      _ackTime[i] = current;
+    }
+  }
+  _activeAlarms = 0;
+  _extLatchingAlarmActive = false;
+  _extMomentaryAlarmActive = false;
+  _beepCounter = 0;
+  // restore the display in case the alarm changed anything
+  Application::setIntensityAutoAdjust(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
+  DisplayManager::setDisplayBlanking(false);
 }
 
 

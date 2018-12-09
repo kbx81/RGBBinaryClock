@@ -57,6 +57,10 @@ private:
   //
   Application::OperatingMode _mode;
 
+  // temperature
+  //
+  int32_t _currentTemperature;
+
   // date & time
   //
   DateTime _currentTime;

@@ -555,7 +555,7 @@ void loop()
       else
       {
         _externalControlMode = ExternalControl::NoActiveExtControlEnum;
-        // DisplayManager::setDisplayBlanking(false);
+        AlarmHandler::clearAlarm();   // just in case...
       }
       // Setting this mode activates the view but also kicks us back to the menu if there is no signal
       setOperatingMode(OperatingMode::OperatingModeDmx512Display);

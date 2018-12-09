@@ -56,6 +56,10 @@ namespace AlarmHandler {
   ///
   void activateMomentaryAlarm();
 
+  /// @brief Clears any active alarms
+  ///
+  void clearAlarm();
+
   /// @brief Deactivates the momentary alarm
   ///
   void releaseMomentaryAlarm();
