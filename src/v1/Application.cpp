@@ -17,16 +17,20 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 //
 #include <cstdint>
+#include <stdlib.h>
 
 #include "Application.h"
 #include "AlarmHandler.h"
 #include "DateTime.h"
+#include "Display.h"
+#include "DisplayManager.h"
 #include "Dmx-512-Controller.h"
 #include "Dmx-512-Rx.h"
 #include "Dmx-512-View.h"
 #include "Keys.h"
 #include "Settings.h"
 #include "MainMenuView.h"
+#include "TestDisplayView.h"
 #include "TimeDateTempView.h"
 #include "TimerCounterView.h"
 #include "SetTimeDateView.h"
@@ -54,7 +58,8 @@ static View* const cModeViews[] = {
     new SetTimeDateView(),
     new SetBitsView(),
     new SetValueView(),
-    new SetColorsView()
+    new SetColorsView(),
+    new TestDisplayView()
 };
 
 // Structure defining menu views
@@ -94,6 +99,7 @@ static viewDescriptor const cViewDescriptor[] = {
     { 32, ViewEnum::SetValueViewEnum },     // OperatingModeSetCurrentDrive
     { 33, ViewEnum::SetValueViewEnum },     // OperatingModeSetTempCalibration
     { 34, ViewEnum::SetValueViewEnum },     // OperatingModeSetBeeperVolume
+    { 35, ViewEnum::SetValueViewEnum },     // OperatingModeSetTimerResetValue
     { 39, ViewEnum::SetValueViewEnum },     // OperatingModeSetDMX512Address
     { 40, ViewEnum::SetTimeDateViewEnum },  // OperatingModeSlot1Time
     { 41, ViewEnum::SetTimeDateViewEnum },  // OperatingModeSlot2Time
@@ -116,64 +122,75 @@ static viewDescriptor const cViewDescriptor[] = {
     { 60, ViewEnum::SetColorsViewEnum },    // OperatingModeTimerCounterColors
     { 61, ViewEnum::SetColorsViewEnum },    // OperatingModeMenuColors
     { 62, ViewEnum::SetColorsViewEnum },    // OperatingModeSetColors
+    { 98, ViewEnum::TestDisplayEnum }       // OperatingModeTestDisplay
 };
 
 // The maximum idle time before the application switches back to the default view
-//
-static const uint32_t cMaximumIdleCount = 80000;
+//   Counter is incremented by tick()
+static const uint16_t cMaximumIdleCount = 60000;
 
-// The maximum idle time before the application switches back to the default view
+// A value by which we multiply the preference stored in the Settings
 //
 static const uint8_t cMinimumIntensityMultiplier = 10;
 
+// Idle cycle counter
+//
+volatile static uint16_t _idleCounter = cMaximumIdleCount;
+
+// minimum intensity
+//   100 = 1%
+static uint16_t _minimumIntensity = 100;
+
+// multiplier used to adjust display intensity
+//
+static uint16_t _intensityPercentage = _minimumIntensity;
+
 // important daylight savings dates & times
 //
-DateTime _currentTime, _dstStart, _dstEnd;
+static DateTime _currentTime, _dstStart, _dstEnd;
 
 // daylight savings state
 //
-DstState _dstState;
+static DstState _dstState;
 
 // The current mode of the application
 //
-OperatingMode _applicationMode;
+static OperatingMode _applicationMode;
 
 // The application's current view mode
 //
-ViewMode _viewMode;
+static ViewMode _viewMode;
 
 // The application's current external control mode
 //
-ExternalControl _externalControlMode = ExternalControl::NoActiveExtControlEnum;
+static ExternalControl _externalControlMode = ExternalControl::NoActiveExtControlEnum;
 
 // The application's current settings
 //
-Settings _settings;
+static Settings _settings;
 
 // The current displayed view of the application
 //
 // View *_currentView = cModeViews[static_cast<uint8_t>(OperatingMode::OperatingModeFixedDisplay)];
-View *_currentView = cModeViews[static_cast<uint8_t>(ViewEnum::TimeDateTempViewEnum)];
+static View *_currentView = cModeViews[static_cast<uint8_t>(ViewEnum::TimeDateTempViewEnum)];
+
+// determines if display intensity is adjusted in real-time
+//
+static bool _autoAdjustIntensities = false;
 
 // DMX-512 signal status the last time we checked
 //
-bool _previousDmxState = false;
+static bool _previousDmxState = false;
 
 // True if settings need to be written to FLASH
 //
-bool _settingsModified = false;
-
-// Idle cycle counter
-//
-uint32_t _idleCounter = 0;
+static bool _settingsModified = false;
 
 
 // Initializes the application
 //
 void initialize()
 {
-  Hardware::autoAdjustIntensities(true);
-
   _settings.loadFromFlash();
 
   _currentTime = Hardware::getDateTime();
@@ -185,12 +202,13 @@ void initialize()
   AlarmHandler::setSettings(_settings);
 
   // Update hardware things
-  Hardware::autoAdjustIntensities(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
   Hardware::setFlickerReduction(_settings.getRawSetting(Settings::Setting::FlickerReduction));
   Hardware::setVolume(_settings.getRawSetting(Settings::Setting::BeeperVolume));
-  Hardware::currentDrive(_settings.getRawSetting(Settings::Setting::CurrentDrive));
-  Hardware::setMinimumIntensity(_settings.getRawSetting(Settings::Setting::MinimumIntensity) * cMinimumIntensityMultiplier);
+  Hardware::setLedCurrentDrive(_settings.getRawSetting(Settings::Setting::CurrentDrive));
   Hardware::setTemperatureCalibration((int8_t)(-(_settings.getRawSetting(Settings::Setting::TemperatureCalibration))));
+
+  _minimumIntensity = _settings.getRawSetting(Settings::Setting::MinimumIntensity) * cMinimumIntensityMultiplier;
+  setIntensityAutoAdjust(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
 
   Dmx512Controller::initialize();
 
@@ -213,7 +231,7 @@ uint8_t getModeDisplayNumber(OperatingMode mode)
 
 uint8_t getModeDisplayNumber(uint8_t mode)
 {
-  if (mode <= static_cast<uint8_t>(OperatingMode::OperatingModeSetColors))
+  if (mode <= static_cast<uint8_t>(OperatingMode::OperatingModeTestDisplay))
   {
     return cViewDescriptor[mode].menuItemDisplayNumber;
   }
@@ -233,36 +251,41 @@ OperatingMode getOperatingMode()
 //
 void setOperatingMode(OperatingMode mode)
 {
-  const uint16_t writeLedIntensity = 1024;
-  // first, write settings to FLASH, if needed
-  if ((mode != OperatingMode::OperatingModeMainMenu) &&
-      (mode < static_cast<uint8_t>(OperatingMode::OperatingModeSetSystemOptions)) &&
-      (_settingsModified == true))
-  {
-    if (_settings.saveToFlash() == 0)
-    {
-      _settingsModified = false;
-      Hardware::greenLed(writeLedIntensity);
-    }
-    else
-    {
-      Hardware::redLed(writeLedIntensity);
-    }
-    Hardware::doubleBlink();
-    Hardware::greenLed(0);
-    Hardware::redLed(0);
-  }
-  // set new mode
   if (_applicationMode != mode)
   {
+    const uint16_t writeLedIntensity = 1024;
+    // first, write settings to FLASH, if needed
+    if ((mode != OperatingMode::OperatingModeMainMenu) &&
+        (mode < static_cast<uint8_t>(OperatingMode::OperatingModeSetSystemOptions)) &&
+        (_settingsModified == true))
+    {
+      if (_settings.saveToFlash() == 0)
+      {
+        _settingsModified = false;
+        Hardware::setGreenLed(writeLedIntensity);
+      }
+      else
+      {
+        Hardware::setRedLed(writeLedIntensity);
+      }
+      DisplayManager::doubleBlink();
+      Hardware::setGreenLed(0);
+      Hardware::setRedLed(0);
+    }
+    // set the new mode
     _applicationMode = mode;
     _viewMode = ViewMode::ViewMode0;
     _currentView = cModeViews[static_cast<uint8_t>(cViewDescriptor[static_cast<uint8_t>(mode)].view)];
     _currentView->enter();
-
+    // if something kicks back to the main menu, make sure we wait a full cycle
     if (mode == OperatingMode::OperatingModeMainMenu)
     {
       _idleCounter = 0;
+    }
+    // this enables controller() immediately upon entering this mode
+    else if (mode == OperatingMode::OperatingModeDmx512Display)
+    {
+      _idleCounter = cMaximumIdleCount;
     }
   }
 }
@@ -321,12 +344,13 @@ void setSettings(Settings settings)
   AlarmHandler::setSettings(settings);
 
   // Update hardware things
-  Hardware::autoAdjustIntensities(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
   Hardware::setFlickerReduction(_settings.getRawSetting(Settings::Setting::FlickerReduction));
   Hardware::setVolume(_settings.getRawSetting(Settings::Setting::BeeperVolume));
-  Hardware::currentDrive(_settings.getRawSetting(Settings::Setting::CurrentDrive));
-  Hardware::setMinimumIntensity(_settings.getRawSetting(Settings::Setting::MinimumIntensity) * cMinimumIntensityMultiplier);
+  Hardware::setLedCurrentDrive(_settings.getRawSetting(Settings::Setting::CurrentDrive));
   Hardware::setTemperatureCalibration((int8_t)(-(_settings.getRawSetting(Settings::Setting::TemperatureCalibration))));
+
+  _minimumIntensity = _settings.getRawSetting(Settings::Setting::MinimumIntensity) * cMinimumIntensityMultiplier;
+  setIntensityAutoAdjust(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
 
   Dmx512Controller::initialize();
 
@@ -402,6 +426,62 @@ void _refreshDst()
 }
 
 
+bool getIntensityAutoAdjust()
+{
+  return _autoAdjustIntensities;
+}
+
+
+void setIntensityAutoAdjust(const bool enable)
+{
+  if (enable == true)
+  {
+    DisplayManager::setMasterIntensity(_intensityPercentage);
+  }
+  else
+  {
+    DisplayManager::setMasterIntensity(10000);
+  }
+
+  _autoAdjustIntensities = enable;
+}
+
+
+// Updates the "master" intensity for the display based on lightLevel()
+//
+void _updateIntensityPercentage()
+{
+  // determine the new value for _intensityPercentage
+  uint16_t currentPercentage = (Hardware::lightLevel() * RgbLed::cLed100Percent) / Display::cLedMaxIntensity;
+
+  // make sure the intensity does not go below the minimum level
+  if (currentPercentage < _minimumIntensity)
+  {
+    currentPercentage = _minimumIntensity;
+  }
+
+  if (currentPercentage > _intensityPercentage)
+  {
+   _intensityPercentage++;
+  }
+  else if (currentPercentage < _intensityPercentage)
+  {
+   _intensityPercentage--;
+  }
+}
+
+
+void tick()
+{
+  if (_idleCounter <= cMaximumIdleCount)
+  {
+    _idleCounter++;
+  }
+
+  _updateIntensityPercentage();
+}
+
+
 // Here lies the main application loop
 //
 void loop()
@@ -416,6 +496,11 @@ void loop()
     {
       _refreshDst();
     }
+    // We may auto-adjust the display intensity only if DMX-512 is NOT active
+    if ((_autoAdjustIntensities == true) && (_externalControlMode != ExternalControl::Dmx512ExtControlEnum))
+    {
+      DisplayManager::setMasterIntensity(_intensityPercentage);
+    }
 
     // Check the buttons
     Keys::scanKeys();
@@ -424,7 +509,8 @@ void loop()
       Hardware::tick();
       // Get the key from the buffer and process it
       auto key = Keys::getKeyPress();
-
+      // Reset the counter since there has been button/key activity
+      _idleCounter = 0;
       // If an alarm is active, send keypresses there
       if (AlarmHandler::isAlarmActive())
       {
@@ -434,13 +520,36 @@ void loop()
       {
         _currentView->keyHandler(key);
       }
-      // Reset the counter since there has been button/key activity
-      _idleCounter = 0;
     }
     // Execute the loop block of the current view
     _currentView->loop();
     // Process any necessary alarms
     AlarmHandler::loop();
+
+    // If the idle counter has maxed out, kick back to the appropriate display mode
+    if (_idleCounter >= cMaximumIdleCount)
+    {
+      // If a DMX-512 signal is NOT present, kick back to one of the time/date/temp modes
+      if (Dmx512Rx::signalIsActive() == false)
+      {
+        // Only change the display mode if it isn't already one of the time/date/temp modes
+        if ((_applicationMode != OperatingMode::OperatingModeToggleDisplay) &&
+            (_applicationMode != OperatingMode::OperatingModeFixedDisplay) &&
+            (_applicationMode != OperatingMode::OperatingModeTimerCounter))
+        {
+          if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::StartupToToggle) == true)
+          {
+            setOperatingMode(OperatingMode::OperatingModeToggleDisplay);
+          }
+          else
+          {
+            setOperatingMode(OperatingMode::OperatingModeFixedDisplay);
+          }
+        }
+      }
+      // Allow the DMX-512 controller to do its thing
+      Dmx512Controller::controller();
+    }
 
     if (Dmx512Rx::signalIsActive() != _previousDmxState)
     {
@@ -452,33 +561,10 @@ void loop()
       else
       {
         _externalControlMode = ExternalControl::NoActiveExtControlEnum;
-        Hardware::displayBlank(false);
+        AlarmHandler::clearAlarm();   // just in case...
       }
+      // Setting this mode activates the view but also kicks us back to the menu if there is no signal
       setOperatingMode(OperatingMode::OperatingModeDmx512Display);
-    }
-
-    // If the idle counter has maxed out, kick us back to the toggling display
-    if (_idleCounter++ > cMaximumIdleCount)
-    {
-      _idleCounter--;
-      if (_applicationMode == OperatingMode::OperatingModeMainMenu)
-      {
-        if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::StartupToToggle) == true)
-        {
-          setOperatingMode(OperatingMode::OperatingModeToggleDisplay);
-        }
-        else
-        {
-          setOperatingMode(OperatingMode::OperatingModeFixedDisplay);
-        }
-      }
-      // Allow the DMX-512 controller to do its thing
-      Dmx512Controller::controller();
-    }
-    else if (_applicationMode == OperatingMode::OperatingModeDmx512Display)
-    {
-      // Allow the DMX-512 controller to do its thing
-      Dmx512Controller::controller();
     }
   }
 }

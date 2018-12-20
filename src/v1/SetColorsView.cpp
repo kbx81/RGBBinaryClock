@@ -18,6 +18,7 @@
 //
 #include "Application.h"
 #include "DateTime.h"
+#include "DisplayManager.h"
 #include "Hardware.h"
 #include "RgbLed.h"
 #include "Settings.h"
@@ -53,7 +54,7 @@ void SetColorsView::enter()
   _setValues[Color::Blue1] = color1.getBlue();
 
   // make the display bright so we can see the colors we're working with
-  Hardware::autoAdjustIntensities(false);
+  Application::setIntensityAutoAdjust(false);
 }
 
 
@@ -64,9 +65,9 @@ void SetColorsView::keyHandler(Keys::Key key)
   if (key == Keys::Key::A)
   {
     Application::setSettings(_settings);
-    Hardware::autoAdjustIntensities(false);   // keep this disabled for now
+    Application::setIntensityAutoAdjust(false);   // keep this disabled for now
 
-    Hardware::doubleBlink();
+    DisplayManager::doubleBlink();
   }
 
   if (key == Keys::Key::B)
@@ -201,18 +202,18 @@ void SetColorsView::loop()
   {
     if (((secondsBitMask >> i) & 1) == true)
     {
-      bcDisp.setLedFromRaw(i, mixedColor1);
+      bcDisp.setPixelFromRaw(i, mixedColor1);
     }
     else
     {
-      bcDisp.setLedFromRaw(i, mixedColor0);
+      bcDisp.setPixelFromRaw(i, mixedColor0);
     }
   }
   // Subtract the first in the OperatingModeSlotxColors series from the
   //   current mode to get the slot we're modifying
   _settings.setColors(static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSlot1Colors), mixedColor0, mixedColor1);
 
-  Hardware::writeDisplay(bcDisp);
+  DisplayManager::writeDisplay(bcDisp);
 }
 
 

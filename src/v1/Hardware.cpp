@@ -1,5 +1,5 @@
 //
-// kbx81's binary clock
+// kbx81's binary clock Hardware class
 // ---------------------------------------------------------------------------
 // (c)2017 by kbx81. See LICENSE for details.
 //
@@ -21,7 +21,7 @@
 #include <cstdint>
 // #include <errno.h>
 // #include <stdio.h>
-#include <stdlib.h>
+// #include <stdlib.h>
 // #include <string.h>
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/cm3/systick.h>
@@ -40,34 +40,32 @@
 #include <libopencm3/stm32/tsc.h>
 #include <libopencm3/stm32/usart.h>
 
+#include "Application.h"
 #include "DateTime.h"
 #include "Display.h"
-#include "Dmx-512-Controller.h"
+#include "DisplayManager.h"
 #include "Dmx-512-Rx.h"
+#include "DS1722.h"
 #include "DS3231.h"
+#include "DS3234.h"
 #include "Hardware.h"
-#include "Keys.h"
+#include "LM74.h"
+#include "LM75.h"
+#include "MCP9808.h"
 #include "RgbLed.h"
+#include "TLC59xx.h"
 
-
-#define PORT_TSC GPIOA
-#define PIN_TSCG2_B1 GPIO4
-#define PIN_TSCG2_B2 GPIO5
-#define PIN_TSCG2_B3 GPIO6
-#define PIN_TSCG2_BS GPIO7
-#define PIN_TSCG4_B1 GPIO9
-#define PIN_TSCG4_B2 GPIO10
-#define PIN_TSCG4_B3 GPIO11
-#define PIN_TSCG4_BS GPIO12
-
-#define TSCG2_IO1 (1 << 4)
-#define TSCG2_IO2 (1 << 5)
-#define TSCG2_IO3 (1 << 6)
-#define TSCG2_IO4 (1 << 7)
-#define TSCG4_IO1 (1 << 12)
-#define TSCG4_IO2 (1 << 13)
-#define TSCG4_IO3 (1 << 14)
-#define TSCG4_IO4 (1 << 15)
+#if HARDWARE_VERSION == 1
+  #include "Hardware_v1.h"
+#elif HARDWARE_VERSION == 2
+  #include "Hardware_v2.h"
+#elif HARDWARE_VERSION == 3
+  #include "Hardware_v3.h"
+#elif HARDWARE_VERSION == 4
+  #include "Hardware_v4.h"
+#else
+  #error HARDWARE_VERSION must be defined with a value between 1 and 4
+#endif
 
 
 namespace kbxBinaryClock {
@@ -79,8 +77,11 @@ namespace Hardware {
   //
   enum TempSensorType : uint8_t {
     None,
-    DS323x,
-    LM7x,
+    DS3231,
+    DS3234,
+    DS1722,
+    LM74,
+    LM75,
     MCP9808
   };
 
@@ -99,39 +100,21 @@ namespace Hardware {
     SpiBusyDisplay
   };
 
+  // LED driver shift register state
+  //
+  enum DriverShiftRegState : uint8_t {
+    SrAvailable,
+    SrLoadingGsData,
+    SrLoadingOtherData,
+    SrContainsGsData,
+    SrContainsOtherData
+  };
 
- // buzzer I/O port & pin
- //
- static const uint32_t cBuzzerPort = GPIOB;
- static const uint16_t cBuzzerPin  = GPIO2;
 
- // status LED I/O port(s) & pins
- //
- static const uint32_t cLedPort = GPIOB;
- static const uint16_t cLed0Pin = GPIO0;
- static const uint16_t cLed1Pin = GPIO1;
- static const uint16_t cLed2Pin = GPIO3;
-
- // phototransistor I/O port & pin
- //
- static const uint32_t cPhototransistorPort = GPIOA;
- static const uint16_t cPhototransistorPin  = GPIO0;
-
- // SPI NSS I/O port & pins
- //
- static const uint32_t cNssPort = GPIOA;
- static const uint16_t cNssDisplayPin  = GPIO15;
-
- // driver blank I/O port & pin
- //
- static const uint32_t cBlankDisplayPort = GPIOA;
- static const uint16_t cBlankDisplayPin  = GPIO8;
-
- // current drive I/O port & pins
- //
- static const uint32_t cCurrentDrivePort = GPIOB;
- static const uint16_t cCurrentDriveLowPin  = GPIO10;
- static const uint16_t cCurrentDriveHighPin = GPIO11;
+// USART baud rates
+//
+static const uint32_t cUsart1BaudRate = 115200;
+static const uint32_t cUsart2BaudRate = 250000;
 
 // number of ADC channels we're using
 //
@@ -150,20 +133,11 @@ static const uint16_t cAdcSampleInterval = 500;
 
 // number of samples averaged for light level and temp
 //
-static const uint8_t cAdcSamplesToAverage = 20;
-
-// threshold above which an automatic display intensity adjustment is made
-//
-static const uint8_t cAutoIntensityAdjThreshold = 100;
+static const uint8_t cAdcSamplesToAverage = 16;
 
 // value used to increase precision in our maths
 //
 static const int16_t cBaseMultiplier = 1000;
-static const int16_t cIntensityBaseMultiplier = 10000;
-
-// length of delays used for doubleBlink confirmation
-//
-static const uint32_t cDoubleBlinkDuration = 80000;
 
 // the last page number in the flash memory
 //
@@ -181,71 +155,17 @@ static const uint16_t cI2cTimeout = 5000;
 //
 static const uint8_t cI2cMaxFailBusyCount = 20;
 
-// number of PWM channels each device has
-//
-static const uint8_t cPwmChannelsPerDevice = 24;
-
-// number of devices we're controlling/are linked together
-//
-static const uint8_t cPwmNumberOfDevices = 3;
-
-// number of bytes needed per PWM channel
-//
-static const uint8_t cPwmBytesPerChannel = 2;
-
-// total bytes required for all PWM channels
-//
-static const uint8_t cPwmTotalBytes = cPwmChannelsPerDevice * cPwmNumberOfDevices * cPwmBytesPerChannel;
-
 // value by which we multiply the fractional part of temperature sensor readings
 //
 static const int16_t cTempFracMultiplier = 125;
 
 // minimum frequency allowed for tones
 //
-static const uint8_t cToneFrequencyMinimum = 1;
+static const uint8_t cToneFrequencyMinimum = 92;
 
 // maximum volume level allowed for tones
 //
 static const uint8_t cToneVolumeMaximum = 7;
-
-// number of TSC channels we're using
-//
-static const uint8_t cTscChannelCount = 6;
-
-// number of TSC channels we're using per group
-//
-static const uint8_t cTscChannelsPerGroup = 3;
-
-// touch sense controller I/O groups
-//
-static const uint32_t cTscGroupControlBits = TSC_IOGCSR_GxE(3) | TSC_IOGCSR_GxE(5) | TSC_IOGCSR_GxE(6);
-
-// touch sensing controller I/O port
-//
-static const uint32_t cTscPort = GPIOB;
-
-// pins used for sense capacitors
-//
-// static const uint16_t cTscSamplingCapPins = PIN_TSCG3_CS | PIN_TSCG5_CS | PIN_TSCG6_CS;
-static const uint16_t cTscSamplingCapPins = GPIO2 | GPIO7 | GPIO14;
-
-// pins used for touch keys
-//
-// static const uint16_t cTscTouchKeyPins = PIN_TSCG3_K2 | PIN_TSCG3_K3 | PIN_TSCG5_K2 | PIN_TSCG5_K3 | PIN_TSCG6_K2 | PIN_TSCG6_K3;
-static const uint16_t cTscTouchKeyPins = GPIO0 | GPIO1 | GPIO4 | GPIO6 | GPIO12 | GPIO13;
-
-// touch sense controller I/O groups
-//
-// static const uint32_t cTscChannelControlBits[] = { TSCG3_IO2 | TSCG5_IO2 | TSCG6_IO2,
-//                                                    TSCG3_IO3 | TSCG5_IO3 | TSCG6_IO3 };
-static const uint32_t cTscChannelControlBits[] = { (1 << 9) | (1 << 17) | (1 << 21),
-                                                   (1 << 10) | (1 << 18) | (1 << 22) };
-
-// touch sense controller I/O groups
-//
-// static const uint32_t cTscSamplingControlBits = TSCG3_IO4 | TSCG5_IO4 | TSCG6_IO4;
-static const uint32_t cTscSamplingControlBits = (1 << 11) | (1 << 19) | (1 << 23);
 
 // maximum minimum allowed to consider a key pressed/touched
 //
@@ -262,15 +182,6 @@ static const uint8_t cTscSamplesToAverage = 32;
 // calibration voltage used (3.3 volts)
 //
 static const int32_t cVddCalibrationVoltage = 3300;
-
-// USARTs I/O port
-//
-static const uint32_t cUsartPort = GPIOA;
-
-// USART baud rates
-//
-static const uint32_t cUsart1BaudRate = 115200;
-static const uint32_t cUsart2BaudRate = 250000;
 
 
 // tracks which array element the next sample is to be written to
@@ -293,21 +204,17 @@ static uint16_t _adcSampleSetTemp[cAdcSamplesToAverage];
 //
 static uint16_t _adcSampleSetVoltage[cAdcSamplesToAverage];
 
+// tracks what's going on with the LED drivers' shift registers
+//
+volatile static DriverShiftRegState _ledDriverSrState = DriverShiftRegState::SrAvailable;
+
 // threshold above which we do not BLANK during display refreshes
 //  used when autoAdjustIntensities is true
 static uint16_t _blankingThreshold = 300;
 
-// minimum intensity
-//   1000 = 10%
-static uint16_t _minimumIntensity = 1000;
-
-// multiplier used to adjust display intensity
-//   1000 = 10%
-static uint16_t _intensityPercentage = 1000;
-
-// previous percentage used to adjust display intensity
+// counter used by delay()
 //
-static uint16_t _lastIntensityPercentage = _intensityPercentage;
+volatile static uint32_t _delayCounter = 0;
 
 // a place for data from the ADC to live
 //
@@ -332,6 +239,12 @@ volatile static size_t _i2cNumberRx;
 // tracks what the I2C is doing
 //
 volatile static I2cState _i2cState = I2cState::I2cIdle;
+
+// tracks what the SPI is doing
+//
+// tracks what the SPI MISO is set to
+//
+static SpiPeripheral _spiActivePeripheral = SpiPeripheral::NotInitialized;
 
 // tracks what the SPI is doing
 //
@@ -390,28 +303,6 @@ static uint8_t _previousButtonStates = 0;
 //
 static int8_t _temperatureAdjustment = -9;
 
-// bytes read back from the PWM drivers
-//
-static uint16_t _displayBufferIn[cPwmChannelsPerDevice * cPwmNumberOfDevices];
-
-// bytes to be written to the PWM drivers
-//
-static uint16_t _displayBufferOut[cPwmChannelsPerDevice * cPwmNumberOfDevices];
-
-// display buffers used for automatically adjusting display intensity
-//
-Display _adjustedDisplay, _unadjustedDisplay;
-
-// display buffers for processing crossfades
-//
-RgbLed _displayActiveAndStart[2][Display::cLedCount + 1];
-RgbLed _displayDesiredAndSpare[2][Display::cLedCount + 1];
-RgbLed _adjustedStatusLed, _unadjustedStatusLed, _statusLed;
-
-// either a 1 or a 0 to indicate buffers in use
-//
-uint8_t _activeBufferSet[Display::cLedCount + 1];
-
 // date & time stored by Refresh()
 //
 static DateTime _currentDateTime;
@@ -428,45 +319,29 @@ static uint16_t _lightLevel = 0;
 //
 static bool _adcSampleRefreshNow = false;
 
-// determines if display intensity is adjusted in real-time
+// state of the XBLNK pin
 //
-static bool _autoAdjustIntensities = false;
+static bool _displayBlankingState = false;
 
-// true if status LED should be refreshed by the display refresher function
-//
-static bool _autoRefreshStatusLed = false;
-
-// true if one or more LEDs are in the process of a crossfade
-//
-static bool _crossfadeInProgress = false;
-
-// if true, BLANK pin will be held high to turn off all LEDs
-//
-static bool _displayBlank = true;
-
-// indicates to displayBlank() that it should NOT clear the BLANK pin as a
-//  display write is in progress with flicker reduction active
+// indicates to setDisplayBlankPin() that it should NOT clear the BLANK pin as
+//  a display write is in progress with flicker reduction active
 volatile static bool _displayBlankForWrite = false;
 
-// true if updater routine determine one or more LEDs needs to be refreshed
+// true if DS3234 is detected
 //
-static bool _displayRefreshRequired = false;
+static bool _externalRtcConnected = false;
 
-// true when an intensity adjustment has been completed
+// inverts NSS state during SPI transfers (for DS1722) if true
 //
-static bool _intensityAdjustmentComplete = false;
+static bool _invertCsForTemperatureSensor = false;
 
-// true if it's time to refresh the display
-//
-static bool _refreshLedIntensitiesNow = false;
+// true if the last I2C/SPI hardware refresh was the DS323x; ensures we toggle
+//  which device is refreshed so one can't dominate the bus
+static bool _lastRefreshWasRTC = false;
 
 // true if RTC is set/valid
 //
 static bool _rtcIsSet = false;
-
-// true if DS3231 is detected
-//
-static bool _externalRtcConnected = false;
 
 // true if temp sensor is detected
 //
@@ -482,8 +357,7 @@ static TempSensorType _externalTemperatureSensor = TempSensorType::None;
 //
 void _adcSetup()
 {
-  // uint8_t channel_array[] = {ADC_CHANNEL0, ADC_CHANNEL_TEMP, ADC_CHANNEL_VREF, ADC_CHANNEL_VBAT};
-  uint8_t channelArray[] = {0, ADC_CHANNEL_TEMP, ADC_CHANNEL_VREF, ADC_CHANNEL_VBAT};
+  uint8_t channelArray[] = {cPhototransistorChannel, ADC_CHANNEL_TEMP, ADC_CHANNEL_VREF, ADC_CHANNEL_VBAT};
 
 	adc_power_off(ADC1);
 
@@ -532,7 +406,9 @@ void _clockSetup()
   rcc_periph_clock_enable(RCC_RTC);
 
   rcc_periph_clock_enable(RCC_TIM1);
+  rcc_periph_clock_enable(RCC_TIM2);
   rcc_periph_clock_enable(RCC_TIM3);
+  rcc_periph_clock_enable(RCC_TIM14);
   rcc_periph_clock_enable(RCC_TIM15);
   rcc_periph_clock_enable(RCC_TIM16);
 
@@ -542,12 +418,22 @@ void _clockSetup()
 	rcc_periph_clock_enable(RCC_GPIOB);
 	rcc_periph_clock_enable(RCC_GPIOC);
 
-  // Set SYSCLK (not the default HSI) as I2C1's clock source
-  // rcc_set_i2c_clock_hsi(I2C1);
-	RCC_CFGR3 |= RCC_CFGR3_I2C1SW;
+  if (cTargetHardwareVersion >= 4)
+  {
+    rcc_periph_clock_enable(RCC_GPIOD);
+  }
 
-  rcc_periph_clock_enable(RCC_I2C1);
+  if (cTargetHardwareVersion != 3)
+  {
+    // Set SYSCLK (not the default HSI) as I2C1's clock source
+    // rcc_set_i2c_clock_hsi(I2C1);
+  	RCC_CFGR3 |= RCC_CFGR3_I2C1SW;
+
+    rcc_periph_clock_enable(RCC_I2C1);
+  }
+
   rcc_periph_clock_enable(RCC_SPI1);
+  rcc_periph_clock_enable(RCC_SPI2);
   rcc_periph_clock_enable(RCC_USART1);
   rcc_periph_clock_enable(RCC_USART2);
 
@@ -574,12 +460,22 @@ void _dmaIntEnable()
 //
 void _dmaSetup()
 {
-  // I2C, USART1 and USART2 TX and RX remap bits set in SYSCFG_CFGR1 since
-  //  SPI1 ties up the I2C1 & USART1 default DMA channels
-  SYSCFG_CFGR1 |= (SYSCFG_CFGR1_USART1_RX_DMA_RMP |
-                   SYSCFG_CFGR1_USART1_TX_DMA_RMP |
-                   // SYSCFG_CFGR1_USART2_DMA_RMP |
-                   SYSCFG_CFGR1_I2C1_DMA_RMP);
+  if (cTargetHardwareVersion <= 2)
+  {
+    // I2C, USART1 and USART2 TX and RX remap bits set in SYSCFG_CFGR1 since
+    //  SPI1 ties up the I2C1 & USART1 default DMA channels
+    SYSCFG_CFGR1 |= (SYSCFG_CFGR1_USART1_RX_DMA_RMP |
+                     SYSCFG_CFGR1_USART1_TX_DMA_RMP |
+                     SYSCFG_CFGR1_I2C1_DMA_RMP);
+  }
+  else
+  {
+    // USART1 and USART2 TX and RX remap bits set in SYSCFG_CFGR1 since
+    //  SPI1 ties up the USART's default DMA channels
+    SYSCFG_CFGR1 |= (SYSCFG_CFGR1_USART1_RX_DMA_RMP |
+                     SYSCFG_CFGR1_USART1_TX_DMA_RMP |
+                     SYSCFG_CFGR1_USART2_DMA_RMP);
+  }
 
   // Reset DMA channels
   dma_channel_reset(DMA1, DMA_CHANNEL1);
@@ -598,7 +494,7 @@ void _dmaSetup()
   dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL1);
   dma_set_peripheral_size(DMA1, DMA_CHANNEL1, DMA_CCR_PSIZE_16BIT);
   dma_set_memory_size(DMA1, DMA_CHANNEL1, DMA_CCR_MSIZE_16BIT);
-  dma_set_priority(DMA1, DMA_CHANNEL1, DMA_CCR_PL_HIGH);
+  dma_set_priority(DMA1, DMA_CHANNEL1, DMA_CCR_PL_VERY_HIGH);
   dma_enable_circular_mode(DMA1, DMA_CHANNEL1);
   dma_enable_channel(DMA1, DMA_CHANNEL1);
 
@@ -632,20 +528,72 @@ void _dmaSetup()
 //
 void _gpioSetup()
 {
-  // Configure current drive control pins
-  gpio_mode_setup(cCurrentDrivePort, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, cCurrentDriveLowPin | cCurrentDriveHighPin);
-  // Configure the SPI NSS and BLANK pins for the LED drivers
-  gpio_mode_setup(cNssPort, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, cNssDisplayPin | cBlankDisplayPin);
-  // gpio_mode_setup(cBlankDisplayPort, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, cBlankDisplayPin);
-  // Configure spare pins to be outputs
-  gpio_mode_setup(cBuzzerPort, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, cBuzzerPin);
-  // Configure the analog input pin for the phototransistor
-  gpio_mode_setup(cPhototransistorPort, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, cPhototransistorPin);
+  if (cTargetHardwareVersion == 1)
+  {
+    // Configure current drive control pins
+    gpio_mode_setup(cCurrentDrivePort, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, cCurrentDriveLowPin | cCurrentDriveHighPin);
+    // Configure the SPI NSS and BLANK pins for the LED drivers
+    gpio_mode_setup(cNssPort, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, cNssDisplayPin | cBlankDisplayPin);
+    // gpio_mode_setup(cBlankDisplayPort, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, cBlankDisplayPin);
+    // Configure the buzzer output
+    gpio_mode_setup(cBuzzerPort, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, cBuzzerPin);
+    // Configure the analog input pin for the phototransistor
+    gpio_mode_setup(cPhototransistorPort, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, cPhototransistorPin);
 
-  // Finally, set the inital pin states for the pins we configured above
-  gpio_set(cBlankDisplayPort, cBlankDisplayPin);
-  gpio_clear(cBuzzerPort, cBuzzerPin);
-  gpio_clear(cCurrentDrivePort, cCurrentDriveLowPin | cCurrentDriveHighPin);
+    // Finally, set the inital pin states for the pins we configured above
+    gpio_set(cBlankDisplayPort, cBlankDisplayPin);
+    gpio_clear(cBuzzerPort, cBuzzerPin);
+    gpio_clear(cCurrentDrivePort, cCurrentDriveLowPin | cCurrentDriveHighPin);
+  }
+  else if (cTargetHardwareVersion == 2)
+  {
+    // Configure current drive control pins
+    gpio_mode_setup(cCurrentDrivePort, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, cCurrentDriveLowPin | cCurrentDriveHighPin);
+    // Configure the SPI NSS and BLANK pins for the LED drivers
+    gpio_mode_setup(cNssPort, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, cNssDisplayPin | cBlankDisplayPin);
+    // gpio_mode_setup(cBlankDisplayPort, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, cBlankDisplayPin);
+    // Configure the analog input pin for the phototransistor
+    gpio_mode_setup(cPhototransistorPort, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, cPhototransistorPin);
+
+    // Finally, set the inital pin states for the pins we configured above
+    gpio_set(cBlankDisplayPort, cBlankDisplayPin);
+    gpio_clear(cCurrentDrivePort, cCurrentDriveLowPin | cCurrentDriveHighPin);
+  }
+  else if (cTargetHardwareVersion == 3)
+  {
+    // Configure current drive control pins
+    gpio_mode_setup(cCurrentDrivePort, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, cCurrentDriveLowPin | cCurrentDriveHighPin);
+    // Configure the SPI NSS pins for the LED drivers, RTC, and temp sensor
+    gpio_mode_setup(cNssPort, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, cNssDisplayPin | cNssRtcPin | cNssTemperaturePin);
+    // Configure the BLANK pin for the LED drivers
+    gpio_mode_setup(cBlankDisplayPort, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, cBlankDisplayPin);
+    // Configure the analog input pin for the phototransistor
+    gpio_mode_setup(cPhototransistorPort, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, cPhototransistorPin);
+
+    // Finally, set the inital pin states for the pins we configured above
+    gpio_set(cNssPort, cNssDisplayPin | cNssRtcPin | cNssTemperaturePin);
+    // gpio_clear(cNssPort, cNssTemperaturePin);
+    gpio_set(cBlankDisplayPort, cBlankDisplayPin);
+    gpio_clear(cCurrentDrivePort, cCurrentDriveLowPin | cCurrentDriveHighPin);
+  }
+  else if (cTargetHardwareVersion == 4)
+  {
+    // Configure the SPI NSS pins for the LED drivers, RTC, and temp sensor
+    gpio_mode_setup(cNssPort, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, cNssDisplayPin | cNssRtcPin | cNssTemperaturePin);
+    // Configure the BLANK pin for the LED drivers
+    gpio_mode_setup(cBlankDisplayPort, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, cBlankDisplayPin);
+    // Configure the analog input pin for the phototransistor
+    gpio_mode_setup(cPhototransistorPort, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, cPhototransistorPin);
+
+    // Finally, set the inital pin states for the pins we configured above
+    gpio_set(cNssPort, cNssDisplayPin | cNssRtcPin | cNssTemperaturePin);
+    gpio_clear(cBlankDisplayPort, cBlankDisplayPin);
+  }
+  // Finally, configure the external alarm input pins
+  for (uint8_t i = 0; i < cAlarmInputPinCount; i++)
+  {
+    gpio_mode_setup(cAlarmInputPort, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, cAlarmInputPins[i]);
+  }
 }
 
 
@@ -661,38 +609,38 @@ void _iwdgSetup()
 void _i2cSetup()
 {
   // Configure GPIOs SCL=PB8 and SDA=PB9 so we can reset the bus nicely
-  gpio_mode_setup(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO8 | GPIO9);
-  gpio_set_output_options(GPIOB, GPIO_OTYPE_OD, GPIO_OSPEED_100MHZ, GPIO8 | GPIO9);
+  gpio_mode_setup(cI2c1Port, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, cI2c1SlcPin | cI2c1SdaPin);
+  gpio_set_output_options(cI2c1Port, GPIO_OTYPE_OD, GPIO_OSPEED_100MHZ, cI2c1SlcPin | cI2c1SdaPin);
 
-  gpio_set(GPIOB, GPIO8 | GPIO9);
-  delay(2);
-  gpio_clear(GPIOB, GPIO9);
-  delay(2);
-  gpio_clear(GPIOB, GPIO8);
-  delay(2);
-  gpio_set(GPIOB, GPIO8);
-  delay(2);
-  gpio_set(GPIOB, GPIO9);
-  delay(2);
+  gpio_set(cI2c1Port, cI2c1SlcPin | cI2c1SdaPin);
+  delay(1);
+  gpio_clear(cI2c1Port, cI2c1SdaPin);
+  delay(1);
+  gpio_clear(cI2c1Port, cI2c1SlcPin);
+  delay(1);
+  gpio_set(cI2c1Port, cI2c1SlcPin);
+  delay(1);
+  gpio_set(cI2c1Port, cI2c1SdaPin);
+  delay(1);
 
-  gpio_mode_setup(GPIOB, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, GPIO9);
+  gpio_mode_setup(cI2c1Port, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, cI2c1SdaPin);
   // Clock out any remaining bits any slave is trying to send
-  while (gpio_get(GPIOB, GPIO9) == false)
+  while (gpio_get(cI2c1Port, cI2c1SdaPin) == false)
   {
-    gpio_clear(GPIOB, GPIO8);
-    delay(2);
-    gpio_set(GPIOB, GPIO8);
-    delay(2);
+    gpio_clear(cI2c1Port, cI2c1SlcPin);
+    delay(1);
+    gpio_set(cI2c1Port, cI2c1SlcPin);
+    delay(1);
   }
 
   // Now configure GPIOs for I2C use
-	gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_PULLUP, GPIO8 | GPIO9);
+	gpio_mode_setup(cI2c1Port, GPIO_MODE_AF, GPIO_PUPD_PULLUP, cI2c1SlcPin | cI2c1SdaPin);
 
 	// Setup I2C1 pins as alternate function one
-	gpio_set_af(GPIOB, GPIO_AF1, GPIO8 | GPIO9);
+	gpio_set_af(cI2c1Port, GPIO_AF1, cI2c1SlcPin | cI2c1SdaPin);
 
 	// Set alternate functions for the SCL and SDA pins of I2C1
-  gpio_set_output_options(GPIOB, GPIO_OTYPE_OD, GPIO_OSPEED_100MHZ, GPIO8 | GPIO9);
+  gpio_set_output_options(cI2c1Port, GPIO_OTYPE_OD, GPIO_OSPEED_100MHZ, cI2c1SlcPin | cI2c1SdaPin);
 
   // Enable heftier drivers for I2C pins...maybe helpful?
   // SYSCFG_CFGR1 |= (SYSCFG_CFGR1_I2C_PB8_FMP | SYSCFG_CFGR1_I2C_PB9_FMP);
@@ -745,53 +693,139 @@ void _rtcSetup()
 {
   // these values are the power-on defaults for the prescaler.
   // we'll set them anyway to be sure they're there
-  const uint32_t sync = 255;
 	const uint32_t async = 127;
+  uint32_t sync = 255;
   uint16_t timeout = 474;
 
   RgbLed red(2048, 0, 0, 0),
-         yellow(2048, 1536, 0, 0);
+         yellow(2048, 1536, 0, 0),
+         green(0, 2048, 0, 0),
+         blue(0, 0, 2048, 0);
 
-  pwr_disable_backup_domain_write_protect();
-  // reset RTC
-  // RCC_BDCR |= RCC_BDCR_BDRST;
-  // RCC_BDCR &= ~RCC_BDCR_BDRST;
-
-  // rcc_set_rtc_clock_source(RCC_LSI);
-  rcc_set_rtc_clock_source(RCC_HSE);
-
-  // Enable the clock
-	rcc_enable_rtc_clock();
-
-	rtc_unlock();
-
-	// enter init mode
-	RTC_ISR |= RTC_ISR_INIT;
-	while (((RTC_ISR & RTC_ISR_INITF) == 0) && (--timeout > 0));
-
-  // do a blinky thing to indicate the problem if we had to wait too long :(
-  if (timeout == 0)
+  if (rcc_is_osc_ready(RCC_LSE) == false)
   {
-    // reset the RTC to undo anything that might've been done above
+    blinkStatusLed(blue, red, 2, 100);
+
+    pwr_disable_backup_domain_write_protect();
+
+    // reset the RTC to ensure it's in a known state
     RCC_BDCR |= RCC_BDCR_BDRST;
     RCC_BDCR &= ~RCC_BDCR_BDRST;
 
-    blinkStatusLed(red, yellow, 20, 1000000);
+    if (_externalRtcConnected == true)
+    {
+      rcc_osc_bypass_enable(RCC_LSE);
+    }
+
+    if (cTargetHardwareVersion >= 2)
+    {
+      rcc_osc_on(RCC_LSE);
+      rcc_wait_for_osc_ready(RCC_LSE);
+
+      rcc_set_rtc_clock_source(RCC_LSE);
+    }
+    else
+    {
+      rcc_set_rtc_clock_source(RCC_HSE);
+      sync = 1953;
+    }
+
+  	rcc_enable_rtc_clock();
+
+  	rtc_unlock();
+
+  	// enter init mode -- this lets us test that everything is working as expected
+  	RTC_ISR |= RTC_ISR_INIT;
+    while (((RTC_ISR & RTC_ISR_INITF) == 0) && (--timeout > 0));
+
+    // do a blinky thing to indicate the problem if we had to wait too long :(
+    if (timeout == 0)
+    {
+      // reset the RTC to undo anything that might've been done above
+      RCC_BDCR |= RCC_BDCR_BDRST;
+      RCC_BDCR &= ~RCC_BDCR_BDRST;
+
+      blinkStatusLed(red, yellow, 20, 500);
+    }
+
+  	// set synch prescaler, using defaults for 1Hz out
+  	rtc_set_prescaler(sync, async);
+
+  	// exit init mode
+  	RTC_ISR &= ~(RTC_ISR_INIT);
+
+    rtc_lock();
+
+  	// And wait for synchro...
+  	rtc_wait_for_synchro();
+    pwr_enable_backup_domain_write_protect();
   }
+  else
+  {
+    blinkStatusLed(blue, green, 2, 100);
+  }
+}
 
-	// set synch prescaler, using defaults for 1Hz out
-	rtc_set_prescaler(sync, async);
 
-	// load time and date here if desired, and hour format
+// Toggle SPI MISO between display drivers and the other peripherals
+// ***** Make sure SPI is not busy/in use before switching things around! *****
+void _spiSelectPeripheral(const SpiPeripheral peripheral)
+{
+  // We won't waste time switching things around if we don't need to
+  if (_spiActivePeripheral != peripheral)
+  {
+    // Reset SPI, SPI_CR1 register cleared, SPI is disabled
+    spi_disable(SPI1);
+    // Configure GPIO pins first...
+    switch (peripheral)
+    {
+      case SpiPeripheral::LedDriversGs:
+      case SpiPeripheral::LedDriversOther:
+        // Configure other peripherals MISO pin as input
+        gpio_mode_setup(cSpi1Port, GPIO_MODE_INPUT, GPIO_PUPD_NONE, cSpi1MisoPin);
+        // MISO=PB4 from LED drivers
+        gpio_mode_setup(cSpi1AltPort, GPIO_MODE_AF, GPIO_PUPD_NONE, cSpi1MisoDisplayPin);
+        // LED drivers can cope with a higher clock rate
+        // spi_set_baudrate_prescaler(SPI1, SPI_CR1_BAUDRATE_FPCLK_DIV_4);
+        break;
 
-	// exit init mode
-	RTC_ISR &= ~(RTC_ISR_INIT);
+      default:
+        // Configure display driver peripheral MISO pin as input
+        gpio_mode_setup(cSpi1AltPort, GPIO_MODE_INPUT, GPIO_PUPD_NONE, cSpi1MisoDisplayPin);
+        // Configure GPIOs: SCK=PA5, MISO=PA6 and MOSI=PA7
+        gpio_mode_setup(cSpi1Port, GPIO_MODE_AF, GPIO_PUPD_NONE, cSpi1MisoPin);
+        // RTC/Temp sensor technically require a slower clock rate...
+        // ...but they seem to work with the same fast rate as the LED drivers...
+        // spi_set_baudrate_prescaler(SPI1, SPI_CR1_BAUDRATE_FPCLK_DIV_8);
+    }
+    // Now configure SPI parameters
+    switch (peripheral)
+    {
+      case SpiPeripheral::LedDriversGs:
+        spi_fifo_reception_threshold_16bit(SPI1);
+        spi_set_data_size(SPI1, SPI_CR2_DS_12BIT);
+        break;
 
-  rtc_lock();
+      default:
+        spi_fifo_reception_threshold_8bit(SPI1);
+      	spi_set_data_size(SPI1, SPI_CR2_DS_8BIT);
+    }
+    /*
+     * Set NSS management to software.
+     *
+     * Note:
+     * Setting nss high is very important, even if we are controlling the GPIO
+     * ourselves this bit needs to be at least set to 1, otherwise the spi
+     * peripheral will not send any data out.
+     */
+  	spi_enable_software_slave_management(SPI1);
+  	spi_set_nss_high(SPI1);
 
-	// And wait for synchro...
-	rtc_wait_for_synchro();
-  pwr_enable_backup_domain_write_protect();
+     // Enable SPI1 peripheral
+    spi_enable(SPI1);
+    // Finally, remember what we're now set to
+    _spiActivePeripheral = peripheral;
+  }
 }
 
 
@@ -799,11 +833,13 @@ void _rtcSetup()
 //
 void _spiSetup()
 {
-  // Configure GPIOs: SS=PA4, SCK=PA5, MISO=PA6 and MOSI=PA7
-	gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO3 | GPIO4 | GPIO5);
+  // Setup SPI1 pins as alternate function zero
+  gpio_set_af(cSpi1Port, GPIO_AF0, cSpi1SckPin | cSpi1MisoPin | cSpi1MosiPin);
+  // MISO=PB4 from LED drivers
+  gpio_set_af(cSpi1AltPort, GPIO_AF0, cSpi1MisoDisplayPin);
 
-	// Setup SPI1 pins as alternate function zero
-	gpio_set_af(GPIOB, GPIO_AF0, GPIO3 | GPIO4 | GPIO5);
+  // Configure GPIOs: SCK=PA5 and MOSI=PA7
+  gpio_mode_setup(cSpi1Port, GPIO_MODE_AF, GPIO_PUPD_NONE, cSpi1SckPin | cSpi1MosiPin);
 
   // Reset SPI, SPI_CR1 register cleared, SPI is disabled
   spi_reset(SPI1);
@@ -817,22 +853,8 @@ void _spiSetup()
   spi_init_master(SPI1, SPI_CR1_BAUDRATE_FPCLK_DIV_8, SPI_CR1_CPOL_CLK_TO_1_WHEN_IDLE,
                   SPI_CR1_CPHA_CLK_TRANSITION_2, SPI_CR1_CRCL_8BIT, SPI_CR1_MSBFIRST);
 
-	spi_set_data_size(SPI1, SPI_CR2_DS_12BIT);
-
-  /*
-   * Set NSS management to software.
-   *
-   * Note:
-   * Setting nss high is very important, even if we are controlling the GPIO
-   * ourselves this bit needs to be at least set to 1, otherwise the spi
-   * peripheral will not send any data out.
-   */
-	spi_enable_software_slave_management(SPI1);
-	spi_set_nss_high(SPI1);
-	// spi_enable_ss_output(SPI1);
-
-   // Enable SPI1 peripheral
-  spi_enable(SPI1);
+  // Configure SPI1 for use with the display driver (should already be idle now)
+  _spiSelectPeripheral(SpiPeripheral::LedDriversGs);
 }
 
 
@@ -858,46 +880,145 @@ void _systickSetup(const uint16_t xms)
 //
 void _timerSetup()
 {
-  // Configure our status LED pins
-  gpio_mode_setup(cLedPort, GPIO_MODE_AF, GPIO_PUPD_NONE, cLed0Pin | cLed1Pin);
+  // Configure our beeper and status LED pins
+  if (cTargetHardwareVersion == 3)
+  {
+    gpio_mode_setup(cLedPort, GPIO_MODE_AF, GPIO_PUPD_NONE, cLed0Pin);
+    gpio_mode_setup(cLedAltPort, GPIO_MODE_AF, GPIO_PUPD_NONE, cLed1Pin | cLed2Pin);
+    gpio_set_af(cLedPort, cLedPortAF, cLed0Pin);
+    gpio_set_af(cLedAltPort, cLedPortAF, cLed1Pin | cLed2Pin);
+    gpio_set_output_options(cLedPort, GPIO_OTYPE_PP, GPIO_OSPEED_HIGH, cLed0Pin);
+    gpio_set_output_options(cLedAltPort, GPIO_OTYPE_PP, GPIO_OSPEED_HIGH, cLed1Pin | cLed2Pin);
+  }
+  else
+  {
+    gpio_mode_setup(cLedPort, GPIO_MODE_AF, GPIO_PUPD_NONE, cLed0Pin | cLed1Pin | cLed2Pin);
+    gpio_set_af(cLedPort, cLedPortAF, cLed0Pin | cLed1Pin | cLed2Pin);
+    gpio_set_output_options(cLedPort, GPIO_OTYPE_PP, GPIO_OSPEED_HIGH, cLed0Pin | cLed1Pin | cLed2Pin);
+  }
 
-  gpio_set_output_options(cLedPort, GPIO_OTYPE_PP, GPIO_OSPEED_HIGH, cLed0Pin | cLed1Pin);
+  if (cTargetHardwareVersion >= 2)
+  {
+    gpio_mode_setup(cBuzzerPort, GPIO_MODE_AF, GPIO_PUPD_NONE, cBuzzerPin);
+    gpio_set_af(cBuzzerPort, GPIO_AF2, cBuzzerPin);
+    gpio_set_output_options(cBuzzerPort, GPIO_OTYPE_PP, GPIO_OSPEED_HIGH, cBuzzerPin);
+  }
 
-  // Set up pins as alternate function
-  gpio_set_af(cLedPort, GPIO_AF1, cLed0Pin | cLed1Pin);
+  if (cTargetHardwareVersion == 4)
+  {
+    gpio_mode_setup(cDriverGsckPort, GPIO_MODE_AF, GPIO_PUPD_NONE, cDriverGsckPin);
+    gpio_set_af(cDriverGsckPort, GPIO_AF4, cDriverGsckPin);
+    gpio_set_output_options(cDriverGsckPort, GPIO_OTYPE_PP, GPIO_OSPEED_HIGH, cDriverGsckPin);
+  }
 
   // Reset timer peripherals
+  timer_reset(TIM1);
+  timer_reset(TIM2);
   timer_reset(TIM3);
+  timer_reset(TIM14);
 
   /* Set the timers global mode to:
    * - use no divider
    * - alignment edge
    * - count direction up
    */
-  timer_set_mode(TIM3, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
+  timer_set_mode(TIM1,  TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
+  timer_set_mode(TIM2,  TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
+  timer_set_mode(TIM3,  TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
+	timer_set_mode(TIM14, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
 
+  timer_set_prescaler(TIM1, 8);
+  timer_set_prescaler(TIM2, 0);
   timer_set_prescaler(TIM3, 0);
+	timer_set_prescaler(TIM14, 0);
+  timer_set_repetition_counter(TIM1, 0);
+  timer_set_repetition_counter(TIM2, 0);
   timer_set_repetition_counter(TIM3, 0);
+	timer_set_repetition_counter(TIM14, 0);
+  timer_continuous_mode(TIM1);
+  timer_continuous_mode(TIM2);
   timer_continuous_mode(TIM3);
+	timer_continuous_mode(TIM14);
+  timer_set_period(TIM1, 1);
+  timer_set_period(TIM2, Display::cLedMaxIntensity);
   timer_set_period(TIM3, Display::cLedMaxIntensity);
+	timer_set_period(TIM14, 2);
 
-  timer_disable_oc_output(TIM3, TIM_OC2);
-  timer_disable_oc_output(TIM3, TIM_OC3);
-  timer_disable_oc_output(TIM3, TIM_OC4);
-  timer_set_oc_mode(TIM3, TIM_OC2, TIM_OCM_PWM1);
-  timer_set_oc_mode(TIM3, TIM_OC3, TIM_OCM_PWM1);
-  timer_set_oc_mode(TIM3, TIM_OC4, TIM_OCM_PWM1);
-  timer_set_oc_value(TIM3, TIM_OC2, 0);
-  timer_set_oc_value(TIM3, TIM_OC3, 0);
-  timer_set_oc_value(TIM3, TIM_OC4, 0);
+  if ((cTargetHardwareVersion == 1) || (cTargetHardwareVersion == 4))
+  {
+    timer_disable_oc_output(TIM3, TIM_OC1);
+    timer_disable_oc_output(TIM3, TIM_OC2);
+    timer_disable_oc_output(TIM3, TIM_OC3);
+    timer_disable_oc_output(TIM3, TIM_OC4);
+    timer_set_oc_mode(TIM3, TIM_OC1, TIM_OCM_PWM1);
+    timer_set_oc_mode(TIM3, TIM_OC2, TIM_OCM_PWM1);
+    timer_set_oc_mode(TIM3, TIM_OC3, TIM_OCM_PWM1);
+    timer_set_oc_mode(TIM3, TIM_OC4, TIM_OCM_PWM1);
+    timer_set_oc_value(TIM3, TIM_OC1, 0);
+    timer_set_oc_value(TIM3, TIM_OC2, 0);
+    timer_set_oc_value(TIM3, TIM_OC3, 0);
+    timer_set_oc_value(TIM3, TIM_OC4, 0);
+    timer_enable_oc_output(TIM3, TIM_OC1);
+    timer_enable_oc_output(TIM3, TIM_OC2);
+    timer_enable_oc_output(TIM3, TIM_OC3);
+    timer_enable_oc_output(TIM3, TIM_OC4);
+  }
+  else if ((cTargetHardwareVersion == 2) || (cTargetHardwareVersion == 3))
+  {
+    timer_disable_oc_output(TIM2, TIM_OC1);
+    timer_disable_oc_output(TIM2, TIM_OC2);
+    timer_disable_oc_output(TIM2, TIM_OC3);
+    timer_disable_oc_output(TIM2, TIM_OC4);
+    timer_set_oc_mode(TIM2, TIM_OC1, TIM_OCM_PWM1);
+    timer_set_oc_mode(TIM2, TIM_OC2, TIM_OCM_PWM1);
+    timer_set_oc_mode(TIM2, TIM_OC3, TIM_OCM_PWM1);
+    timer_set_oc_mode(TIM2, TIM_OC4, TIM_OCM_PWM1);
+    timer_set_oc_value(TIM2, TIM_OC1, 0);
+    timer_set_oc_value(TIM2, TIM_OC2, 0);
+    timer_set_oc_value(TIM2, TIM_OC3, 0);
+    timer_set_oc_value(TIM2, TIM_OC4, 0);
+    timer_enable_oc_output(TIM2, TIM_OC1);
+    timer_enable_oc_output(TIM2, TIM_OC2);
+    timer_enable_oc_output(TIM2, TIM_OC3);
+    timer_enable_oc_output(TIM2, TIM_OC4);
+  }
 
+  if (cTargetHardwareVersion >= 2)
+  {
+    timer_disable_oc_output(TIM1, TIM_OC1);
+    timer_set_oc_mode(TIM1, TIM_OC1, TIM_OCM_PWM1);
+    timer_set_oc_value(TIM1, TIM_OC1, 0);
+
+    timer_enable_break_main_output(TIM1);
+    timer_enable_oc_output(TIM1, TIM_OC1);
+  }
+
+  if (cTargetHardwareVersion == 4)
+  {
+    timer_disable_oc_output(TIM14, TIM_OC1);
+    timer_set_oc_mode(TIM14, TIM_OC1, TIM_OCM_TOGGLE);
+    timer_set_oc_value(TIM14, TIM_OC1, 0);
+
+    timer_slave_set_trigger(TIM2, TIM_SMCR_TS_ITR3);
+  	timer_slave_set_mode(TIM2, TIM_SMCR_SMS_ECM1);
+
+    timer_enable_oc_output(TIM14, TIM_OC1);
+
+    timer_enable_irq(TIM2, TIM_DIER_UIE);
+
+    nvic_set_priority(NVIC_TIM2_IRQ, 0);
+  	nvic_enable_irq(NVIC_TIM2_IRQ);
+  }
+
+  timer_enable_preload(TIM1);
+  timer_enable_preload(TIM2);
   timer_enable_preload(TIM3);
+  timer_enable_preload(TIM14);
 
-  timer_enable_oc_output(TIM3, TIM_OC2);
-  timer_enable_oc_output(TIM3, TIM_OC3);
-  timer_enable_oc_output(TIM3, TIM_OC4);
-
+  timer_enable_counter(TIM1);
+  timer_enable_counter(TIM2);
   timer_enable_counter(TIM3);
+  timer_enable_counter(TIM14);
 }
 
 
@@ -905,43 +1026,39 @@ void _timerSetup()
 //
 void _tscSetup()
 {
-  gpio_mode_setup(PORT_TSC, GPIO_MODE_AF, GPIO_PUPD_NONE,
-    PIN_TSCG2_B1 | PIN_TSCG2_B2 | PIN_TSCG2_B3 | PIN_TSCG2_BS |
-    PIN_TSCG4_B1 | PIN_TSCG4_B2 | PIN_TSCG4_B3 | PIN_TSCG4_BS);
+  gpio_mode_setup(cTscPort, GPIO_MODE_AF, GPIO_PUPD_NONE, cTscTouchKeyPins | cTscSamplingCapPins);
+  gpio_set_output_options(cTscPort, GPIO_OTYPE_OD, GPIO_OSPEED_MED, cTscSamplingCapPins);
+  gpio_set_output_options(cTscPort, GPIO_OTYPE_PP, GPIO_OSPEED_MED, cTscTouchKeyPins);
+	gpio_set_af(cTscPort, GPIO_AF3, cTscTouchKeyPins | cTscSamplingCapPins);
 
-  gpio_set_output_options(PORT_TSC, GPIO_OTYPE_OD, GPIO_OSPEED_MED,
-    PIN_TSCG2_BS | PIN_TSCG4_BS);
-
-  gpio_set_output_options(PORT_TSC, GPIO_OTYPE_PP, GPIO_OSPEED_MED,
-    PIN_TSCG2_B1 | PIN_TSCG2_B2 | PIN_TSCG2_B3 |
-    PIN_TSCG4_B1 | PIN_TSCG4_B2 | PIN_TSCG4_B3);
-
-	// Set up TSC pins as alternate function
-	gpio_set_af(PORT_TSC, GPIO_AF3,
-    PIN_TSCG2_B1 | PIN_TSCG2_B2 | PIN_TSCG2_B3 | PIN_TSCG2_BS |
-    PIN_TSCG4_B1 | PIN_TSCG4_B2 | PIN_TSCG4_B3 | PIN_TSCG4_BS);
+  if (cTargetHardwareVersion == 4)
+  {
+    gpio_mode_setup(cTscPortC, GPIO_MODE_AF, GPIO_PUPD_NONE, cTscTouchKeyPinsC);
+    gpio_set_output_options(cTscPortC, GPIO_OTYPE_PP, GPIO_OSPEED_MED, cTscTouchKeyPinsC);
+    gpio_set_af(cTscPortC, GPIO_AF0, cTscTouchKeyPinsC);
+  }
 
   /* To allow the control of the sampling capacitor I/O by the TSC peripheral,
    the corresponding GPIO must be first set to alternate output open drain
    mode and then the corresponding Gx_IOy bit in the TSC_IOSCR register must
    be set. */
-	TSC_IOSCR = (TSCG2_IO4 | TSCG4_IO4);
+	TSC_IOSCR = cTscSamplingControlBits;
+
+  _tscChannelCounter = 0;
 
   /* To allow the control of the channel I/O by the TSC peripheral, the
   corresponding GPIO must be first set to alternate output push-pull mode and
   the corresponding Gx_IOy bit in the TSC_IOCCR register must be set. */
-  TSC_IOCCR = (TSCG2_IO1 | TSCG4_IO1);
-  // TSC_IOCCR |= (TSCG2_IO2 | TSCG4_IO2);
-  // TSC_IOCCR |= (TSCG2_IO3 | TSCG4_IO3);
-  _tscChannelCounter = 0;
+  TSC_IOCCR = cTscChannelControlBits[_tscChannelCounter];
 
   // The GxE bits in the TSC_IOGCSR registers specify which analog I/O groups are enabled
-  TSC_IOGCSR = (TSC_IOGCSR_GxE(2) | TSC_IOGCSR_GxE(4));
+  TSC_IOGCSR = cTscGroupControlBits;
 
   // schmitt trigger hysteresis disabled for all groups
   TSC_IOHCR = 0x00;
-  // TSC_IOHCR = (TSC_IOHCR_G2(1) | TSC_IOHCR_G2(2) | TSC_IOHCR_G2(3) |
-  //              TSC_IOHCR_G4(1) | TSC_IOHCR_G4(2) | TSC_IOHCR_G4(3));
+  // TSC_IOHCR = (TSC_IOHCR_G3(2) | TSC_IOHCR_G3(3) |
+  //              TSC_IOHCR_G5(3) | TSC_IOHCR_G5(4) |
+  //              TSC_IOHCR_G6(2) | TSC_IOHCR_G6(3));
 
   // enable the end of acquisition and max count error interrupts
   TSC_ICR = TSC_ICR_EOAIC | TSC_ICR_MCEIC;
@@ -962,8 +1079,6 @@ void _tscSetup()
 
   // Enable the TSC
   TSC_CR |= TSC_CR_TSCE;
-
-
   // Normal acquisition mode:
   //  acquisition starts when the START bit in the TSC_CR register is set
   TSC_CR |= TSC_CR_START;
@@ -974,17 +1089,33 @@ void _tscSetup()
 //
 void _usartSetup()
 {
-  // Setup GPIO pins for USART1 transmit and recieve
-  gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO6 | GPIO7);
-  // Setup GPIO pins for USART2 transmit and recieve
-  gpio_mode_setup(cUsartPort, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO1 | GPIO2 | GPIO3);
+  // Setup GPIO pins for USART1 & USART2 transmit and recieve
+  gpio_mode_setup(cUsart1RxPort, GPIO_MODE_AF, GPIO_PUPD_NONE, cUsart1RxPin);
+  gpio_mode_setup(cUsart1TxPort, GPIO_MODE_AF, GPIO_PUPD_NONE, cUsart1TxPin);
+  gpio_mode_setup(cUsart2Port, GPIO_MODE_AF, GPIO_PUPD_NONE, cUsart2RxPin | cUsart2TxPin | cUsart2DePin);
 
-  // Setup USART1 TX & RX pins as alternate function
-	gpio_set_af(GPIOB, GPIO_AF0, GPIO6 | GPIO7);
-  // Setup USART2 TX & RX pins as alternate function
-	gpio_set_af(cUsartPort, GPIO_AF1, GPIO1 | GPIO2 | GPIO3);
+  // Setup USART1 & USART2 TX & RX pins as alternate function
+  if (cUsart1TxPin == GPIO9)
+  {
+    gpio_set_af(cUsart1TxPort, GPIO_AF1, cUsart1TxPin);
+  }
+  else if (cUsart1TxPin == GPIO6)
+  {
+    gpio_set_af(cUsart1TxPort, GPIO_AF0, cUsart1TxPin);
+  }
 
-  // Setup USART1 parameters
+  if (cUsart1RxPin == GPIO10)
+  {
+    gpio_set_af(cUsart1RxPort, GPIO_AF1, cUsart1RxPin);
+  }
+  else if (cUsart1RxPin == GPIO7)
+  {
+    gpio_set_af(cUsart1RxPort, GPIO_AF0, cUsart1RxPin);
+  }
+
+  gpio_set_af(cUsart2Port, GPIO_AF1, cUsart2RxPin | cUsart2TxPin | cUsart2DePin);
+
+  // Set up USART1 parameters
   usart_set_databits(USART1, 8);
 	usart_set_baudrate(USART1, cUsart1BaudRate);
   usart_set_stopbits(USART1, USART_CR2_STOP_1_0BIT);
@@ -992,7 +1123,7 @@ void _usartSetup()
 	usart_set_mode(USART1, USART_MODE_TX_RX);
 	usart_set_flow_control(USART1, USART_FLOWCONTROL_NONE);
 
-  // Setup USART2 parameters
+  // Set up USART2 parameters
   usart_set_databits(USART2, 8);
 	usart_set_baudrate(USART2, cUsart2BaudRate);
   usart_set_stopbits(USART2, USART_CR2_STOP_2_0BIT);
@@ -1023,224 +1154,28 @@ void _usartSetup()
 }
 
 
-// Modifies a single PWM channel in the buffer
+// refreshes _temperatureXcBaseMultiplier from STM32 hardware
 //
-// void _setPWMx1(const uint16_t chan, const uint16_t pwm)
-// {
-//   if (chan < cPwmChannelsPerDevice * cPwmNumberOfDevices)
-//   {
-//     if (pwm <= Display::cLedMaxIntensity)
-//     {
-//       _displayBufferOut[(cPwmChannelsPerDevice * cPwmNumberOfDevices) - 1 - chan] = gamma_table[pwm];
-//     }
-//     else
-//     {
-//       _displayBufferOut[(cPwmChannelsPerDevice * cPwmNumberOfDevices) - 1 - chan] = Display::cLedMaxIntensity;
-//     }
-//   }
-// }
-
-
-// Modifies a triad of PWM channels in the buffer corresponding to a single RGB LED
-//
-void _setPWMx3(const uint8_t ledNumber, const RgbLed &ledValue)
+void _refreshInternalTemp()
 {
-  if (ledNumber < Display::cLedCount)
+  uint32_t totalTemp = 0, totalVoltage = 0;
+
+  // Add up some values so we can compute some averages...
+  for (uint8_t i = 0; i < cAdcSamplesToAverage; i++)
   {
-    _displayBufferOut[(cPwmChannelsPerDevice * 3) - 1 - ledNumber] = ledValue.getRed();
-    _displayBufferOut[(cPwmChannelsPerDevice * 2) - 1 - ledNumber] = ledValue.getGreen();
-    _displayBufferOut[(cPwmChannelsPerDevice * 1) - 1 - ledNumber] = ledValue.getBlue();
+    totalTemp += _adcSampleSetTemp[i];
+    totalVoltage += _adcSampleSetVoltage[i];
   }
-  // status LED
-  else if (ledNumber == Display::cLedCount)
-  {
-    _statusLed = ledValue;
-  }
-}
-
-
-// Refreshes the status LED from _statusLed
-//
-void _refreshStatusLed()
-{
-  timer_set_oc_value(TIM3, TIM_OC3, _statusLed.getRed());
-  timer_set_oc_value(TIM3, TIM_OC4, _statusLed.getGreen());
-  timer_set_oc_value(TIM3, TIM_OC2, _statusLed.getBlue());
-}
-
-
-// Updates a single LED in the crossfade buffers
-//
-void _updateLed(const uint8_t ledNumber, const RgbLed &led)
-{
-  uint8_t inactiveBufferSet;
-
-  // if ledNumber is valid (including status LED) and if LEDs are different...
-  if (ledNumber <= Display::cLedCount &&
-      led != _displayDesiredAndSpare[_activeBufferSet[ledNumber]][ledNumber])
-  {
-    // ...determine the new buffer to use...
-    inactiveBufferSet = (_activeBufferSet[ledNumber] + 1) & 1;
-    // put the new LED values into the buffer...
-    _displayDesiredAndSpare[inactiveBufferSet][ledNumber] = led;
-    // the Start (now Active) LED object contains the fade counter - reset it.
-    _displayActiveAndStart[inactiveBufferSet][ledNumber].setRate(0);
-    // ...and update active buffer index
-    _activeBufferSet[ledNumber] = inactiveBufferSet;
-  }
-}
-
-
-// Updates all main display LEDs in the crossfade buffers
-//
-void _updateLedBuffer()
-{
-  uint8_t i;
-
-  if (_autoAdjustIntensities == true)
-  {
-    for (i = 0; i < Display::cLedCount; i++)
-    {
-      _updateLed(i, _adjustedDisplay.getLedRaw(i));
-    }
-  }
-  else
-  {
-    for (i = 0; i < Display::cLedCount; i++)
-    {
-      _updateLed(i, _unadjustedDisplay.getLedRaw(i));
-    }
-  }
-}
-
-
-// Refreshes _adjustedDisplay (for use when _autoAdjustIntensities is enabled)
-//
-void _refreshAdjustedDisplay()
-{
-  RgbLed workingLed;
-  // refresh the values in _adjustedDisplay
-  for (uint8_t i = 0; i < Display::cLedCount; i++)
-  {
-    workingLed = _unadjustedDisplay.getLedRaw(i);
-    workingLed.adjustIntensity(_intensityPercentage);
-    _adjustedDisplay.setLedFromRaw(i, workingLed);
-  }
-  // also refresh the values in _adjustedStatusLed if needed
-  if (_autoRefreshStatusLed == true)
-  {
-    workingLed = _unadjustedStatusLed;
-    workingLed.adjustIntensity(_intensityPercentage);
-    _adjustedStatusLed = workingLed;
-    _updateLed(Display::cLedCount, _adjustedStatusLed);
-  }
-
-  _updateLedBuffer();
-}
-
-
-// Updates the "master" intensity for the display based on lightLevel()
-//
-void _updateIntensityPercentage()
-{
-  // determine the new value for _intensityPercentage
-  uint16_t currentPercentage = (lightLevel() * cIntensityBaseMultiplier) / Display::cLedMaxIntensity,
-           currentDifference = abs(currentPercentage - _lastIntensityPercentage);
-  // if the difference is above the threshold, enable adjustments
-  if (currentDifference > cAutoIntensityAdjThreshold)
-  {
-    _intensityAdjustmentComplete = false;
-  }
-  // if the levels have met, we're done until the threshold is exceeded again
-  else if (currentPercentage == _lastIntensityPercentage)
-  {
-    _intensityAdjustmentComplete = true;
-  }
-
-  if (_intensityAdjustmentComplete == false)
-  {
-    // this makes changes more gradual
-    if (currentPercentage < _lastIntensityPercentage)
-    {
-      _intensityPercentage = --_lastIntensityPercentage;
-    }
-    if (currentPercentage > _lastIntensityPercentage)
-    {
-      _intensityPercentage = ++_lastIntensityPercentage;
-    }
-  }
-  // make sure the intensity does not go below the minimum level
-  if (_intensityPercentage < _minimumIntensity)
-  {
-    _intensityPercentage = _minimumIntensity;
-  }
-}
-
-
-// Refreshes intensities for LEDs that are changing intensity levels due to
-//  (an) active crossfade(s)
-void _refreshLedIntensities()
-{
-  bool refreshThisLed = false;
-  int32_t currentTick, totalTicks, percentTicks;
-  uint8_t i, inactiveBufferSet;
-  RgbLed activeLed, desiredLed, startLed;
-
-  _crossfadeInProgress = false;
-
-  for (i = 0; i <= Display::cLedCount; i++)
-  {
-    inactiveBufferSet = (_activeBufferSet[i] + 1) & 1;
-    // where we are
-    activeLed = _displayActiveAndStart[_activeBufferSet[i]][i];
-    // where we started
-    startLed = _displayActiveAndStart[inactiveBufferSet][i];
-    // where we're going
-    desiredLed = _displayDesiredAndSpare[_activeBufferSet[i]][i];
-    // where we are (in the fade)
-    currentTick = activeLed.getRate();
-    // how long we have to get there
-    totalTicks = desiredLed.getRate();
-    // prevent division by zero
-    if (totalTicks == 0)
-    {
-      totalTicks = 1;
-    }
-
-    if (currentTick <= totalTicks)
-    {
-      _crossfadeInProgress = true;
-      _displayRefreshRequired = true;
-      refreshThisLed = true;
-
-      percentTicks = (cIntensityBaseMultiplier * currentTick) / totalTicks;
-
-      activeLed.mergeRgbLeds(percentTicks, startLed, desiredLed);
-      activeLed.setRate(currentTick + 1);
-
-      _displayActiveAndStart[_activeBufferSet[i]][i] = activeLed;
-    }
-
-    if ((refreshThisLed == true) && ((i < Display::cLedCount) || (_autoRefreshStatusLed == true)))
-    {
-      activeLed.gammaCorrect12bit();
-      _setPWMx3(i, activeLed);
-      refreshThisLed = false;
-    }
-  }
-
-  if (_displayRefreshRequired == true)
-  {
-    if (spiTransfer(SpiPeripheral::LedDrivers, (uint8_t*)_displayBufferIn, (uint8_t*)_displayBufferOut, cPwmChannelsPerDevice * cPwmNumberOfDevices, true) == true)
-    {
-      _displayRefreshRequired = false;
-    }
-
-    if ((_autoRefreshStatusLed == true) && (_displayBlank == false))
-    {
-      _refreshStatusLed();
-    }
-  }
+  // Get the averages of the last several readings
+  int32_t averageTemp = totalTemp / cAdcSamplesToAverage;
+  int32_t averageVoltage = totalVoltage / cAdcSamplesToAverage;
+  // Determine the voltage as it affects the temperature calculation
+  int32_t voltage = cVddCalibrationVoltage * (int32_t)ST_VREFINT_CAL / averageVoltage;
+  // Now we can compute the temperature based on RM's formula, * cBaseMultiplier
+  _temperatureXcBaseMultiplier = (averageTemp * voltage / cVddCalibrationVoltage) - ST_TSENSE_CAL1_30C;
+  _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier * (110 - 30) * cBaseMultiplier;
+  _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier / (ST_TSENSE_CAL2_110C - ST_TSENSE_CAL1_30C);
+  _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier + 30000 + (_temperatureAdjustment * cBaseMultiplier);
 }
 
 
@@ -1248,7 +1183,7 @@ void _refreshLedIntensities()
 //
 void initialize()
 {
-  uint32_t startupDisplayBitmap = 0x010000; // version 1
+  uint32_t startupDisplayBitmap = cTargetHardwareVersion << 16;
   RgbLed   startupDarkWhite(144, 114, 118, 0),
            startupBrightWhite(512, 380, 480, 0),
            startupOff(0, 0, 0, 0);
@@ -1261,14 +1196,18 @@ void initialize()
   _timerSetup();
   _dmaSetup();
   _adcSetup();
-  _i2cSetup();
   _spiSetup();
   _usartSetup();
   _tscSetup();
 
-  Dmx512Rx::initialize();
-
   _systickSetup(1);   // tick every 1 mS
+
+  if (cTargetHardwareVersion != 3)
+  {
+    _i2cSetup();
+  }
+
+  Dmx512Rx::initialize();
 
   // Let's initialize some memory/data structures
   for (_adcSampleCounter = 0; _adcSampleCounter < cAdcSamplesToAverage; _adcSampleCounter++)
@@ -1284,45 +1223,99 @@ void initialize()
     _tscMinimums[_tscChannelCounter] = 0xffff;
     _tscMaximums[_tscChannelCounter] = 0;
   }
-  // Next, initialize the display's memory buffer area
-  for (uint8_t i = 0; i < Display::cLedCount; i++)
-  {
-    _setPWMx3(i, startupOff);
-  }
 
-  _externalRtcConnected = DS3231::isConnected();
-
-  if (_externalRtcConnected == true)
+  // for v3+ hardware, we check for SPI peripherals
+  if (cTargetHardwareVersion >= 3)
   {
-    // isConnected() refreshes the status register so this will work without a refresh()
-    _rtcIsSet = DS3231::isValid();
-    _externalTemperatureSensor = TempSensorType::DS323x;
-    startupDisplayBitmap |= 0x01;   // this will appear on the startup display
+    // Here we check for other temperature sensors
+    if (LM74::isConnected() == true)
+    {
+      _externalTemperatureSensor = TempSensorType::LM74;
+      startupDisplayBitmap |= 0x01;   // this will appear on the startup display
+    }
+    else
+    {
+      _invertCsForTemperatureSensor = true;
+
+      if (DS1722::isConnected() == true)
+      {
+        _externalTemperatureSensor = TempSensorType::DS1722;
+        startupDisplayBitmap |= 0x02;   // this will appear on the startup display
+      }
+      else
+      {
+        _invertCsForTemperatureSensor = false;
+      }
+    }
+
+    _externalRtcConnected = DS3234::isConnected();
+
+    if (_externalRtcConnected == true)
+    {
+      while (_spiState != SpiState::SpiIdle);
+      // isConnected() refreshes the status register so this will work without a refresh()
+      _rtcIsSet = DS3234::isValid();
+      startupDisplayBitmap |= 0x10;   // this will appear on the startup display
+      if (_externalTemperatureSensor == TempSensorType::None)
+      {
+        _externalTemperatureSensor = TempSensorType::DS3234;
+      }
+    }
+    else
+    {
+      _rtcIsSet = RTC_ISR & RTC_ISR_INITS;
+    }
   }
+  // for pre-v3 hardware, we check for I2C peripherals
   else
   {
-    _rtcIsSet = RTC_ISR & RTC_ISR_INITS;
+    _externalRtcConnected = DS3231::isConnected();
+
+    if (_externalRtcConnected == true)
+    {
+      // isConnected() refreshes the status register so this will work without a refresh()
+      _rtcIsSet = DS3231::isValid();
+      DS3231::set32kHzOut(true);
+      _externalTemperatureSensor = TempSensorType::DS3231;
+      startupDisplayBitmap |= 0x01;   // this will appear on the startup display
+    }
+    else
+    {
+      _rtcIsSet = RTC_ISR & RTC_ISR_INITS;
+    }
+
+    // Here we check for other temperature sensors
+    if (LM75::isConnected() == true)
+    {
+      _externalTemperatureSensor = TempSensorType::LM75;
+      startupDisplayBitmap |= 0x20;   // this will appear on the startup display
+    }
+
+    if (MCP9808::isConnected() == true)
+    {
+      _externalTemperatureSensor = TempSensorType::MCP9808;
+      startupDisplayBitmap |= 0x10;   // this will appear on the startup display
+    }
   }
 
   _rtcSetup();
 
-  _displayBlank = false;  // enable the display drivers
+  DisplayManager::initialize();
+  DisplayManager::setDisplayBlanking(false);
 
   startupDisplay.setDisplayFromBitmap(startupDisplayBitmap);
-  writeDisplay(startupDisplay);
-  delay(500000);
+  DisplayManager::writeDisplay(startupDisplay, startupDarkWhite);
+  delay(250);
   startupDisplayBitmap = 0;
   startupDisplay.setDisplayColor0(startupOff);
   startupDisplay.setDisplayColor1(startupOff);
   startupDisplay.setDisplayFromBitmap(startupDisplayBitmap);
-  writeDisplay(startupDisplay);
-  delay(500000);
+  DisplayManager::writeDisplay(startupDisplay, startupOff);
+  delay(250);
 
   refresh();
-  while (Hardware::i2cIsBusy() == true);
   // set status LED off
-  _setPWMx3(Display::cLedCount, startupOff);
-  _refreshStatusLed();
+  setStatusLed(startupOff);
 }
 
 
@@ -1330,34 +1323,51 @@ void initialize()
 //
 void refresh()
 {
-  uint32_t totalLight = 0, totalTemp = 0, totalVoltage = 0;
-  uint8_t i = 0;
+  uint32_t totalLight = 0;
 
   iwdg_reset();
 
   // Add up some values so we can compute some averages...
-  for (i = 0; i < cAdcSamplesToAverage; i++)
+  for (uint8_t i = 0; i < cAdcSamplesToAverage; i++)
   {
     totalLight += _adcSampleSetLight[i];
-    totalTemp += _adcSampleSetTemp[i];
-    totalVoltage += _adcSampleSetVoltage[i];
   }
-  // Compute average light level
-  _lightLevel = 4095 - (totalLight / cAdcSamplesToAverage);
+  // Compute average light level and save it for access later
+  if (cTargetHardwareVersion >= 2)
+  {
+    _lightLevel = totalLight / cAdcSamplesToAverage;
+  }
+  else
+  {
+    _lightLevel = 4095 - (totalLight / cAdcSamplesToAverage);
+  }
 
-  // Update time/date
+  // Update time/date if it's the DS323x's turn
   if (_externalRtcConnected == true)
   {
-    if (_externalTemperatureSensor == TempSensorType::DS323x)
+    if (_lastRefreshWasRTC == false)
     {
-      DS3231::refreshTimeDateTemp();
+      if (cTargetHardwareVersion >= 3)
+      {
+        _lastRefreshWasRTC = DS3234::refresh();
+
+        _currentDateTime = DS3234::getDateTime();
+        // _rtcIsSet = DS3234::isValid();
+      }
+      else
+      {
+        if (_externalTemperatureSensor == TempSensorType::DS3231)
+        {
+          _lastRefreshWasRTC = DS3231::refreshTimeDateTemp();
+        }
+        else
+        {
+          _lastRefreshWasRTC = DS3231::refreshTimeDate();
+        }
+        _currentDateTime = DS3231::getDateTime();
+        // _rtcIsSet = DS3231::isValid();
+      }
     }
-    else
-    {
-      DS3231::refreshTimeDate();
-    }
-    _currentDateTime = DS3231::getDateTime();
-    // _rtcIsSet = DS3231::isValid();
   }
   else
   {
@@ -1386,9 +1396,75 @@ void refresh()
     _currentDateTime.setDate(year, month, day);
     _currentDateTime.setTime(hour, minute, second);
     // _rtcIsSet = RTC_ISR & RTC_ISR_INITS;
+    _lastRefreshWasRTC = true;  // this doesn't matter with the internal RTC
   }
 
-  // we do this here to give DMA time to complete before reading the temp sensor
+  // Update temperature reading if it's the temperature sensor's turn
+  if (_lastRefreshWasRTC == true)
+  {
+    if (cTargetHardwareVersion >= 3)
+    {
+      // Determine where to get the temperature from and get it
+      switch (_externalTemperatureSensor)
+      {
+        case TempSensorType::DS3234:
+          // Registers will have been refreshed above
+          _lastRefreshWasRTC = false;
+          _temperatureXcBaseMultiplier =  DS3234::getTemperatureWholePart() * cBaseMultiplier;
+          _temperatureXcBaseMultiplier += ((DS3234::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
+          break;
+
+        case TempSensorType::LM74:
+          _lastRefreshWasRTC = !LM74::refresh();
+          _temperatureXcBaseMultiplier =  LM74::getTemperatureWholePart() * cBaseMultiplier;
+          _temperatureXcBaseMultiplier += ((LM74::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
+          break;
+
+        case TempSensorType::DS1722:
+          _lastRefreshWasRTC = !DS1722::refresh();
+          _temperatureXcBaseMultiplier =  DS1722::getTemperatureWholePart() * cBaseMultiplier;
+          _temperatureXcBaseMultiplier += ((DS1722::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
+          break;
+
+        default:
+          _lastRefreshWasRTC = false;
+          _refreshInternalTemp();
+          // break;
+      }
+    }
+    else
+    {
+      // Determine where to get the temperature from and get it
+      switch (_externalTemperatureSensor)
+      {
+        case TempSensorType::DS3231:
+          // Registers will have been refreshed above
+          _lastRefreshWasRTC = false;
+          _temperatureXcBaseMultiplier =  DS3231::getTemperatureWholePart() * cBaseMultiplier;
+          _temperatureXcBaseMultiplier += ((DS3231::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
+          break;
+
+        case TempSensorType::LM75:
+          _lastRefreshWasRTC = !LM75::refreshTemp();
+          _temperatureXcBaseMultiplier =  LM75::getTemperatureWholePart() * cBaseMultiplier;
+          _temperatureXcBaseMultiplier += ((LM75::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
+          break;
+
+        case TempSensorType::MCP9808:
+          _lastRefreshWasRTC = !MCP9808::refreshTemp();
+          _temperatureXcBaseMultiplier =  MCP9808::getTemperatureWholePart() * cBaseMultiplier;
+          _temperatureXcBaseMultiplier += ((MCP9808::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
+          break;
+
+        default:
+          _lastRefreshWasRTC = false;
+          _refreshInternalTemp();
+          // break;
+      }
+    }
+  }
+
+  // we do this here to give DMA time to complete before refreshing the display
   if (_adcSampleRefreshNow == true)
   {
     if (++_adcSampleCounter >= cAdcSamplesToAverage)
@@ -1403,42 +1479,7 @@ void refresh()
     _adcSampleRefreshNow = false;
   }
 
-  if ((_autoAdjustIntensities == true) && (_crossfadeInProgress == false))
-  {
-    _refreshAdjustedDisplay();
-  }
-
-  if (_refreshLedIntensitiesNow == true)
-  {
-    _refreshLedIntensities();
-
-    _refreshLedIntensitiesNow = false;
-  }
-
-  // Determine where to get the temperature from and get it
-  switch (_externalTemperatureSensor)
-  {
-    case TempSensorType::DS323x:
-      // Registers will have been refreshed above
-      _temperatureXcBaseMultiplier =  DS3231::getTemperatureWholePart() * cBaseMultiplier;
-      _temperatureXcBaseMultiplier += ((DS3231::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
-      break;
-
-    case TempSensorType::LM7x:
-    case TempSensorType::MCP9808:
-    default:
-      // Get the averages of the last several readings
-      int32_t averageTemp = totalTemp / cAdcSamplesToAverage;
-      int32_t averageVoltage = totalVoltage / cAdcSamplesToAverage;
-      // Determine the voltage as it affects the temperature calculation
-      int32_t voltage = cVddCalibrationVoltage * (int32_t)ST_VREFINT_CAL / averageVoltage;
-      // Now we can compute the temperature based on RM's formula, * cBaseMultiplier
-      _temperatureXcBaseMultiplier = (averageTemp * voltage / cVddCalibrationVoltage) - ST_TSENSE_CAL1_30C;
-      _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier * (110 - 30) * cBaseMultiplier;
-      _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier / (ST_TSENSE_CAL2_110C - ST_TSENSE_CAL1_30C);
-      _temperatureXcBaseMultiplier = _temperatureXcBaseMultiplier + 30000 + (_temperatureAdjustment * cBaseMultiplier);
-      // break;
-  }
+  DisplayManager::refresh();
 }
 
 
@@ -1450,32 +1491,83 @@ bool tick()
 
 bool tone(const uint16_t frequency, const uint16_t duration)
 {
-  if (_toneTimer == 0)
+  if (cTargetHardwareVersion >= 2)
   {
-    if ((frequency >= cToneFrequencyMinimum) && (_toneVolume < cToneVolumeMaximum))
+    // period = (48000000 / 8 (prescaler)) / frequency
+    // oc_value = period / 2
+    if (_toneTimer == 0)
     {
-      gpio_set(cBuzzerPort, cBuzzerPin);
+      if ((frequency >= cToneFrequencyMinimum) && (_toneVolume < cToneVolumeMaximum))
+      {
+        // proc speed divided by prescaler...
+        uint32_t period = (48000000 / 8) / frequency,
+                 ocValue = period / (2 << _toneVolume);
+        timer_set_period(TIM1, period);
+        timer_set_oc_value(TIM1, TIM_OC1, ocValue);
+      }
+      else
+      {
+        // timer_set_period(TIM1, 1);
+        timer_set_oc_value(TIM1, TIM_OC1, 0);
+      }
+
+      _toneTimer = duration;
+
+      return true;
+    }
+    else if (_toneTimerNext == 0)
+    {
+      _toneTimerNext = duration;
+      _toneFrequencyNext = frequency;
+
+      return true;
     }
     else
     {
-      gpio_clear(cBuzzerPort, cBuzzerPin);
+      return false;
     }
-
-    _toneTimer = duration;
-
-    return true;
-  }
-  else if (_toneTimerNext == 0)
-  {
-    _toneTimerNext = duration;
-    _toneFrequencyNext = frequency;
-
-    return true;
   }
   else
   {
-    return false;
+    if (_toneTimer == 0)
+    {
+      if ((frequency >= cToneFrequencyMinimum) && (_toneVolume < cToneVolumeMaximum))
+      {
+        gpio_set(cBuzzerPort, cBuzzerPin);
+      }
+      else
+      {
+        gpio_clear(cBuzzerPort, cBuzzerPin);
+      }
+
+      _toneTimer = duration;
+
+      return true;
+    }
+    else if (_toneTimerNext == 0)
+    {
+      _toneTimerNext = duration;
+      _toneFrequencyNext = frequency;
+
+      return true;
+    }
+    else
+    {
+      return false;
+    }
   }
+}
+
+
+bool alarmInput(const uint8_t alarmInputNumber)
+{
+  if (alarmInputNumber < cAlarmInputPinCount)
+  {
+    // if the pin is low, return true (alarm is active if pin is pulled down)
+    return (gpio_get(cAlarmInputPort, cAlarmInputPins[alarmInputNumber]) == 0);
+  }
+
+  return false;
 }
 
 
@@ -1540,70 +1632,71 @@ void buttonsRefresh()
 }
 
 
-void currentDrive(const uint8_t drive)
+void setLedCurrentDrive(const uint8_t drive)
 {
-  // check low bit
-  if (drive & 1)
+  if (cTargetHardwareVersion >= 4)
   {
-    gpio_set(cCurrentDrivePort, cCurrentDriveLowPin);
+    DisplayManager::setDotCorrectionRange(drive > 1);
   }
   else
   {
-    gpio_clear(cCurrentDrivePort, cCurrentDriveLowPin);
-  }
+    // check low bit
+    if (drive & 1)
+    {
+      gpio_set(cCurrentDrivePort, cCurrentDriveLowPin);
+    }
+    else
+    {
+      gpio_clear(cCurrentDrivePort, cCurrentDriveLowPin);
+    }
 
-  // check high bit
-  if (drive & 2)
-  {
-    gpio_set(cCurrentDrivePort, cCurrentDriveHighPin);
-  }
-  else
-  {
-    gpio_clear(cCurrentDrivePort, cCurrentDriveHighPin);
+    // check high bit
+    if (drive & 2)
+    {
+      gpio_set(cCurrentDrivePort, cCurrentDriveHighPin);
+    }
+    else
+    {
+      gpio_clear(cCurrentDrivePort, cCurrentDriveHighPin);
+    }
   }
 }
 
 
-void displayBlank(const bool blank)
+void setDisplayHardwareBlanking(const bool blankingState)
 {
-  _displayBlank = blank;
-
-  if (blank)
+  if (_displayBlankingState != blankingState)
   {
-    gpio_set(cBlankDisplayPort, cBlankDisplayPin);
+    _displayBlankingState = blankingState;
 
-    if (_autoRefreshStatusLed == true)
+    if (cTargetHardwareVersion >= 4)
     {
-      timer_set_oc_value(TIM3, TIM_OC3, 0);
-      timer_set_oc_value(TIM3, TIM_OC4, 0);
-      timer_set_oc_value(TIM3, TIM_OC2, 0);
+      if (blankingState == true)
+      {
+        // blank the display -- for TLC5951 XBLNK means NOT-BLANK, hence 'clear'
+        gpio_clear(cBlankDisplayPort, cBlankDisplayPin);
+      }
+      else
+      {
+        // reset the timer's counter as PWM counters will start at 0 once XBLNK is set
+        timer_generate_event(TIM2, TIM_EGR_UG);
+        // unblank the display (the ISR, triggered by the above line, will do this)
+        // gpio_set(cBlankDisplayPort, cBlankDisplayPin);
+      }
+    }
+    else
+    {
+      if (blankingState == true)
+      {
+        // blank the display
+        gpio_set(cBlankDisplayPort, cBlankDisplayPin);
+      }
+      else if (_displayBlankForWrite == false)
+      {
+        gpio_clear(cBlankDisplayPort, cBlankDisplayPin);
+      }
     }
   }
-  else if (_displayBlankForWrite == false)
-  {
-    gpio_clear(cBlankDisplayPort, cBlankDisplayPin);
-
-    if (_autoRefreshStatusLed == true)
-    {
-      _refreshStatusLed();
-    }
-  }
-  else if (_autoRefreshStatusLed == true)
-  {
-    _refreshStatusLed();
-  }
-}
-
-
-void doubleBlink()
-{
-  displayBlank(true);
-  delay(cDoubleBlinkDuration);
-  displayBlank(false);
-  delay(cDoubleBlinkDuration);
-  displayBlank(true);
-  delay(cDoubleBlinkDuration);
-  displayBlank(false);
 }
 
 
@@ -1626,7 +1719,14 @@ void setDateTime(const DateTime &dateTime)
 
   if (_externalRtcConnected == true)
   {
-    DS3231::setDateTime(_currentDateTime);
+    if (cTargetHardwareVersion >= 3)
+    {
+      DS3234::setDateTime(_currentDateTime);
+    }
+    else
+    {
+      DS3231::setDateTime(_currentDateTime);
+    }
   }
   // we'll set the internal RTC regardless
   uint8_t dayOfWeek = _currentDateTime.dayOfWeek();
@@ -1700,12 +1800,6 @@ uint16_t lightLevel()
 }
 
 
-void autoAdjustIntensities(const bool enable)
-{
-  _autoAdjustIntensities = enable;
-}
-
-
 void setDstState(const bool enableDst, const bool adjustRtcHardware)
 {
   // number of seconds in an hour
@@ -1742,10 +1836,17 @@ void setDstState(const bool enableDst, const bool adjustRtcHardware)
 
       if (_externalRtcConnected == true)
       {
-        DS3231::setDateTime(_currentDateTime.addSeconds(rtcAdjustment));
+        if (cTargetHardwareVersion >= 3)
+        {
+          DS3234::setDateTime(_currentDateTime.addSeconds(rtcAdjustment));
+        }
+        else
+        {
+          DS3231::setDateTime(_currentDateTime.addSeconds(rtcAdjustment));
+        }
       }
 
-      doubleBlink();
+      DisplayManager::doubleBlink();
     }
 
     rtc_lock();
@@ -1758,19 +1859,6 @@ void setDstState(const bool enableDst, const bool adjustRtcHardware)
 void setFlickerReduction(const uint16_t value)
 {
   _blankingThreshold = value;
-}
-
-
-void setMinimumIntensity(const uint16_t value)
-{
-  if (value < cBaseMultiplier)
-  {
-    _minimumIntensity = value;
-  }
-  else
-  {
-    _minimumIntensity = cBaseMultiplier;
-  }
 }
 
 
@@ -1789,36 +1877,6 @@ void setVolume(const uint8_t volumeLevel)
   else
   {
     _toneVolume = cToneVolumeMaximum - volumeLevel;
-  }
-}
-
-
-// The display workflow might be the most confusing thing in this codebase.
-// Here is a diagram to help clarify:
-// writeDisplay() ->
-//   _unadjustedDisplay ->
-//     _adjustedDisplay via _refreshAdjustedDisplay() ->
-//       _updateLedBuffer() / _updateLed() ->
-//         _displayDesiredAndSpare[] crossfade buffers ->
-//           _refreshLedIntensities() updates levels based on crossfade(s) ->
-//             _setPWMx3() ->
-//               _displayBufferOut[] ->
-//                 DMA to SPI to drivers
-//
-void writeDisplay(const Display &display)
-{
-  if (_unadjustedDisplay != display)
-  {
-    _unadjustedDisplay = display;
-
-    if (_autoAdjustIntensities == true)
-    {
-      _refreshAdjustedDisplay();
-    }
-    else
-    {
-      _updateLedBuffer();
-    }
   }
 }
 
@@ -2253,7 +2311,8 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
   uint16_t mSize = DMA_CCR_MSIZE_8BIT, pSize = DMA_CCR_PSIZE_8BIT;
   volatile uint8_t temp_data __attribute__ ((unused));
 
-  if (_spiState != SpiState::SpiIdle)
+  if ((_spiState != SpiState::SpiIdle) ||
+      (_ledDriverSrState == DriverShiftRegState::SrContainsGsData))
   {
     // Let the caller know it was busy if so
     return false;
@@ -2275,6 +2334,9 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
   {
 		temp_data = SPI_DR(SPI1);
 	}
+
+  // Configure SPI1 for use with the appropriate peripheral
+  _spiSelectPeripheral(peripheral);
 
   // Reset DMA channels
   dma_channel_reset(DMA1, DMA_CHANNEL2);
@@ -2310,19 +2372,44 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
 
   switch (peripheral)
   {
-    case SpiPeripheral::LedDrivers:
+    case SpiPeripheral::LedDriversGs:
       gpio_clear(cNssPort, cNssDisplayPin);
-      // Attempt to reduce flicker at very low intensities
-      if ((_autoAdjustIntensities == false) || (_intensityPercentage > _blankingThreshold))
-      {
-        _displayBlankForWrite = true;
-        gpio_set(cBlankDisplayPort, cBlankDisplayPin);
-      }
       _spiState = SpiState::SpiBusyDisplay;
+      _ledDriverSrState = DriverShiftRegState::SrLoadingGsData;
+
+      if (cTargetHardwareVersion <= 3)
+      {
+        // Attempt to reduce flicker at very low intensities
+        if ((Application::getIntensityAutoAdjust() == false)
+            || (DisplayManager::getMasterIntensity() > _blankingThreshold))
+        {
+          _displayBlankForWrite = true;
+          gpio_set(cBlankDisplayPort, cBlankDisplayPin);
+        }
+      }
+      break;
+
+    case SpiPeripheral::LedDriversOther:
+      gpio_set(cNssPort, cNssDisplayPin);
+      _spiState = SpiState::SpiBusyDisplay;
+      _ledDriverSrState = DriverShiftRegState::SrLoadingOtherData;
       break;
 
     case SpiPeripheral::Rtc:
+      gpio_clear(cNssPort, cNssRtcPin);
+      break;
+
     case SpiPeripheral::TempSensor:
+      if (_invertCsForTemperatureSensor == true)
+      {
+        gpio_set(cNssPort, cNssTemperaturePin);
+      }
+      else
+      {
+        gpio_clear(cNssPort, cNssTemperaturePin);
+      }
+      break;
+
     default:
       break;
   }
@@ -2344,112 +2431,76 @@ bool spiIsBusy()
 }
 
 
-void blueLed(const uint32_t intensity)
+void setBlueLed(const uint32_t intensity)
 {
   if (intensity <= Display::cLedMaxIntensity)
   {
-    timer_set_oc_value(TIM3, TIM_OC2, intensity);
-    _statusLed.setBlue(intensity);
+    timer_set_oc_value(cLedPwmTimer, cLed2PwmOc, intensity);
   }
   else
   {
-    timer_set_oc_value(TIM3, TIM_OC2, Display::cLedMaxIntensity);
-    _statusLed.setBlue(Display::cLedMaxIntensity);
+    timer_set_oc_value(cLedPwmTimer, cLed2PwmOc, Display::cLedMaxIntensity);
   }
-  _unadjustedStatusLed = _statusLed;
 }
 
 
-void greenLed(const uint32_t intensity)
+void setGreenLed(const uint32_t intensity)
 {
   if (intensity <= Display::cLedMaxIntensity)
   {
-    timer_set_oc_value(TIM3, TIM_OC4, intensity);
-    _statusLed.setGreen(intensity);
+    timer_set_oc_value(cLedPwmTimer, cLed1PwmOc, intensity);
   }
   else
   {
-    timer_set_oc_value(TIM3, TIM_OC4, Display::cLedMaxIntensity);
-    _statusLed.setGreen(Display::cLedMaxIntensity);
+    timer_set_oc_value(cLedPwmTimer, cLed1PwmOc, Display::cLedMaxIntensity);
   }
-  _unadjustedStatusLed = _statusLed;
 }
 
 
-void redLed(const uint32_t intensity)
+void setRedLed(const uint32_t intensity)
 {
   if (intensity <= Display::cLedMaxIntensity)
   {
-    timer_set_oc_value(TIM3, TIM_OC3, intensity);
-    _statusLed.setRed(intensity);
+    timer_set_oc_value(cLedPwmTimer, cLed0PwmOc, intensity);
   }
   else
   {
-    timer_set_oc_value(TIM3, TIM_OC3, Display::cLedMaxIntensity);
-    _statusLed.setRed(Display::cLedMaxIntensity);
+    timer_set_oc_value(cLedPwmTimer, cLed0PwmOc, Display::cLedMaxIntensity);
   }
-  _unadjustedStatusLed = _statusLed;
-}
-
-
-void autoRefreshStatusLed(const bool autoRefreshEnabled)
-{
-  _autoRefreshStatusLed = autoRefreshEnabled;
-}
-
-
-void blinkStatusLed(const RgbLed led1, const RgbLed led2, uint32_t numberOfBlinks, const uint32_t delayLength)
-{
-  // save auto refresh state
-  bool autoRefreshStatusLedState = _autoRefreshStatusLed;
-
-  _autoRefreshStatusLed = false;
-
-  while (numberOfBlinks-- > 0)
-  {
-    _setPWMx3(Display::cLedCount, led1);
-    _refreshStatusLed();
-    delay(delayLength);
-    _setPWMx3(Display::cLedCount, led2);
-    _refreshStatusLed();
-    delay(delayLength);
-  }
-  // restore auto refresh state
-  _autoRefreshStatusLed = autoRefreshStatusLedState;
 }
 
 
 void setStatusLed(const RgbLed led)
 {
-  if (_unadjustedStatusLed != led)
-  {
-    _unadjustedStatusLed = led;
+  setBlueLed(led.getBlue());
+  setGreenLed(led.getGreen());
+  setRedLed(led.getRed());
+}
 
-    if (_autoAdjustIntensities == true)
-    {
-      _refreshAdjustedDisplay();
-    }
-    else
-    {
-      _updateLed(Display::cLedCount, _unadjustedStatusLed);
-    }
+
+void blinkStatusLed(const RgbLed led1, const RgbLed led2, uint32_t numberOfBlinks, const uint32_t delayLength)
+{
+  // be sure this is off so blinking is visible
+  DisplayManager::setStatusLedAutoRefreshing(false);
+
+  while (numberOfBlinks-- > 0)
+  {
+    setStatusLed(led1);
+    delay(delayLength);
+    setStatusLed(led2);
+    delay(delayLength);
   }
 }
 
 
 void delay(const uint32_t length)
 {
-  for (uint32_t counter = 0; counter < length; counter++)
-  {
-    // Kill a cycle
-		// __asm__("nop");
-    if (_refreshLedIntensitiesNow == true)
-    {
-      _refreshLedIntensities();
+  _delayCounter = 0;
 
-      _refreshLedIntensitiesNow = false;
-    }
-	}
+  while (_delayCounter < length)
+  {
+    DisplayManager::refresh();
+  }
 }
 
 
@@ -2516,15 +2567,56 @@ void dmaIsr()
     // wait for the last bits to roll out
     while (SPI_SR(SPI1) & SPI_SR_BSY);
 
-    gpio_set(cNssPort, cNssDisplayPin);
-
-    if ((_spiState == SpiState::SpiBusyDisplay) && (_displayBlank == false))
+    switch (_spiState)
     {
-      gpio_clear(cBlankDisplayPort, cBlankDisplayPin);
-    }
-    _displayBlankForWrite = false;
+      case SpiState::SpiBusyPeripheral:
+        // release the NSS line(s)
+        if (_invertCsForTemperatureSensor == true)
+        {
+          gpio_set(cNssPort, cNssRtcPin);
+          gpio_clear(cNssPort, cNssTemperaturePin);
+        }
+        else
+        {
+          gpio_set(cNssPort, cNssRtcPin | cNssTemperaturePin);
+        }
 
-    _spiState = SpiState::SpiIdle;
+        _spiState = SpiState::SpiIdle;
+
+        break;
+
+      case SpiState::SpiBusyDisplay:
+        if (_ledDriverSrState == DriverShiftRegState::SrLoadingOtherData)
+        {
+          gpio_clear(cNssPort, cNssDisplayPin);
+          _ledDriverSrState = DriverShiftRegState::SrAvailable;
+          _spiState = SpiState::SpiIdle;
+          gpio_set(cNssPort, cNssDisplayPin);
+        }
+        else if (_ledDriverSrState == DriverShiftRegState::SrLoadingGsData)
+        {
+          // for version 4+, the timer interrupt takes care of latching GS data
+          if (cTargetHardwareVersion >= 4)
+          {
+            _ledDriverSrState = DriverShiftRegState::SrContainsGsData;
+          }
+          // ...for pre-v4 hardware, we do it here
+          else
+          {
+            gpio_set(cNssPort, cNssDisplayPin);
+            _ledDriverSrState = DriverShiftRegState::SrAvailable;
+            if (_displayBlankingState == false)
+            {
+              gpio_clear(cBlankDisplayPort, cBlankDisplayPin);
+            }
+            _displayBlankForWrite = false;
+          }
+        }
+
+        _spiState = SpiState::SpiIdle;
+
+        break;
+    }
   }
 
   if (DMA1_ISR & DMA_ISR_TCIF4)
@@ -2533,8 +2625,14 @@ void dmaIsr()
 
 		dma_disable_transfer_complete_interrupt(DMA1, DMA_CHANNEL4);
 
-    usart_disable_tx_dma(USART1);
-    usart_disable_tx_dma(USART2);
+    if (cTargetHardwareVersion >= 3)
+    {
+      usart_disable_tx_dma(USART1);
+    }
+    else
+    {
+      usart_disable_tx_dma(USART2);
+    }
 
 		dma_disable_channel(DMA1, DMA_CHANNEL4);
 	}
@@ -2545,12 +2643,18 @@ void dmaIsr()
 
 		dma_disable_transfer_complete_interrupt(DMA1, DMA_CHANNEL5);
 
-    usart_disable_rx_dma(USART1);
-    usart_disable_rx_dma(USART2);
+    if (cTargetHardwareVersion >= 3)
+    {
+      usart_disable_rx_dma(USART1);
+    }
+    else
+    {
+      usart_disable_rx_dma(USART2);
+
+      Dmx512Rx::rxCompleteIsr();
+    }
 
 		dma_disable_channel(DMA1, DMA_CHANNEL5);
-
-    Dmx512Rx::rxCompleteIsr();
 	}
 
   if (DMA1_ISR & DMA_ISR_TCIF6)
@@ -2559,16 +2663,25 @@ void dmaIsr()
 
 		dma_disable_transfer_complete_interrupt(DMA1, DMA_CHANNEL6);
 
-    i2c_disable_txdma(I2C1);
+    if (cTargetHardwareVersion >= 3)
+    {
+      usart_disable_rx_dma(USART2);
+
+      Dmx512Rx::rxCompleteIsr();
+    }
+    else
+    {
+      i2c_disable_txdma(I2C1);
+
+      _i2cState = I2cState::I2cIdle;
+
+      if (_i2cNumberRx > 0)
+      {
+        i2cReceive(_i2cAddr, _i2cBufferRx, _i2cNumberRx, true);
+      }
+    }
 
 		dma_disable_channel(DMA1, DMA_CHANNEL6);
-
-    _i2cState = I2cState::I2cIdle;
-
-    if (_i2cNumberRx > 0)
-    {
-      i2cReceive(_i2cAddr, _i2cBufferRx, _i2cNumberRx, true);
-    }
 	}
 
   if (DMA1_ISR & DMA_ISR_TCIF7)
@@ -2577,20 +2690,30 @@ void dmaIsr()
 
 		dma_disable_transfer_complete_interrupt(DMA1, DMA_CHANNEL7);
 
-    i2c_disable_rxdma(I2C1);
+    if (cTargetHardwareVersion >= 3)
+    {
+      usart_disable_tx_dma(USART2);
+    }
+    else
+    {
+      i2c_disable_rxdma(I2C1);
+
+      _i2cState = I2cState::I2cIdle;
+
+      _i2cBufferRx = nullptr;
+      _i2cNumberRx = 0;
+    }
 
 		dma_disable_channel(DMA1, DMA_CHANNEL7);
-
-    _i2cState = I2cState::I2cIdle;
-
-    _i2cBufferRx = nullptr;
-    _i2cNumberRx = 0;
 	}
 }
 
 
 void systickIsr()
 {
+  // used by delay()
+  _delayCounter++;
+
   // update samples
   if (_adcSampleTimer++ >= cAdcSampleInterval)
   {
@@ -2611,30 +2734,52 @@ void systickIsr()
       }
       else
       {
-        gpio_clear(cBuzzerPort, cBuzzerPin);
+        if (cTargetHardwareVersion >= 2)
+        {
+          timer_set_oc_value(TIM1, TIM_OC1, 0);
+        }
+        else
+        {
+          gpio_clear(cBuzzerPort, cBuzzerPin);
+        }
       }
     }
   }
+}
 
-  Keys::repeatHandler();
 
-  Dmx512Controller::strobeTimer();
-
-  _updateIntensityPercentage();
-
-  _refreshLedIntensitiesNow = true;
+void tim2Isr()
+{
+	if (TIM2_SR & TIM_SR_UIF)
+	{
+    // clear the event flag
+		TIM2_SR &= ~TIM_SR_UIF;
+    // first, blank the display, resetting PWM counters
+    gpio_clear(cBlankDisplayPort, cBlankDisplayPin);
+    // if new data is waiting to be latched, latch it in now
+    if (_ledDriverSrState == DriverShiftRegState::SrContainsGsData)
+    {
+      gpio_set(cNssPort, cNssDisplayPin);
+      _ledDriverSrState = DriverShiftRegState::SrAvailable;
+    }
+    // if the display is not blanked right now, unblank it
+    if (DisplayManager::getDisplayBlanking() == false)
+    {
+      gpio_set(cBlankDisplayPort, cBlankDisplayPin);
+    }
+	}
 }
 
 
 void tim15Isr()
 {
-  Dmx512Rx::timerUartIsr();
+
 }
 
 
 void tim16Isr()
 {
-  Dmx512Rx::timerSupervisorIsr();
+
 }
 
 
@@ -2643,40 +2788,49 @@ void tscIsr()
   // process acquisition, advance to next channels, and trigger another acquisition
   if (TSC_ISR & TSC_ISR_EOAF)
   {
-    if (_tscChannelCounter >= cTscChannelsPerGroup)
+    // ensure the counter is in bounds -- should already be as initialized above
+    // if (_tscChannelCounter >= cTscChannelsPerGroup)
+    // {
+    //   _tscChannelCounter = 0;
+    // }
+
+    if (cTargetHardwareVersion == 4)
     {
-      _tscChannelCounter = 0;
+      _tscAcquisitionValues[_tscChannelCounter + cTscChannelsPerGroup] = TSC_IOGxCR(6);
+      _tscAcquisitionValues[_tscChannelCounter] = TSC_IOGxCR(3);
+    }
+    else if ((cTargetHardwareVersion == 3) || (cTargetHardwareVersion == 2))
+    {
+      _tscAcquisitionValues[_tscChannelCounter + cTscChannelsPerGroup * 2] = TSC_IOGxCR(6);
+      _tscAcquisitionValues[_tscChannelCounter + cTscChannelsPerGroup] = TSC_IOGxCR(5);
+      _tscAcquisitionValues[_tscChannelCounter] = TSC_IOGxCR(3);
+    }
+    else if (cTargetHardwareVersion == 1)
+    {
+      _tscAcquisitionValues[_tscChannelCounter + cTscChannelsPerGroup] = TSC_IOGxCR(4);
+      _tscAcquisitionValues[_tscChannelCounter] = TSC_IOGxCR(2);
     }
 
-    _tscAcquisitionValues[_tscChannelCounter + cTscChannelsPerGroup] = TSC_IOGxCR(4);
-    _tscAcquisitionValues[_tscChannelCounter] = TSC_IOGxCR(2);
 
-
-    if (_tscAcquisitionValues[_tscChannelCounter + cTscChannelsPerGroup] < _tscMinimums[_tscChannelCounter + cTscChannelsPerGroup])
+    for (uint8_t i = _tscChannelCounter; i < cTscChannelCount; i += cTscChannelsPerGroup)
     {
-      _tscMinimums[_tscChannelCounter + cTscChannelsPerGroup] = _tscAcquisitionValues[_tscChannelCounter + cTscChannelsPerGroup];
+      // if the value we just got is less than the known minimum...
+      if (_tscAcquisitionValues[i] < _tscMinimums[i])
+      {
+        // ...update the minimum with the new minimum
+        _tscMinimums[i] = _tscAcquisitionValues[i];
+      }
+
+      // if the value we just got is greater than the known maximum...
+      if (_tscAcquisitionValues[i] > _tscMaximums[i])
+      {
+        // ...update the maximum with the new value
+        _tscMaximums[i] = _tscAcquisitionValues[i];
+      }
+
+      // update the sample set with the value we just got
+      _tscSampleSets[i][_tscSampleCounter] = _tscAcquisitionValues[i];
     }
-
-    if (_tscAcquisitionValues[_tscChannelCounter + cTscChannelsPerGroup] > _tscMaximums[_tscChannelCounter + cTscChannelsPerGroup])
-    {
-      _tscMaximums[_tscChannelCounter + cTscChannelsPerGroup] = _tscAcquisitionValues[_tscChannelCounter + cTscChannelsPerGroup];
-    }
-
-    _tscSampleSets[_tscChannelCounter + cTscChannelsPerGroup][_tscSampleCounter] = _tscAcquisitionValues[_tscChannelCounter + cTscChannelsPerGroup];
-
-
-    if (_tscAcquisitionValues[_tscChannelCounter] < _tscMinimums[_tscChannelCounter])
-    {
-      _tscMinimums[_tscChannelCounter] = _tscAcquisitionValues[_tscChannelCounter];
-    }
-
-    if (_tscAcquisitionValues[_tscChannelCounter] > _tscMaximums[_tscChannelCounter])
-    {
-      _tscMaximums[_tscChannelCounter] = _tscAcquisitionValues[_tscChannelCounter];
-    }
-
-    _tscSampleSets[_tscChannelCounter][_tscSampleCounter] = _tscAcquisitionValues[_tscChannelCounter];
-
 
     if (++_tscChannelCounter >= cTscChannelsPerGroup)
     {
@@ -2689,9 +2843,7 @@ void tscIsr()
     }
 
     // select the next pair of channels to sample
-    TSC_IOCCR = ((TSCG2_IO1 | TSCG4_IO1) << _tscChannelCounter);
-    // TSC_IOCCR = (TSCG2_IO2 | TSCG4_IO2);
-    // TSC_IOCCR = (TSCG2_IO3 | TSCG4_IO3);
+    TSC_IOCCR = cTscChannelControlBits[_tscChannelCounter];
 
     TSC_ICR = TSC_ICR_EOAIC;
 
@@ -2715,7 +2867,7 @@ void usart1Isr()
 
 void usart2Isr()
 {
-  Dmx512Rx::rxIsr();
+
 }
 
 

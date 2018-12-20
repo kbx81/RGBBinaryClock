@@ -19,6 +19,7 @@
 
 #include "Application.h"
 #include "DateTime.h"
+#include "DisplayManager.h"
 #include "Settings.h"
 #include "TimeDateTempView.h"
 
@@ -41,7 +42,7 @@ void TimeDateTempView::enter()
 
   _lastSwitchTime = _currentTime.secondsSinceMidnight(false);
 
-  Hardware::autoRefreshStatusLed(_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::StatusLedAsAmPm));
+  DisplayManager::setStatusLedAutoRefreshing(_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::StatusLedAsAmPm));
 }
 
 
@@ -79,10 +80,16 @@ void TimeDateTempView::keyHandler(Keys::Key key)
 void TimeDateTempView::loop()
 {
   FixedDisplayItem nextDisplayItem, currentDisplayItem = static_cast<FixedDisplayItem>(Application::getViewMode());
-  RgbLed   color[2], defaultOff(0, 0, 0, _pSettings->getRawSetting(Settings::Setting::FadeRate));
-  uint32_t displayBitMask, changeDisplayTime, itemDisplayDuration;
+  RgbLed   color[2], statusLed(0, 0, 0, _pSettings->getRawSetting(Settings::Setting::FadeRate));
+  uint32_t displayBitMask, changeDisplayTime, itemDisplayDuration, pixelOffBitMask = 0;
 
-  _currentTime = Hardware::getDateTime();
+  // update these only as needed -- keeps temperature from bouncing incessantly
+  if (_currentTime != Hardware::getDateTime())
+  {
+    _currentTime = Hardware::getDateTime();
+    _currentTemperature = Hardware::temperature(_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayFahrenheit),
+                            _pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD));
+  }
 
   if (_mode == Application::OperatingMode::OperatingModeToggleDisplay)
   {
@@ -133,7 +140,7 @@ void TimeDateTempView::loop()
   {
     displayBitMask = ((_currentTime.second(false) << 16) | (_currentTime.second(false) << 8) | _currentTime.second(false)) & 0x010101;
     // also make the status LED blink
-    Hardware::autoRefreshStatusLed(true);
+    DisplayManager::setStatusLedAutoRefreshing(true);
     Hardware::setStatusLed(color[_currentTime.second(false) & 1]);
   }
   else
@@ -163,8 +170,8 @@ void TimeDateTempView::loop()
         color[1] = _pSettings->getColor1(Settings::Slot::SlotTemperature);
       }
 
-      displayBitMask = Hardware::temperature(_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayFahrenheit),
-                        _pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)) << 8;
+      displayBitMask = (_currentTemperature << 8);
+      pixelOffBitMask = 0xff00ff;
       break;
 
       default:
@@ -177,8 +184,8 @@ void TimeDateTempView::loop()
 
     if (Application::getExternalControlState() != Application::ExternalControl::Dmx512ExtControlEnum)
     {
-      color[0].setRate(_pSettings->getRawSetting(Settings::Setting::FadeRate));
-      color[1].setRate(_pSettings->getRawSetting(Settings::Setting::FadeRate));
+      color[0].setDuration(_pSettings->getRawSetting(Settings::Setting::FadeRate));
+      color[1].setDuration(_pSettings->getRawSetting(Settings::Setting::FadeRate));
     }
 
     if (_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::StatusLedAsAmPm))
@@ -187,24 +194,21 @@ void TimeDateTempView::loop()
       {
         if (_currentTime.isPM())
         {
-          Hardware::setStatusLed(color[1]);
+          statusLed = color[1];
         }
         else
         {
-          Hardware::setStatusLed(color[0]);
+          statusLed = color[0];
         }
-      }
-      else
-      {
-        Hardware::setStatusLed(defaultOff);
       }
     }
   }
 
   // now we can create a new display object with the right colors and bitmask
   Display bcDisp(color[0], color[1], displayBitMask);
+  bcDisp.setPixelsOff(pixelOffBitMask);
 
-  Hardware::writeDisplay(bcDisp);
+  DisplayManager::writeDisplay(bcDisp, statusLed);
 }
 
 

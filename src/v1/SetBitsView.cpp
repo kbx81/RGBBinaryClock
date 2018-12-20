@@ -17,6 +17,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 //
 #include "Application.h"
+#include "DisplayManager.h"
 #include "Hardware.h"
 #include "Settings.h"
 #include "SetBitsView.h"
@@ -49,7 +50,7 @@ void SetBitsView::keyHandler(Keys::Key key)
     _settings.setRawSetting(static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSetSystemOptions), _setBits);
     Application::setSettings(_settings);
 
-    Hardware::doubleBlink();
+    DisplayManager::doubleBlink();
   }
 
   if (key == Keys::Key::B)
@@ -100,14 +101,14 @@ void SetBitsView::loop()
   // highlight the selected region
   if ((_setBits >> _selectedBit) & 1)
   {
-    bcDisp.setLedFromRaw(_selectedBit, color1Highlight);
+    bcDisp.setPixelFromRaw(_selectedBit, color1Highlight);
   }
   else
   {
-    bcDisp.setLedFromRaw(_selectedBit, color0Highlight);
+    bcDisp.setPixelFromRaw(_selectedBit, color0Highlight);
   }
 
-  Hardware::writeDisplay(bcDisp);
+  DisplayManager::writeDisplay(bcDisp);
 }
 
 

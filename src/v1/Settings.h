@@ -55,7 +55,8 @@ public:
     CurrentDrive = 16,
     TemperatureCalibration = 17,
     BeeperVolume = 18,
-    DmxAddress = 19
+    TimerResetValue = 19,
+    DmxAddress = 20
   };
 
   // @brief Settings we keep
@@ -71,7 +72,8 @@ public:
     FadeAcrossSlots = 6,
     AutoAdjustIntensity = 7,
     DmxExtended = 8,
-    StartupToToggle = 9
+    StartupToToggle = 9,
+    MSBsOff = 10
   };
 
   // @brief Enums for time slots

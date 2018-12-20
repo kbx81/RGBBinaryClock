@@ -12,7 +12,6 @@
 
 ## General TODO
 
-1. Standardized display brightness control via DisplayManager
 1. Implement option for MSbs to be off
 1. Better/"learning" automatic brightness control
 

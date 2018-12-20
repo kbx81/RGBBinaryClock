@@ -39,8 +39,9 @@
 namespace kbxBinaryClock {
 
 
-// const uint8_t Display::cLedCount = 24;
-// const uint16_t Display::cLedMaxIntensity = 4095;
+// const uint8_t cPixelCount = 24;
+// const uint8_t cLedCount = cPixelCount * 3;
+// const uint16_t cLedMaxIntensity = 4095;
 
 
 Display::Display()
@@ -61,7 +62,7 @@ Display::Display(const RgbLed &color0, const RgbLed &color1, const RgbLed *data)
 {
   uint8_t i = 0;
 
-  for (i = 0; i < cLedCount; i++)
+  for (i = 0; i < cPixelCount; i++)
   {
     _display[i] = data[i];
   }
@@ -77,9 +78,9 @@ Display::Display(const RgbLed &color0, const RgbLed &color1, const uint32_t bitm
 {
   uint8_t i = 0;
 
-  for (i = 0; i < cLedCount; i++)
+  for (i = 0; i < cPixelCount; i++)
   {
-    if ((bitmap >> i) & 1)
+    if (((bitmap >> i) & 1) == 1)
     {
       _display[i] = color1;
     }
@@ -101,9 +102,9 @@ Display::Display(const RgbLed &color0, const RgbLed &color1, const uint8_t byte2
 
   _displayBitmap |= (((uint32_t)byte2 << 16 ) | ((uint32_t)byte1 << 8));
 
-  for (i = 0; i < cLedCount; i++)
+  for (i = 0; i < cPixelCount; i++)
   {
-    if ((_displayBitmap >> i) & 1)
+    if (((_displayBitmap >> i) & 1) == 1)
     {
       _display[i] = color1;
     }
@@ -117,7 +118,7 @@ Display::Display(const RgbLed &color0, const RgbLed &color1, const uint8_t byte2
 
 bool Display::operator==(const Display &other) const
 {
-  for (uint8_t i = 0; i < Display::cLedCount; i++)
+  for (uint8_t i = 0; i < Display::cPixelCount; i++)
   {
     if (_display[i] != other._display[i])
     {
@@ -134,7 +135,7 @@ bool Display::operator==(const Display &other) const
 
 bool Display::operator!=(const Display &other) const
 {
-  for (uint8_t i = 0; i < Display::cLedCount; i++)
+  for (uint8_t i = 0; i < Display::cPixelCount; i++)
   {
     if (_display[i] != other._display[i])
     {
@@ -165,7 +166,7 @@ void Display::setDisplayFromRaw(const RgbLed *data)
 {
   uint8_t i = 0;
 
-  for (i = 0; i < cLedCount; i++)
+  for (i = 0; i < cPixelCount; i++)
   {
     _display[i] = data[i];
   }
@@ -177,9 +178,9 @@ void Display::setDisplayFromBitmap(const uint32_t bitmap)
 {
   uint8_t i = 0;
 
-  for (i = 0; i < cLedCount; i++)
+  for (i = 0; i < cPixelCount; i++)
   {
-    if ((bitmap >> i) & 1)
+    if (((bitmap >> i) & 1) == 1)
     {
       _display[i] = _color1;
     }
@@ -198,9 +199,9 @@ void Display::setDisplayFromBytes(const uint8_t byte2, const uint8_t byte1, cons
   uint8_t  i = 0;
   uint32_t bitmap = ((uint32_t)byte2 << 16 ) | ((uint32_t)byte1 << 8) | (uint32_t)byte0;
 
-  for (i = 0; i < cLedCount; i++)
+  for (i = 0; i < cPixelCount; i++)
   {
-    if ((bitmap >> i) & 1)
+    if (((bitmap >> i) & 1) == 1)
     {
       _display[i] = _color1;
     }
@@ -224,9 +225,9 @@ void Display::setDisplayFromNibbles(const uint8_t byte5, const uint8_t byte4, co
                   | (((uint32_t)byte1 & 0x0f) << 4 )
                   | ((uint32_t)byte0 & 0x0f);
 
-  for (i = 0; i < cLedCount; i++)
+  for (i = 0; i < cPixelCount; i++)
   {
-    if ((bitmap >> i) & 1)
+    if (((bitmap >> i) & 1) == 1)
     {
       _display[i] = _color1;
     }
@@ -240,36 +241,57 @@ void Display::setDisplayFromNibbles(const uint8_t byte5, const uint8_t byte4, co
 }
 
 
-void Display::setLedFromState(const uint8_t ledNumber, const bool ledState)
+void Display::setPixelFromState(const uint8_t pixelNumber, const bool ledState)
 {
-  if (ledNumber < cLedCount)
+  if (pixelNumber < cPixelCount)
   {
     if (ledState)
     {
-      _display[ledNumber] = _color1;
+      _display[pixelNumber] = _color1;
     }
     else
     {
-      _display[ledNumber] = _color0;
+      _display[pixelNumber] = _color0;
     }
   }
 }
 
 
-void Display::setLedFromRaw(const uint8_t ledNumber, const RgbLed &color)
+void Display::setPixelFromRaw(const uint8_t pixelNumber, const RgbLed &color)
 {
-  if (ledNumber < cLedCount)
+  if (pixelNumber < cPixelCount)
   {
-    _display[ledNumber] = color;
+    _display[pixelNumber] = color;
   }
 }
 
 
-bool Display::getLedState(const uint8_t ledNumber) const
+void Display::setPixelOff(const uint8_t pixelNumber)
 {
-  if (ledNumber < cLedCount)
+  if (pixelNumber < cPixelCount)
   {
-    if (_displayBitmap & (1 << ledNumber))
+    _display[pixelNumber].setOff();
+  }
+}
+
+
+void Display::setPixelsOff(const uint32_t bitmap)
+{
+  for (uint8_t i = 0; (i < cPixelCount) && ((bitmap >> i) != 0); i++)
+  {
+    if (((bitmap >> i) & 1) == 1)
+    {
+      _display[i].setOff();
+    }
+  }
+}
+
+
+bool Display::getPixelState(const uint8_t pixelNumber) const
+{
+  if (pixelNumber < cPixelCount)
+  {
+    if ((_displayBitmap & (1 << pixelNumber)) == true)
     {
       return true;
     }
@@ -285,11 +307,11 @@ bool Display::getLedState(const uint8_t ledNumber) const
 }
 
 
-bool Display::getLedMask(const uint8_t ledNumber) const
+bool Display::getPixelMask(const uint8_t pixelNumber) const
 {
-  if (ledNumber < cLedCount)
+  if (pixelNumber < cPixelCount)
   {
-    if (_displayBitmapMask & (1 << ledNumber))
+    if ((_displayBitmapMask & (1 << pixelNumber)) == true)
     {
       return true;
     }
@@ -305,11 +327,11 @@ bool Display::getLedMask(const uint8_t ledNumber) const
 }
 
 
-RgbLed Display::getLedRaw(const uint8_t ledNumber) const
+RgbLed Display::getPixelRaw(const uint8_t pixelNumber) const
 {
-  if (ledNumber < cLedCount)
+  if (pixelNumber < cPixelCount)
   {
-    RgbLed someRgbLed(_display[ledNumber]);
+    RgbLed someRgbLed(_display[pixelNumber]);
 
     return someRgbLed;
   }

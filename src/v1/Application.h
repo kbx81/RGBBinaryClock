@@ -59,6 +59,7 @@ namespace Application {
     OperatingModeSetCurrentDrive,     ///< Set drive current for LEDs
     OperatingModeSetTempCalibration,  ///< Set temperature calibration
     OperatingModeSetBeeperVolume,     ///< Set Beeper Volume
+    OperatingModeSetTimerResetValue,  ///< Set timer/counter reset value
     OperatingModeSetDMX512Address,    ///< Set DMX-512 address mode
     OperatingModeSlot1Time,           ///< Set slot 1 time mode
     OperatingModeSlot2Time,           ///< Set slot 2 time mode
@@ -80,7 +81,8 @@ namespace Application {
     OperatingModeTempColors,          ///< Set temperature colors mode
     OperatingModeTimerCounterColors,  ///< Set timer/counter colors mode
     OperatingModeMenuColors,          ///< Set menu colors mode
-    OperatingModeSetColors            ///< Set set colors mode
+    OperatingModeSetColors,           ///< Set set colors mode
+    OperatingModeTestDisplay          ///< Test display mode
   };
 
   /// @brief Enums for views
@@ -94,7 +96,8 @@ namespace Application {
       SetTimeDateViewEnum,
       SetBitsViewEnum,
       SetValueViewEnum,
-      SetColorsViewEnum
+      SetColorsViewEnum,
+      TestDisplayEnum
   };
 
   /// @brief Enums for views
@@ -116,52 +119,64 @@ namespace Application {
   };
 
 
-  // Initialize the application
-  //
+  /// @brief Initialize the application
+  ///
   void initialize();
 
-  // Get a mode's display number
-  //
+  /// @brief Get a mode's display number
+  ///
   uint8_t getModeDisplayNumber(OperatingMode mode);
   uint8_t getModeDisplayNumber(uint8_t mode);
 
-  // Get application mode
-  //
+  /// @brief Get application mode
+  ///
   OperatingMode getOperatingMode();
 
-  // Set new application mode
-  //
+  /// @brief Set new application mode
+  ///
   void setOperatingMode(OperatingMode mode);
 
-  // Get view mode
-  //
+  /// @brief Get view mode
+  ///
   ViewMode getViewMode();
 
-  // Set new view mode
-  //
+  /// @brief Set new view mode
+  ///
   void setViewMode(ViewMode mode);
 
-  // Get external control status
-  //
+  /// @brief Get external control status
+  ///
   ExternalControl getExternalControlState();
 
-  // Get application settings
-  //
+  /// @brief Get application settings
+  ///
   Settings getSettings();
   Settings* getSettingsPtr();
 
-  // Set new application settings
-  //
+  /// @brief Set new application settings
+  ///
   void setSettings(Settings settings);
 
-  // Handles DST date/time computation; maintains clock's DST state machine.
-  //  Intended for tracking DST clock adjustments, not for arbitrary use!
-  //  To reset state machine, call with year != year provided when last called.
-  //  Returns true if DST is active based on passed DateTime object
+  /// @brief Handles DST date/time computation; maintains clock's DST state machine.
+  ///  Intended for tracking DST clock adjustments, not for arbitrary use!
+  ///  To reset state machine, call with year != year provided when last called.
+  ///  Returns true if DST is active based on passed DateTime object
   bool isDst(const DateTime &currentTime);
 
-  // The main loop of the application.
-  //
+  /// @brief Returns state of automatic display intensity adjustments
+  /// @returns True if automatic intensity adjustment is enabled
+  bool getIntensityAutoAdjust();
+
+  /// @brief Enables/disables automagic adjusting of the display intensity based
+  ///  on ambient light seen by the phototransistor
+  void setIntensityAutoAdjust(const bool enable);
+
+  /// @brief Refreshs master display intensity. Call at fixed intervals.
+  ///
+  void tick();
+
+  /// @brief The main loop of the application.
+  ///
   __attribute__((noreturn))
   void loop();
 }

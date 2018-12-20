@@ -18,6 +18,7 @@
 //
 #include "Application.h"
 #include "DateTime.h"
+#include "DisplayManager.h"
 #include "MainMenuView.h"
 #include "Settings.h"
 
@@ -46,31 +47,31 @@ void MainMenuView::enter()
   }
 
   // Verify/restore hardware settings
-  Hardware::autoRefreshStatusLed(false);
-  Hardware::currentDrive(_settings.getRawSetting(Settings::Setting::CurrentDrive));
-  Hardware::autoAdjustIntensities(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
-  Hardware::displayBlank(false);
   Hardware::setVolume(_settings.getRawSetting(Settings::Setting::BeeperVolume));
+  Hardware::setLedCurrentDrive(_settings.getRawSetting(Settings::Setting::CurrentDrive));
+  Application::setIntensityAutoAdjust(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
+  DisplayManager::setStatusLedAutoRefreshing(false);
+  DisplayManager::setDisplayBlanking(false);
   // Make sure the status LEDs are off
-  Hardware::blueLed(0);
-  Hardware::greenLed(0);
-  Hardware::redLed(0);
+  Hardware::setBlueLed(0);
+  Hardware::setGreenLed(0);
+  Hardware::setRedLed(0);
 }
 
 
 void MainMenuView::keyHandler(Keys::Key key)
 {
   if ((key == Keys::Key::A) &&
-      (_selectedMode == static_cast<uint8_t>(Application::OperatingMode::OperatingModeSetColors) + 1))
+      (_selectedMode == static_cast<uint8_t>(Application::OperatingMode::OperatingModeTestDisplay) + 1))
   {
-    Hardware::redLed(4095);
+    Hardware::setRedLed(4095);
 
     Hardware::eraseFlash(0x0801f000);
     _selectedMode = 1;
 
-    Hardware::doubleBlink();
-    Hardware::doubleBlink();
-    Hardware::redLed(0);
+    DisplayManager::doubleBlink();
+    DisplayManager::doubleBlink();
+    Hardware::setRedLed(0);
   }
 
   if (key == Keys::Key::B)
@@ -95,15 +96,15 @@ void MainMenuView::keyHandler(Keys::Key key)
   {
     _selectedMode++;
 
-    if (_selectedMode > static_cast<uint8_t>(Application::OperatingMode::OperatingModeSetColors) + 1)
+    if (_selectedMode > static_cast<uint8_t>(Application::OperatingMode::OperatingModeTestDisplay) + 1)
     {
-      _selectedMode = static_cast<uint8_t>(Application::OperatingMode::OperatingModeSetColors) + 1;
+      _selectedMode = static_cast<uint8_t>(Application::OperatingMode::OperatingModeTestDisplay) + 1;
     }
   }
 
   if (key == Keys::Key::E)
   {
-    if (_selectedMode <= static_cast<uint8_t>(Application::OperatingMode::OperatingModeSetColors))
+    if (_selectedMode <= static_cast<uint8_t>(Application::OperatingMode::OperatingModeTestDisplay))
     {
       Application::setOperatingMode((Application::OperatingMode)_selectedMode);
     }
@@ -128,7 +129,7 @@ void MainMenuView::loop()
 
   Display bcDisp(_settings.getColor0(Settings::Slot::SlotMenu), _settings.getColor1(Settings::Slot::SlotMenu), displayBitMask << 16);
 
-  Hardware::writeDisplay(bcDisp);
+  DisplayManager::writeDisplay(bcDisp);
 }
 
 

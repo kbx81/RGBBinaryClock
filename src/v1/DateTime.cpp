@@ -322,17 +322,17 @@ uint8_t DateTime::dayOfWeek() const
 
 uint8_t DateTime::hour(const bool bcd, const bool format12Hour) const
 {
-  if (format12Hour && (_hour > 12 || _hour == 0))
+  if (format12Hour == true && (_hour > 12 || _hour == 0))
   {
-    if (bcd && _hour)
+    if (bcd && _hour > 0)
     {
       return Hardware::uint32ToBcd(_hour - 12);
     }
-    else if (bcd && !_hour)
+    else if (bcd && _hour == 0)
     {
       return 0x12;  // hour is zero so return twelve BCD-encoded
     }
-    else if (!bcd && _hour)
+    else if (!bcd && _hour > 0)
     {
       return _hour - 12;
     }

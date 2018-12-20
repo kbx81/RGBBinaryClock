@@ -18,6 +18,7 @@
 //
 #include <cstdint>
 #include "Application.h"
+#include "DisplayManager.h"
 #include "Dmx-512-Controller.h"
 #include "Dmx-512-Packet.h"
 #include "Dmx-512-Rx.h"
@@ -57,7 +58,7 @@ static Settings *_pSettings;
 
 // Master intensity level
 //
-volatile static uint8_t _masterIntensityLevel;
+volatile static uint16_t _masterIntensityLevel;
 
 // Counter for strobe delays
 //
@@ -77,6 +78,7 @@ void initialize()
 void controller()
 {
   Dmx512Packet* currentPacket = Dmx512Rx::getLastPacket();
+  uint32_t _top;
   uint16_t pitch, rate, address = _pSettings->getRawSetting(Settings::Setting::DmxAddress);
   uint8_t level;
   RgbLed dmxLed[2];
@@ -124,11 +126,13 @@ void controller()
         }
 
         rate = currentPacket->channel(address++) * cChannelMultiplier;
-        dmxLed[0].setRate(rate);
-        dmxLed[1].setRate(rate);
+        dmxLed[0].setDuration(rate);
+        dmxLed[1].setDuration(rate);
 
         // Set display blanking/driver current level
-        _masterIntensityLevel = currentPacket->channel(address++) / 52;
+        _top = (currentPacket->channel(address++) * RgbLed::cLed100Percent);
+        _masterIntensityLevel = static_cast<uint16_t>(_top / 255);
+        // _masterIntensityLevel = currentPacket->channel(address++);
 
         dmxLed[0].setRed(currentPacket->channel(address++) << cChannelMultiplier);
         dmxLed[0].setGreen(currentPacket->channel(address++) << cChannelMultiplier);
@@ -140,15 +144,15 @@ void controller()
 
         _pSettings->setColors(Settings::Slot::SlotDmx, dmxLed[0], dmxLed[1]);
 
-        if (_masterIntensityLevel > 0)
-        {
-          Hardware::currentDrive(_masterIntensityLevel - 1);
-        }
+        // if (_masterIntensityLevel > 0)
+        // {
+          DisplayManager::setMasterIntensity(_masterIntensityLevel);
+        // }
       }
       else
       {
-        // Set display blanking/driver current level
-        _masterIntensityLevel = currentPacket->channel(address) / 52;
+        _top = (currentPacket->channel(address) * RgbLed::cLed100Percent);
+        _masterIntensityLevel = static_cast<uint16_t>(_top / 255);
       }
     }
   }
@@ -167,7 +171,7 @@ void strobeTimer()
     if (((_masterIntensityLevel > 0) && (_strobeDelay == 0)) ||
         ((_masterIntensityLevel > 0) && (_strobeDelay > 0) && (_strobeCounter > _strobeDelay)))
     {
-      Hardware::displayBlank(false);
+      DisplayManager::setDisplayBlanking(false);
       if (_strobeCounter > _strobeDelay + cStrobeDuration)
       {
         _strobeCounter = 0;
@@ -175,7 +179,7 @@ void strobeTimer()
     }
     else
     {
-      Hardware::displayBlank(true);
+      DisplayManager::setDisplayBlanking(true);
     }
   }
 }

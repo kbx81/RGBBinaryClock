@@ -55,12 +55,12 @@ The STM32F072 microcontroller is a rich device with a lot of peripherals. Many
   USART2 so that the LEDs can be individually controlled remotely.
 
 ## Important!
-The major version number of the firmware must match the major version number of
- the hardware. That is, version 3.x of the firmware will not work properly on
- version 2.x of the hardware. In other words, version 2.x firmware is _only_ for
- version 2.x hardware. Version 3.x firmware is _only_ for version 3.x hardware.
- Loading a mismatched version of the firmware onto your hardware probably won't
- break anything, but it will cause some things to not work properly...or at all!
+As of 2018-12-20, the source code has been consolidated into a single tree. When
+ compiling (with gcc), you'll need to add `-DHARDWARE_VERSION=X` to the command
+ line, where `X` is the major version number of the hardware you're targeting.
+ This will make maintaining the code base significantly easier moving forward,
+ albeit at the expense of some extra bloat in some of the source files. Be aware
+ of this if you choose to build it yourself and/or do some hacking!
 
 ## I want to hack. Where do I start?
 

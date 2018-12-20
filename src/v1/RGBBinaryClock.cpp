@@ -20,6 +20,10 @@
 #include <libopencm3/cm3/nvic.h>
 #include "Hardware.h"
 #include "Application.h"
+#include "DisplayManager.h"
+#include "Dmx-512-Controller.h"
+#include "Dmx-512-Rx.h"
+#include "Keys.h"
 
 
 using namespace kbxBinaryClock;
@@ -50,6 +54,17 @@ void dma1_channel4_5_isr()
 void sys_tick_handler(void)
 {
 	Hardware::systickIsr();
+	Keys::repeatHandler();
+  Dmx512Controller::strobeTimer();
+  DisplayManager::tick();
+	Application::tick();
+}
+
+
+/* Timer 2 interrupt -- used for triggering LED driver latches */
+void tim2_isr()
+{
+  Hardware::tim2Isr();
 }
 
 
@@ -57,6 +72,7 @@ void sys_tick_handler(void)
 void tim15_isr()
 {
   Hardware::tim15Isr();
+	Dmx512Rx::timerUartIsr();
 }
 
 
@@ -64,6 +80,7 @@ void tim15_isr()
 void tim16_isr()
 {
   Hardware::tim16Isr();
+	Dmx512Rx::timerSupervisorIsr();
 }
 
 
@@ -85,6 +102,7 @@ void usart1_isr(void)
 void usart2_isr(void)
 {
 	Hardware::usart2Isr();
+	Dmx512Rx::rxIsr();
 }
 
 

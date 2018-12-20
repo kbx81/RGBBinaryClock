@@ -92,18 +92,36 @@ volatile static uint8_t _dmxPassedChecks = 0;
 
 void _readSerialSetup()
 {
-  dma_channel_reset(DMA1, DMA_CHANNEL5);
-  // Set up Rx DMA, note it has higher priority to avoid overrun
-  dma_set_peripheral_address(DMA1, DMA_CHANNEL5, (uint32_t)&USART2_RDR);
-  dma_set_memory_address(DMA1, DMA_CHANNEL5, (uint32_t)_pDmxPacketActive);
-  dma_set_number_of_data(DMA1, DMA_CHANNEL5, 513);
-  dma_set_read_from_peripheral(DMA1, DMA_CHANNEL5);
-  dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL5);
-  dma_set_peripheral_size(DMA1, DMA_CHANNEL5, DMA_CCR_PSIZE_8BIT);
-  dma_set_memory_size(DMA1, DMA_CHANNEL5, DMA_CCR_MSIZE_8BIT);
-  dma_set_priority(DMA1, DMA_CHANNEL5, DMA_CCR_PL_VERY_HIGH);
-  // Enable DMA transfer complete interrupt
-	dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL5);
+  if (Hardware::cTargetHardwareVersion >= 3)
+  {
+    dma_channel_reset(DMA1, DMA_CHANNEL6);
+    // Set up Rx DMA, note it has higher priority to avoid overrun
+    dma_set_peripheral_address(DMA1, DMA_CHANNEL6, (uint32_t)&USART2_RDR);
+    dma_set_memory_address(DMA1, DMA_CHANNEL6, (uint32_t)_pDmxPacketActive);
+    dma_set_number_of_data(DMA1, DMA_CHANNEL6, 513);
+    dma_set_read_from_peripheral(DMA1, DMA_CHANNEL6);
+    dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL6);
+    dma_set_peripheral_size(DMA1, DMA_CHANNEL6, DMA_CCR_PSIZE_8BIT);
+    dma_set_memory_size(DMA1, DMA_CHANNEL6, DMA_CCR_MSIZE_8BIT);
+    dma_set_priority(DMA1, DMA_CHANNEL6, DMA_CCR_PL_VERY_HIGH);
+    // Enable DMA transfer complete interrupt
+  	dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL6);
+  }
+  else
+  {
+    dma_channel_reset(DMA1, DMA_CHANNEL5);
+    // Set up Rx DMA, note it has higher priority to avoid overrun
+    dma_set_peripheral_address(DMA1, DMA_CHANNEL5, (uint32_t)&USART2_RDR);
+    dma_set_memory_address(DMA1, DMA_CHANNEL5, (uint32_t)_pDmxPacketActive);
+    dma_set_number_of_data(DMA1, DMA_CHANNEL5, 513);
+    dma_set_read_from_peripheral(DMA1, DMA_CHANNEL5);
+    dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL5);
+    dma_set_peripheral_size(DMA1, DMA_CHANNEL5, DMA_CCR_PSIZE_8BIT);
+    dma_set_memory_size(DMA1, DMA_CHANNEL5, DMA_CCR_MSIZE_8BIT);
+    dma_set_priority(DMA1, DMA_CHANNEL5, DMA_CCR_PL_VERY_HIGH);
+    // Enable DMA transfer complete interrupt
+  	dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL5);
+  }
 }
 
 
@@ -277,7 +295,14 @@ void timerUartIsr()
     //  pin back to the UART and activate the DMA to begin recieving data.
     gpio_set_af(cUsartPort, GPIO_AF1, GPIO3);
 
-    dma_enable_channel(DMA1, DMA_CHANNEL5);
+    if (Hardware::cTargetHardwareVersion >= 3)
+    {
+      dma_enable_channel(DMA1, DMA_CHANNEL6);
+    }
+    else
+    {
+      dma_enable_channel(DMA1, DMA_CHANNEL5);
+    }
     usart_enable_rx_dma(USART2);
     USART2_CR1 |= USART_CR1_RE;
 

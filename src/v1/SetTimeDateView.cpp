@@ -18,6 +18,7 @@
 //
 #include "Application.h"
 #include "DateTime.h"
+#include "DisplayManager.h"
 #include "Hardware.h"
 #include "Settings.h"
 #include "SetTimeDateView.h"
@@ -72,7 +73,7 @@ void SetTimeDateView::enter()
     _maxValues[1] = 59;
     _maxValues[0] = 59;
 
-    Hardware::autoRefreshStatusLed(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour));
+    DisplayManager::setStatusLedAutoRefreshing(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour));
   }
 }
 
@@ -108,7 +109,7 @@ void SetTimeDateView::keyHandler(Keys::Key key)
       break;
     }
 
-    Hardware::doubleBlink();
+    DisplayManager::doubleBlink();
   }
 
   if (key == Keys::Key::B)
@@ -182,7 +183,8 @@ void SetTimeDateView::loop()
   RgbLed color0Highlight = _settings.getColor0(Settings::Slot::SlotSet),
          color1Highlight = _settings.getColor1(Settings::Slot::SlotSet),
          color0Lowlight = _settings.getColor0(Settings::Slot::SlotSet),
-         color1Lowlight = _settings.getColor1(Settings::Slot::SlotSet);
+         color1Lowlight = _settings.getColor1(Settings::Slot::SlotSet),
+         statusLed;
   uint8_t  i, adjustedHour = _setValues[2],
            workingByte = _setValues[_selectedByte];
   uint32_t displayBitMask;
@@ -198,11 +200,11 @@ void SetTimeDateView::loop()
     if (adjustedHour >= 12)
     {
       adjustedHour = adjustedHour - 12;
-      Hardware::setStatusLed(color1Highlight);
+      statusLed = _settings.getColor1(Settings::Slot::SlotSet);
     }
     else
     {
-      Hardware::setStatusLed(color0Highlight);
+      statusLed = _settings.getColor0(Settings::Slot::SlotSet);
     }
 
     if (adjustedHour == 0)
@@ -214,6 +216,11 @@ void SetTimeDateView::loop()
     {
       workingByte = adjustedHour;
     }
+  }
+
+  if (_selectedByte != 2)
+  {
+    statusLed.adjustIntensity(SetTimeDateView::cLowlightPercentage);
   }
 
   // display in BCD if settings say so
@@ -245,15 +252,15 @@ void SetTimeDateView::loop()
   {
     if ((displayBitMask >> (i - (_selectedByte * 8))) & 1)
     {
-      bcDisp.setLedFromRaw(i, color1Highlight);
+      bcDisp.setPixelFromRaw(i, color1Highlight);
     }
     else
     {
-      bcDisp.setLedFromRaw(i, color0Highlight);
+      bcDisp.setPixelFromRaw(i, color0Highlight);
     }
   }
 
-  Hardware::writeDisplay(bcDisp);
+  DisplayManager::writeDisplay(bcDisp, statusLed);
 }
 
 

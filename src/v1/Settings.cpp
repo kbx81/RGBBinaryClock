@@ -31,9 +31,9 @@ namespace kbxBinaryClock {
   const uint32_t Settings::cSettingsValidationKey = 0x55aa55aa;
 
   // conatins a mask for bitfields and a maximum value for other types of data
-  const uint16_t Settings::cSettingData[] = { 0x03ff,   // SystemOptions
-                                              0x00ff,   // BeepStates
-                                              0x00ff,   // BlinkStates
+  const uint16_t Settings::cSettingData[] = { 0x07ff,   // SystemOptions
+                                              0x03ff,   // BeepStates
+                                              0x03ff,   // BlinkStates
                                               0x00ff,   // ColorStates
                                               300,      // TimeDisplayDuration
                                               300,      // DateDisplayDuration
@@ -50,6 +50,7 @@ namespace kbxBinaryClock {
                                               3,        // CurrentDrive
                                               31,       // TemperatureCalibration
                                               7,        // BeeperVolume
+                                              65535,    // TimerResetValue
                                               512 - 72 }; // DmxAddress
 
   Settings::Settings()
@@ -83,8 +84,8 @@ namespace kbxBinaryClock {
     }
 
     _setting[static_cast<uint8_t>(SystemOptions)] = 0x2c1;
-    _setting[static_cast<uint8_t>(BeepStates)] = 0x00;
-    _setting[static_cast<uint8_t>(BlinkStates)] = 0x00;
+    _setting[static_cast<uint8_t>(BeepStates)] = 0x300;
+    _setting[static_cast<uint8_t>(BlinkStates)] = 0x000;
     _setting[static_cast<uint8_t>(ColorStates)] = 0xff;
     _setting[static_cast<uint8_t>(TimeDisplayDuration)] = 24;
     _setting[static_cast<uint8_t>(DateDisplayDuration)] = 3;
@@ -101,6 +102,7 @@ namespace kbxBinaryClock {
     _setting[static_cast<uint8_t>(CurrentDrive)] = 0;
     _setting[static_cast<uint8_t>(TemperatureCalibration)] = 10;
     _setting[static_cast<uint8_t>(BeeperVolume)] = 7;
+    _setting[static_cast<uint8_t>(TimerResetValue)] = 30;
     _setting[static_cast<uint8_t>(DmxAddress)] = 0;
 
     _color0[Slot::Slot1] = defaultRed;    // 0130
@@ -134,10 +136,10 @@ namespace kbxBinaryClock {
     _color0[Slot::SlotCalculated] = defaultGreen;
     _color1[Slot::SlotCalculated] = defaultRed;
 
-    _color0[Slot::SlotMenu].setRate(0);
-    _color1[Slot::SlotMenu].setRate(0);
-    _color0[Slot::SlotSet].setRate(0);
-    _color1[Slot::SlotSet].setRate(0);
+    _color0[Slot::SlotMenu].setDuration(0);
+    _color1[Slot::SlotMenu].setDuration(0);
+    _color0[Slot::SlotSet].setDuration(0);
+    _color1[Slot::SlotSet].setDuration(0);
 
     _validityKey = cSettingsValidationKey;  // settings are now valid
 }
@@ -154,7 +156,7 @@ namespace kbxBinaryClock {
     {
       initialize();
       // blink to alert that settings could not be loaded
-      Hardware::blinkStatusLed(green, orange, 6, 120000);
+      Hardware::blinkStatusLed(green, orange, 8, 100);
     }
   }
 
@@ -307,8 +309,8 @@ namespace kbxBinaryClock {
     secondsSinceMidnight = (int32_t)currentTime.secondsSinceMidnight(false);
 
     // we could set the rate, too, but other functions don't, so...
-    // _color0[Slot::SlotCalculated].setRate(_setting[static_cast<uint8_t>(FadeRate)]);
-    // _color1[Slot::SlotCalculated].setRate(_setting[static_cast<uint8_t>(FadeRate)]);
+    // _color0[Slot::SlotCalculated].setDuration(_setting[static_cast<uint8_t>(FadeRate)]);
+    // _color1[Slot::SlotCalculated].setDuration(_setting[static_cast<uint8_t>(FadeRate)]);
 
     if (Hardware::rtcIsSet() == true)
     {
@@ -372,8 +374,8 @@ namespace kbxBinaryClock {
         percentage = 10000 * (secondsSinceMidnight - _time[prevSlot].secondsSinceMidnight(false));
         percentage /= (nextSecs - _time[prevSlot].secondsSinceMidnight(false));
 
-        _color0[Slot::SlotCalculated].mergeRgbLeds(percentage, _color0[prevSlot], _color0[nextSlot]);
-        _color1[Slot::SlotCalculated].mergeRgbLeds(percentage, _color1[prevSlot], _color1[nextSlot]);
+        _color0[Slot::SlotCalculated].setFromMergedRgbLeds(percentage, _color0[prevSlot], _color0[nextSlot]);
+        _color1[Slot::SlotCalculated].setFromMergedRgbLeds(percentage, _color1[prevSlot], _color1[nextSlot]);
       }
       else
       {

@@ -17,7 +17,9 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 //
 
+#include "AlarmHandler.h"
 #include "Application.h"
+#include "DisplayManager.h"
 #include "Hardware.h"
 #include "Settings.h"
 #include "TimerCounterView.h"
@@ -60,7 +62,6 @@ void TimerCounterView::keyHandler(Keys::Key key)
 
   if (key == Keys::Key::C)
   {
-    // _timerValue = 0;
     Application::setViewMode(static_cast<ViewMode>(TimerMode::TimerReset));
   }
 
@@ -116,8 +117,8 @@ void TimerCounterView::loop()
   {
     color[0] = _pSettings->getColor0(Settings::Slot::SlotTimer);
     color[1] = _pSettings->getColor1(Settings::Slot::SlotTimer);
-    color[0].setRate(_fadeRate);
-    color[1].setRate(_fadeRate);
+    color[0].setDuration(_fadeRate);
+    color[1].setDuration(_fadeRate);
   }
 
   if ((currentTimerMode != TimerMode::TimerStop) && (_lastTime != currentTime.secondsSinceMidnight(false)))
@@ -135,9 +136,46 @@ void TimerCounterView::loop()
         break;
 
       case TimerMode::TimerReset:
-        _timerValue = 0;
+        if (_countUp == true)
+        {
+          _timerValue = 0;
+        }
+        else
+        {
+          _timerValue = _pSettings->getRawSetting(Settings::Setting::TimerResetValue);
+        }
+        AlarmHandler::clearAlarm();   // in case of external control (DMX-512)
         Application::setViewMode(static_cast<ViewMode>(TimerMode::TimerStop));
         break;
+    }
+  }
+
+  // alarm handling
+  if (_countUp == true)
+  {
+    if ((_timerValue == _pSettings->getRawSetting(Settings::Setting::TimerResetValue)) && (_alarmReady == true))
+    {
+      AlarmHandler::activateLatchingAlarm();
+      _alarmReady = false;
+      Application::setViewMode(static_cast<ViewMode>(TimerMode::TimerStop));
+    }
+    else if ((_timerValue != _pSettings->getRawSetting(Settings::Setting::TimerResetValue)) && (_alarmReady == false))
+    {
+      _alarmReady = true;
+    }
+
+  }
+  else
+  {
+    if ((_timerValue == 0) && (_alarmReady == true))
+    {
+      AlarmHandler::activateLatchingAlarm();
+      _alarmReady = false;
+      Application::setViewMode(static_cast<ViewMode>(TimerMode::TimerStop));
+    }
+    else if ((_timerValue != 0) && (_alarmReady == false))
+    {
+      _alarmReady = true;
     }
   }
 
@@ -169,7 +207,7 @@ void TimerCounterView::loop()
   // now we can create a new display object with the right colors and bitmask
   Display bcDisp(color[0], color[1], displayBitMask);
 
-  Hardware::writeDisplay(bcDisp);
+  DisplayManager::writeDisplay(bcDisp);
 }
 
 

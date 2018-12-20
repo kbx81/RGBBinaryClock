@@ -17,6 +17,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 //
 #include "Application.h"
+#include "DisplayManager.h"
 #include "Hardware.h"
 #include "Settings.h"
 #include "SetValueView.h"
@@ -47,7 +48,7 @@ void SetValueView::keyHandler(Keys::Key key)
     _settings.setRawSetting(static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSetDurationClock + Settings::Setting::TimeDisplayDuration), _setValue);
     Application::setSettings(_settings);
 
-    Hardware::doubleBlink();
+    DisplayManager::doubleBlink();
   }
 
   if (key == Keys::Key::B)
@@ -111,7 +112,7 @@ void SetValueView::loop()
   // now we can create a new display object with the right colors and bitmask
   Display bcDisp(_settings.getColor0(Settings::Slot::SlotSet), _settings.getColor1(Settings::Slot::SlotSet), displayBitMask);
 
-  Hardware::writeDisplay(bcDisp);
+  DisplayManager::writeDisplay(bcDisp);
 }
 
 

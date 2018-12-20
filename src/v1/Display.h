@@ -65,7 +65,8 @@ public:
 public:
   /// Important constants
   ///
-  static const uint8_t cLedCount = 24;
+  static const uint8_t cPixelCount = 24;
+  static const uint8_t cLedCount = cPixelCount * 3;
   static const uint16_t cLedMaxIntensity = 4095;
 
   /// Compare this Display to another
@@ -116,46 +117,58 @@ public:
   ///
   void setDisplayFromNibbles(const uint8_t byte5, const uint8_t byte4, const uint8_t byte3, const uint8_t byte2, const uint8_t byte1, const uint8_t byte0);
 
-  /// @brief Set a single LED's state
+  /// @brief Set a single pixel's state
   ///
-  /// @param ledNumber Number of LED to set (0 through 23)
-  /// @param state LED's color state (1 = color1, 0 = color0)
+  /// @param pixelNumber Number of pixel to set (0 through 23)
+  /// @param state pixel's color state (1 = color1, 0 = color0)
   ///
-  void setLedFromState(const uint8_t ledNumber, const bool ledState);
+  void setPixelFromState(const uint8_t pixelNumber, const bool pixelState);
 
-  /// @brief Set a single LED's color
+  /// @brief Set a single pixel's color
   ///
-  /// @param ledNumber Number of LED to set (0 through 23)
-  /// @param color New color for LED
+  /// @param pixelNumber Number of pixel to set (0 through 23)
+  /// @param color New color for pixel
   ///
-  void setLedFromRaw(const uint8_t ledNumber, const RgbLed &color);
+  void setPixelFromRaw(const uint8_t pixelNumber, const RgbLed &color);
 
-  /// @brief Get a single LED's state
+  /// @brief Set a single pixel to be off
   ///
-  /// @param ledNumber Number of LED to set (0 through 23)
-  /// @return State of LED (1 = foreground, 0 = background)
+  /// @param pixelNumber Number of pixel to turn off (0 through 23)
   ///
-  bool getLedState(const uint8_t ledNumber) const;
+  void setPixelOff(const uint8_t pixelNumber);
 
-  /// @brief Get a single LED's mask
+  /// @brief Set a number pixels to be off
   ///
-  /// @param ledNumber Number of LED to set (0 through 23)
-  /// @return State of LED's mask
+  /// @param bitmap Bitmap of pixels to be turned off
   ///
-  bool getLedMask(const uint8_t ledNumber) const;
+  void setPixelsOff(const uint32_t bitmap);
 
-  /// @brief Get a single LED's raw color
+  /// @brief Get a single pixel's state
   ///
-  /// @param ledNumber Number of LED to set (0 through 23)
-  /// @return Pointer to RgbLed with color data from specified LED
+  /// @param pixelNumber Number of pixel to set (0 through 23)
+  /// @return State of pixel (1 = foreground, 0 = background)
   ///
-  RgbLed getLedRaw(const uint8_t ledNumber) const;
+  bool getPixelState(const uint8_t pixelNumber) const;
+
+  /// @brief Get a single pixel's mask
+  ///
+  /// @param pixelNumber Number of pixel to set (0 through 23)
+  /// @return State of pixel's mask
+  ///
+  bool getPixelMask(const uint8_t pixelNumber) const;
+
+  /// @brief Get a single pixel's raw color
+  ///
+  /// @param pixelNumber Number of pixel to set (0 through 23)
+  /// @return Pointer to RgbLed with color data from specified pixel
+  ///
+  RgbLed getPixelRaw(const uint8_t pixelNumber) const;
 
 
 private:
   RgbLed _color0;       ///< color 0 (as used by bitmap)
   RgbLed _color1;       ///< color 1 (as used by bitmap)
-  RgbLed _display[cLedCount];   ///< values currently active on display
+  RgbLed _display[cPixelCount]; ///< values currently active on display
   uint32_t _displayBitmap;      ///< current display bitmap
   uint32_t _displayBitmapMask;  ///< 1 = set by bitmap, 0 = set to raw color
 };

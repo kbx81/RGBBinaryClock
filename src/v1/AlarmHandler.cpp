@@ -22,8 +22,10 @@
 #include "AlarmHandler.h"
 #include "Application.h"
 #include "DateTime.h"
+#include "DisplayManager.h"
 #include "Hardware.h"
 #include "Keys.h"
+#include "Pitches.h"
 #include "Settings.h"
 
 
@@ -32,20 +34,33 @@ namespace kbxBinaryClock {
 namespace AlarmHandler {
 
 
+// Latching external alarm input number
+//
+const uint8_t cLatchingAlarmInputNumber = 0;
+
+// Momentary external alarm input number
+//
+const uint8_t cMomentaryAlarmInputNumber = 1;
+
 // Alarm tone durations and frequencies
 //
 const uint16_t cHourlyAlarmToneDuration = 75;
-
-const uint16_t cAlarmToneDurations[]   = {75, 75, 75, 75, 75, 75, 75, 700};
-const uint16_t cAlarmToneFrequencies[] = {1, 0, 1, 0, 1, 0, 1, 0};
+// const uint16_t cHourlyAlarmToneFrequencies[] = {NOTE_D6, NOTE_A6};
+const uint16_t cHourlyAlarmToneFrequencies[] = {NOTE_E6, NOTE_E7};
+// Be creative and create your own melody!
+//   *** Array lengths MUST MATCH ***
+// const uint16_t cAlarmToneDurations[]   = {75, 75, 75, 75, 75, 75, 75, 700};
+// const uint16_t cAlarmToneFrequencies[] = {NOTE_D7, NOTE_REST, NOTE_D7, NOTE_REST, NOTE_D7, NOTE_REST, NOTE_D7, NOTE_REST};
+const uint16_t cAlarmToneDurations[]   = {150, 300, 50, 300, 150, 150, 150, 150, 150, 700};
+const uint16_t cAlarmToneFrequencies[] = {NOTE_C7, NOTE_G6, NOTE_REST, NOTE_G6, NOTE_A6, NOTE_G6, NOTE_REST, NOTE_B6, NOTE_C7, NOTE_REST};
 
 // Number of alarms available
 //
-const uint8_t _alarmCount = 8;
+const uint8_t cAlarmCount = 8;
 
-// Number of beeps for hourly chime * 2
+// Number of external alarms available
 //
-const uint8_t cHourlyBeeps = 4;
+const uint8_t cExtAlarmCount = 2;
 
 // Counter for alarm beeps
 //
@@ -59,13 +74,25 @@ uint8_t _activeAlarms = 0;
 //  Initial state of 'true' produces a nice start-up beep
 bool _hourlyAlarmActive = true;
 
+// Indicates the latching (external) alarm should sound
+//
+bool _extLatchingAlarmActive = false;
+
+// Indicates the momentary (external) alarm should sound
+//
+bool _extMomentaryAlarmActive = false;
+
+// The state of the pin the last time we checked it
+//
+bool _previousExtMomentaryAlarmPinState = false;
+
 // Indicates the last hour during which the hourly alarm sounded
 //  Initial value is not a valid hour so it will always fire after startup
 uint8_t _lastHourlyBeepHour = 25;
 
 // Times at which each alarm was last acknowledged
 //
-DateTime _ackTime[_alarmCount];
+DateTime _ackTime[cAlarmCount];
 
 // The application's current settings
 //
@@ -74,7 +101,7 @@ Settings _settings;
 
 void initialize()
 {
-  for (uint8_t i = 0; i < _alarmCount; i++)
+  for (uint8_t i = 0; i < cAlarmCount; i++)
   {
     _ackTime[i] = Hardware::getDateTime();
   }
@@ -83,34 +110,19 @@ void initialize()
 
 void keyHandler(Keys::Key key)
 {
-  DateTime current = Hardware::getDateTime();
-
   if (key == Keys::Key::A)
   {
-    for (uint8_t i = 0; i < 8; i++)
-    {
-      if (_activeAlarms & (1 << i))
-      {
-        _ackTime[i] = current;
-      }
-    }
-    _activeAlarms = 0;
-    _beepCounter = 0;
-    // restore the display in case the alarm changed anything
-    Hardware::autoAdjustIntensities(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
-    Hardware::displayBlank(false);
+    clearAlarm();
   }
 }
 
 
-// Called from main application loop
-//
 void loop()
 {
   uint8_t i;
   DateTime slot, current = Hardware::getDateTime();
 
-  // first, check if any alarm boundaries have been crossed, triggering an alarm
+  // first, if the clock is set, check if any alarm boundaries have been crossed, triggering an alarm
   if (Hardware::rtcIsSet())
   {
     // if the minutes and seconds are both zero, it's the top of the hour
@@ -143,13 +155,33 @@ void loop()
         }
       }
     }
+  }
 
-    // next, make the beeper beep if it's time to do so
-    if (_activeAlarms > 0)
+  // next, check the external alarm inputs
+  if (_previousExtMomentaryAlarmPinState != Hardware::alarmInput(cMomentaryAlarmInputNumber))
+  {
+    _previousExtMomentaryAlarmPinState = !_previousExtMomentaryAlarmPinState;
+    _extMomentaryAlarmActive = _previousExtMomentaryAlarmPinState;
+    if ((_extMomentaryAlarmActive == false) && (_activeAlarms == 0) && (_extLatchingAlarmActive == false))
     {
-      for (i = static_cast<uint8_t>(Settings::Slot::Slot1); i <= static_cast<uint8_t>(Settings::Slot::Slot8); i++)
+      Application::setIntensityAutoAdjust(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
+      DisplayManager::setDisplayBlanking(false);
+    }
+  }
+  if (Hardware::alarmInput(cLatchingAlarmInputNumber) == true)
+  {
+    _extLatchingAlarmActive = true;
+  }
+
+  // we do not signal alarms if some external control is active
+  if (Application::getExternalControlState() == Application::ExternalControl::NoActiveExtControlEnum)
+  {
+    // finally, make beeping and blinking happen as necessary
+    if ((_activeAlarms != 0) || _extLatchingAlarmActive || _extMomentaryAlarmActive)
+    {
+      for (i = static_cast<uint8_t>(Settings::Slot::Slot1); i <= static_cast<uint8_t>(Settings::Slot::Slot8) + cExtAlarmCount; i++)
       {
-        // first check if the alarm is enabled
+        // first check if the alarm is enabled for beeping
         if (_settings.getSetting(Settings::Setting::BeepStates, i) == true)
         {
           // cancel this since some other, more important alarm is active
@@ -166,21 +198,22 @@ void loop()
           }
         }
 
-        // first check if the alarm is enabled
+        // first check if the alarm is enabled for blinking
         if (_settings.getSetting(Settings::Setting::BlinkStates, i) == true)
         {
           // make the display bright!
-          Hardware::autoAdjustIntensities(false);
+          Application::setIntensityAutoAdjust(false);
+          DisplayManager::setMasterIntensity(RgbLed::cLed100Percent);
           // blink based on seconds, or...
-          // Hardware::displayBlank(current.second(false) & 1);
+          // DisplayManager::setDisplayBlanking(current.second(false) & 1);
           // blink based on sub-seconds register for faster blinking
-          Hardware::displayBlank(RTC_SSR & (1 << 6));
+          DisplayManager::setDisplayBlanking(RTC_SSR & (1 << 6));
         }
       }
     }
     else if (_hourlyAlarmActive == true)
     {
-      uint8_t hour = current.hour(false, _settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour));
+      uint8_t tone = 0, hour = current.hour(false, _settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour));
 
       if (hour == _lastHourlyBeepHour)
       {
@@ -189,32 +222,106 @@ void loop()
       }
       else
       {
-        if (_beepCounter >= cHourlyBeeps)
+        // emit at least one (low) beep at hour zero
+        if (hour == 0)
         {
+          Hardware::tone(cHourlyAlarmToneFrequencies[tone], cHourlyAlarmToneDuration);
           _beepCounter = 0;
           _lastHourlyBeepHour = hour;
           _hourlyAlarmActive = false;
         }
-        else if (Hardware::tone(_beepCounter & 1, cHourlyAlarmToneDuration) == true)
+        else
         {
-          _beepCounter++;
+          // we use bit 0 to determine if we should beep or pause/rest...so...
+          // below we roll bit 0 off to get the number of bits we need to rotate
+          tone = (hour >> (_beepCounter >> 1));
+
+          // if tone is greater than zero, let's make some (more) beeps!
+          if (tone > 0)
+          {
+            // here we check if we should beep or pause by checking bit 0
+            if ((_beepCounter & 1) == 0)
+            {
+              // this makes a beep based on the LSb of the hour
+              if (Hardware::tone(cHourlyAlarmToneFrequencies[tone & 1], cHourlyAlarmToneDuration) == true)
+              {
+                // we end up here if Hardware accepted our beep, so we can move onto the next beep/bit
+                _beepCounter++;
+              }
+            }
+            else
+            {
+              // this produces a pause/rest
+              if (Hardware::tone(1, cHourlyAlarmToneDuration) == true)
+              {
+                // we end up here if Hardware accepted our beep, so we can move onto the next beep/bit
+                _beepCounter++;
+              }
+            }
+          }
+          else
+          {
+            // if tone was zero, there are no more (relevant) bits to beep about
+            _beepCounter = 0;
+            _lastHourlyBeepHour = hour;
+            _hourlyAlarmActive = false;
+          }
         }
       }
+    }
+    else
+    {
+      _beepCounter = 0;
     }
   }
 }
 
 
-// Provides a way to determine if an alarm is active
-//
 bool isAlarmActive()
 {
-  return _activeAlarms;
+  return _activeAlarms | _extLatchingAlarmActive | _extMomentaryAlarmActive;
 }
 
 
-// Allows the main application to update our settings as needed
-//
+void activateLatchingAlarm()
+{
+  _extLatchingAlarmActive = true;
+}
+
+
+void activateMomentaryAlarm()
+{
+  _extMomentaryAlarmActive = true;
+}
+
+
+void clearAlarm()
+{
+  DateTime current = Hardware::getDateTime();
+
+  for (uint8_t i = 0; (i < 8) && (_activeAlarms != 0); i++)
+  {
+    if (_activeAlarms & (1 << i))
+    {
+      _ackTime[i] = current;
+    }
+  }
+  _activeAlarms = 0;
+  _extLatchingAlarmActive = false;
+  _extMomentaryAlarmActive = false;
+  _beepCounter = 0;
+  // restore the display in case the alarm changed anything
+  Application::setIntensityAutoAdjust(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
+  DisplayManager::setDisplayBlanking(false);
+}
+
+
+void releaseMomentaryAlarm()
+{
+  _extMomentaryAlarmActive = false;
+}
+
+
 void setSettings(Settings settings)
 {
   _settings = settings;

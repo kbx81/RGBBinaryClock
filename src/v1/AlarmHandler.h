@@ -30,24 +30,43 @@ namespace kbxBinaryClock {
 namespace AlarmHandler {
 
 
-  // Initialize the alarms
-  //
+  /// @brief Initialize the alarms
+  ///
   void initialize();
 
-  // Handles key presses (during an active alarm)
-  //
+  /// @brief Handles key presses (during an active alarm)
+  /// @param key pressed
+  ///
   void keyHandler(Keys::Key key);
 
-  // Called from the main application loop
-  //
+  /// @brief Called from the main application loop
+  ///
   void loop();
 
-  // Indicates whether or or not an alarm is active now
-  //
+  /// @brief Indicates whether or or not an alarm is active now
+  /// @return true if one or more alarm(s) is/are active
+  ///
   bool isAlarmActive();
 
-  // Set new alarm settings
-  //
+  /// @brief Activates the latching alarm
+  ///
+  void activateLatchingAlarm();
+
+  /// @brief Activates the momentary alarm
+  ///
+  void activateMomentaryAlarm();
+
+  /// @brief Clears any active alarms
+  ///
+  void clearAlarm();
+
+  /// @brief Deactivates the momentary alarm
+  ///
+  void releaseMomentaryAlarm();
+
+  /// @brief Set new alarm settings
+  /// @param settings new settings object with updated alarm settings
+  ///
   void setSettings(Settings settings);
 }
 

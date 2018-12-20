@@ -19,6 +19,7 @@
 
 #include "Application.h"
 #include "Display.h"
+#include "DisplayManager.h"
 #include "Dmx-512-Packet.h"
 #include "Dmx-512-Rx.h"
 #include "Dmx-512-View.h"
@@ -35,11 +36,11 @@ void Dmx512View::enter()
 
   _pSettings = Application::getSettingsPtr();
 
-  Hardware::displayBlank(true);
-  // make the display bright so we can see the colors we're working with
-  Hardware::autoAdjustIntensities(false);
+  DisplayManager::setDisplayBlanking(true);
+  // Application should handle this but we'll do it here, too, for consistency
+  Application::setIntensityAutoAdjust(false);
 
-  Hardware::autoRefreshStatusLed(true);
+  DisplayManager::setStatusLedAutoRefreshing(true);
 }
 
 
@@ -68,26 +69,22 @@ void Dmx512View::loop()
         address += 4;
 
         rate = (currentPacket->channel(address++) * cChannelMultiplier) + cChannelMultiplier;
-        currentLed.setRate(rate);
+        currentLed.setDuration(rate);
       }
       // Skip over the display blanking/driver current level parameter
       address++;
 
-      for (uint8_t i = 0; i <= Display::cLedCount; i++)
+      for (uint8_t i = 0; i <= Display::cPixelCount; i++)
       {
         currentLed.setRed(currentPacket->channel((i * 3) + address) << cChannelMultiplier);
         currentLed.setGreen(currentPacket->channel((i * 3) + address + 1) << cChannelMultiplier);
         currentLed.setBlue(currentPacket->channel((i * 3) + address + 2) << cChannelMultiplier);
-        if (i < Display::cLedCount)
+        if (i < Display::cPixelCount)
         {
-          dmxDisplay.setLedFromRaw(i, currentLed);
-        }
-        else
-        {
-          Hardware::setStatusLed(currentLed);
+          dmxDisplay.setPixelFromRaw(i, currentLed);
         }
       }
-      Hardware::writeDisplay(dmxDisplay);
+      DisplayManager::writeDisplay(dmxDisplay, currentLed);
     }
   }
   else

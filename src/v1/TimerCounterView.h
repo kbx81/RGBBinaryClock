@@ -64,6 +64,10 @@ private:
   //
   bool _countUp;
 
+  // true if the alarm is ready to be activated
+  //
+  bool _alarmReady;
+
   // Settings to be used by the view
   //
   Settings *_pSettings;

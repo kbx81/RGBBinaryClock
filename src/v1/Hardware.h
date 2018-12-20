@@ -24,193 +24,189 @@
 #include "Display.h"
 #include "RgbLed.h"
 
+#ifndef HARDWARE_VERSION
+  #error HARDWARE_VERSION must be defined with a value between 1 and 4
+#endif
+
 
 namespace kbxBinaryClock {
 
 namespace Hardware {
 
-  // SPI1 peripherals
-  //
+  /// @brief SPI1 peripherals
+  ///
   enum SpiPeripheral : uint8_t {
-    LedDrivers,
+    NotInitialized,
+    LedDriversGs,
+    LedDriversOther,
     Rtc,
     TempSensor
   };
 
 
-  // Initialize the hardware
-  //
+  /// @brief Hardware version to build for
+  ///
+  static const uint32_t cTargetHardwareVersion = HARDWARE_VERSION;
+
+
+  /// @brief Initialize the hardware
+  ///
   void     initialize();
 
-  // Refreshes hardware external to the MCU
-  //
+  /// @brief Refreshes hardware external to the MCU
+  ///
   void     refresh();
 
-  // Generates a tick sound if no tone is active
-  //
+  /// @brief Generates a tick sound if no tone is active
+  ///
   bool     tick();
 
-  // Generates a tone for duration milliseconds
-  //  Returns true if tone was activated
+  /// @brief Generates a tone of frequency for duration milliseconds
+  ///  Returns true if tone was activated
   bool     tone(const uint16_t frequency, const uint16_t duration);
 
-  // Check a button
-  //
+  /// @brief Returns true if an external alarm input pin is active (they are active low)
+  ///
+  bool     alarmInput(const uint8_t alarmInputNumber);
+
+  /// @brief Check a button
+  ///
   bool     button(const uint8_t button);
 
-  // Returns a bitmap indicating the state of all six buttons
-  //
+  /// @brief Returns a bitmap indicating the state of all six buttons
+  ///
   uint8_t  buttons();
 
-  // Returns a bitmap indicating buttons that were pressed since the last check
-  //
+  /// @brief Returns a bitmap indicating buttons that were pressed since the last check
+  ///
   uint8_t  buttonsPressed();
 
-  // Returns a bitmap indicating buttons that were released since the last check
-  //
+  /// @brief Returns a bitmap indicating buttons that were released since the last check
+  ///
   uint8_t  buttonsReleased();
 
-  // Refreshes the button states from the TSC
-  //
+  /// @brief Refreshes the button states from the TSC
+  ///
   void     buttonsRefresh();
 
-  // Set the current drive level for the drivers
-  //
-  void     currentDrive(const uint8_t drive);
+  /// @brief Set the current drive level for the drivers
+  ///
+  void     setLedCurrentDrive(const uint8_t drive);
 
-  // Enable or disable the display blanking output
-  //
-  void     displayBlank(const bool blank);
+  /// @brief Enable or disable the display blanking output pin
+  ///
+  void     setDisplayHardwareBlanking(const bool blankingState);
 
-  // Causes the display to blink twice (used as an acknowledgement for actions)
-  //
-  void     doubleBlink();
-
-  // Returns the state of daylight savings time in hardware
-  //
+  /// @brief Returns the state of daylight savings time in hardware
+  ///
   bool     dstState();
 
-  // Get the current date/time
-  //
+  /// @brief Get the current date/time
+  ///
   DateTime getDateTime();
 
-  // Set the date/time
-  //
+  /// @brief Set the date/time
+  ///
   void     setDateTime(const DateTime &dateTime);
 
-  // Returns the state of the RTC (true if year != 0)
-  //
+  /// @brief Returns the state of the RTC (true if year != 0)
+  ///
   bool     rtcIsSet();
 
-  // Returns the temperature based on hardware
-  //  (in fahrenheit if fahrenheit == true; in BCD if bcd == true)
+  /// @brief Returns the temperature based on hardware
+  ///  (in fahrenheit if fahrenheit == true; in BCD if bcd == true)
   int32_t  temperature(const bool fahrenheit, const bool bcd);
 
-  // Returns the level of light seen by the phototransistor (0 = min, 4095 = max)
-  //
+  /// @brief Returns the level of light seen by the phototransistor (0 = min, 4095 = max)
+  ///
   uint16_t lightLevel();
 
-  // Enables/disables automagic adjusting of the display intensity based
-  //  on ambient light seen by the phototransistor
-  void     autoAdjustIntensities(const bool enable);
-
-  // Adjusts the clock for daylight savings
-  //
+  /// @brief Adjusts the clock for daylight savings
+  ///
   void     setDstState(const bool enableDst, const bool adjustRtcHardware);
 
-  // Sets the value used as a threshold for flicker reduction at low intensities
-  //
+  /// @brief Sets the value used as a threshold for flicker reduction at low intensities
+  ///
   void     setFlickerReduction(const uint16_t value);
 
-  // Sets the minimum intensity used for the display when auto-adjusting
-  //
-  void     setMinimumIntensity(const uint16_t value);
-
-  // Sets the calibration value used for the temperature calculation
-  //
+  /// @brief Sets the calibration value used for the temperature calculation
+  ///
   void     setTemperatureCalibration(const int8_t value);
 
-  // Sets the volume of tones emitted from the buzzer
-  //  Valid range is 0 (muted/minimum) to 7 (maximum/default)
+  /// @brief Sets the volume of tones emitted from the buzzer
+  ///  Valid range is 0 (muted/minimum) to 7 (maximum/default)
   void     setVolume(const uint8_t volumeLevel);
 
-  // Writes the passed display into the display buffer. LEDs will fade to the
-  //  intensities in the new display at the specified rates.
-  void     writeDisplay(const Display &display);
-
-  // Erases the FLASH area used for app data
-  //
+  /// @brief Erases the FLASH area used for app data
+  ///
   uint32_t eraseFlash(uint32_t startAddress);
 
-  // Reads the FLASH area used for app data
-  //
+  /// @brief Reads the FLASH area used for app data
+  ///
   void     readFlash(uint32_t startAddress, uint16_t numElements, uint8_t *outputData);
 
-  // Writes the FLASH area used for app data
-  //  Returns 0xff if startAddress is out of range, flash_get_status_flags() if
-  //  erase request failed, 0x40 if erase verification failed,
-  //  (0x80 | flash_get_status_flags()) if programming failure
+  /// @brief Writes the FLASH area used for app data
+  ///  Returns 0xff if startAddress is out of range, flash_get_status_flags() if
+  ///  erase request failed, 0x40 if erase verification failed,
+  ///  (0x80 | flash_get_status_flags()) if programming failure
   uint32_t writeFlash(uint32_t startAddress, uint8_t *inputData, uint16_t numElements);
 
-  // Reads and/or writes data to/from specified I2C interface via DMA
-  //
+  /// @brief Reads and/or writes data to/from specified I2C interface via DMA
+  ///
   bool     i2cTransfer(const uint8_t addr, const uint8_t *bufferTx, size_t numberTx, uint8_t *bufferRx, size_t numberRx);
 
-  // Reads and/or writes data to/from the I2C1 interface via DMA
-  //
+  /// @brief Reads and/or writes data to/from the I2C1 interface via DMA
+  ///
   bool     i2cReceive(const uint8_t addr, uint8_t *bufferRx, const size_t numberRx, const bool autoEndXfer);
   bool     i2cTransmit(const uint8_t addr, const uint8_t *bufferTx, const size_t numberTx, const bool autoEndXfer);
 
-  // Aborts a transfer initiated by i2cTransfer()
-  //
+  /// @brief Aborts a transfer initiated by i2cTransfer()
+  ///
   void     i2cAbort();
 
-  // Permits checking the status of the I2C; returns true if busy
-  //
+  /// @brief Permits checking the status of the I2C; returns true if busy
+  ///
   bool     i2cIsBusy();
 
-  // Reads data from the serial port with DMA
-  //  Returns false if failure (the USART was busy)
+  /// @brief Reads data from the serial port with DMA
+  ///  Returns false if failure (the USART was busy)
   bool     readSerial(const uint32_t usart, const uint32_t length, char* data);
 
-  // Writes data to the serial port with DMA
-  //  Returns false if failure (the USART was busy)
+  /// @brief Writes data to the serial port with DMA
+  ///  Returns false if failure (the USART was busy)
   bool     writeSerial(const uint32_t usart, const uint32_t length, const char* data);
 
-  // Transfers data in/out through the SPI via DMA
-  //  Returns false if failure (the SPI was busy)
+  /// @brief Transfers data in/out through the SPI via DMA
+  ///  Returns false if failure (the SPI was busy)
   bool     spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *bufferOut, const uint16_t length, const bool use16BitXfers);
 
-  // Permits checking the status of the SPI; returns true if busy
-  //
+  /// @brief Permits checking the status of the SPI; returns true if busy
+  ///
   bool     spiIsBusy();
 
-  // Sets the given status LED to the given intensity/RgbLed
-  //
-  void     blueLed(const uint32_t intensity);
-  void     greenLed(const uint32_t intensity);
-  void     redLed(const uint32_t intensity);
-  void     blinkStatusLed(const RgbLed led1, const RgbLed led2, uint32_t numberOfBlinks, const uint32_t delayLength);
+  /// @brief Sets the given status LED to the given intensity/RgbLed
+  ///
+  void     setBlueLed(const uint32_t intensity);
+  void     setGreenLed(const uint32_t intensity);
+  void     setRedLed(const uint32_t intensity);
   void     setStatusLed(const RgbLed led);
+  void     blinkStatusLed(const RgbLed led1, const RgbLed led2, uint32_t numberOfBlinks, const uint32_t delayLength);
 
-  // Enables the display refresher to control the status LED
-  //
-  void     autoRefreshStatusLed(const bool autoRefreshEnabled);
-
-  // Creates a short delay using 'nop's
-  //
+  /// @brief Creates a delay of length based on systick (configured for milliseconds)
+  ///
   void     delay(const uint32_t length);
 
-  // Converts to/from int/BCD
-  //
+  /// @brief Converts to/from int/BCD
+  ///
   uint32_t bcdToUint32(uint32_t bcdValue);
   uint32_t uint32ToBcd(uint32_t uint32Value); // beware of values > 99999999
 
 
-  // Interrupt Service Routines
-  //
+  /// @brief Interrupt Service Routines
+  ///
   void     dmaIsr();
   void     systickIsr();
+  void     tim2Isr();
   void     tim15Isr();
   void     tim16Isr();
   void     tscIsr();
