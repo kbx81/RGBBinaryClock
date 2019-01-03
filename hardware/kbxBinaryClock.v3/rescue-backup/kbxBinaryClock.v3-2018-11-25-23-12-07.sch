@@ -1,0 +1,196 @@
+EESchema Schematic File Version 2
+LIBS:power
+LIBS:device
+LIBS:transistors
+LIBS:conn
+LIBS:linear
+LIBS:regul
+LIBS:74xx
+LIBS:cmos4000
+LIBS:adc-dac
+LIBS:memory
+LIBS:xilinx
+LIBS:microcontrollers
+LIBS:dsp
+LIBS:microchip
+LIBS:analog_switches
+LIBS:motorola
+LIBS:texas
+LIBS:intel
+LIBS:audio
+LIBS:interface
+LIBS:digital-audio
+LIBS:philips
+LIBS:display
+LIBS:cypress
+LIBS:siliconi
+LIBS:opto
+LIBS:atmel
+LIBS:contrib
+LIBS:valves
+LIBS:stm32
+LIBS:win
+LIBS:mechanical
+LIBS:switches
+LIBS:maxim
+LIBS:sensors
+LIBS:kbxBinaryClock.v3-cache
+EELAYER 25 0
+EELAYER END
+$Descr A4 11693 8268
+encoding utf-8
+Sheet 1 5
+Title "kbx binary clock"
+Date "2017-11-08"
+Rev ""
+Comp ""
+Comment1 ""
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Sheet
+S 1700 1600 2650 2600
+U 5A03ED25
+F0 "MCU" 60
+F1 "kbxBinaryClock-MCU.v3.sch" 60
+F2 "RESET" I R 4350 4100 60 
+F3 "SPI1_SCK" O R 4350 2500 60 
+F4 "SPI1_MOSI" O R 4350 2400 60 
+F5 "USART1_TX" O R 4350 3500 60 
+F6 "USART1_RX" I R 4350 3400 60 
+F7 "BLANK" O R 4350 1700 60 
+F8 "CURRENT_LOW" O R 4350 1900 60 
+F9 "CURRENT_HIGH" O R 4350 1800 60 
+F10 "USART2_TX" O R 4350 3800 60 
+F11 "USART2_RX" I R 4350 3700 60 
+F12 "USART2_MODE" O R 4350 3900 60 
+F13 "OSC32_IN" I R 4350 3100 60 
+F14 "SPI1_NSS_DISP" O R 4350 2200 60 
+F15 "SPI1_MISO" I R 4350 2600 60 
+F16 "SPI1_MISO_DISP" I R 4350 2300 60 
+F17 "SPI1_NSS_RTC" O R 4350 2700 60 
+F18 "SPI1_NSS_TEMP" O R 4350 2800 60 
+$EndSheet
+$Sheet
+S 5900 1600 2600 1600
+U 5A04077E
+F0 "Display" 60
+F1 "kbxBinaryClock-Display.v3.sch" 60
+F2 "BLANK" I L 5900 1700 60 
+F3 "CURRENT_HIGH" I L 5900 1800 60 
+F4 "CURRENT_LOW" I L 5900 1900 60 
+F5 "SPI1_SCK" I L 5900 2500 60 
+F6 "SPI1_MOSI" I L 5900 2400 60 
+F7 "SPI1_MISO_DISP" O L 5900 2300 60 
+F8 "SPI1_NSS_DISP" I L 5900 2200 60 
+$EndSheet
+$Sheet
+S 1750 4700 2600 800 
+U 5A06BFE7
+F0 "Power Supply" 60
+F1 "kbxBinaryClock-PowerSupply.v3.sch" 60
+$EndSheet
+$Sheet
+S 5900 3750 2600 1800
+U 5A0ADB1D
+F0 "Peripherals" 60
+F1 "kbxBinaryClock-Peripherals.v3.sch" 60
+F2 "RESET" O L 5900 5400 60 
+F3 "USART1_TX" I L 5900 4800 60 
+F4 "USART1_RX" O L 5900 4700 60 
+F5 "USART2_RX" O L 5900 5000 60 
+F6 "USART2_MODE" I L 5900 5200 60 
+F7 "USART2_TX" I L 5900 5100 60 
+F8 "OSC32_IN" O L 5900 4500 60 
+F9 "SPI1_MOSI" I L 5900 4000 60 
+F10 "SPI1_MISO" O L 5900 4100 60 
+F11 "SPI1_NSS_RTC" I L 5900 4200 60 
+F12 "SPI1_NSS_TEMP" I L 5900 4300 60 
+F13 "SPI1_SCK" I L 5900 3900 60 
+$EndSheet
+Wire Wire Line
+	5200 3100 4350 3100
+Wire Wire Line
+	5200 4500 5200 3100
+Wire Wire Line
+	5900 4500 5200 4500
+Wire Wire Line
+	5100 4700 5900 4700
+Wire Wire Line
+	5000 4800 5900 4800
+Wire Wire Line
+	4900 5000 5900 5000
+Wire Wire Line
+	4800 5100 5900 5100
+Wire Wire Line
+	4700 5200 5900 5200
+Wire Wire Line
+	4600 5400 5900 5400
+Wire Wire Line
+	4350 2500 5900 2500
+Wire Wire Line
+	4600 4100 4350 4100
+Wire Wire Line
+	4600 4100 4600 5400
+Wire Wire Line
+	4700 3900 4700 5200
+Wire Wire Line
+	4350 3900 4700 3900
+Wire Wire Line
+	4800 3800 4350 3800
+Wire Wire Line
+	4800 3800 4800 5100
+Wire Wire Line
+	4900 3700 4900 5000
+Wire Wire Line
+	4350 3700 4900 3700
+Wire Wire Line
+	5000 3500 5000 4800
+Wire Wire Line
+	4350 3500 5000 3500
+Wire Wire Line
+	5100 3400 4350 3400
+Wire Wire Line
+	5100 3400 5100 4700
+Wire Wire Line
+	4350 2400 5900 2400
+Wire Wire Line
+	4350 2300 5900 2300
+Wire Wire Line
+	4350 2200 5900 2200
+Wire Wire Line
+	4350 1900 5900 1900
+Wire Wire Line
+	4350 1800 5900 1800
+Wire Wire Line
+	4350 1700 5900 1700
+Wire Wire Line
+	5900 4300 5300 4300
+Wire Wire Line
+	5300 4300 5300 2800
+Wire Wire Line
+	5300 2800 4350 2800
+Wire Wire Line
+	4350 2700 5400 2700
+Wire Wire Line
+	5400 2700 5400 4200
+Wire Wire Line
+	5400 4200 5900 4200
+Wire Wire Line
+	5900 4100 5500 4100
+Wire Wire Line
+	5500 4100 5500 2600
+Wire Wire Line
+	5500 2600 4350 2600
+Wire Wire Line
+	5900 4000 5600 4000
+Wire Wire Line
+	5600 4000 5600 2400
+Connection ~ 5600 2400
+Wire Wire Line
+	5900 3900 5700 3900
+Wire Wire Line
+	5700 3900 5700 2500
+Connection ~ 5700 2500
+$EndSCHEMATC

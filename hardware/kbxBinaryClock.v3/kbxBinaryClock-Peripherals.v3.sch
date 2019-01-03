@@ -1,41 +1,6 @@
-EESchema Schematic File Version 2
-LIBS:power
-LIBS:device
-LIBS:transistors
-LIBS:conn
-LIBS:linear
-LIBS:regul
-LIBS:74xx
-LIBS:cmos4000
-LIBS:adc-dac
-LIBS:memory
-LIBS:xilinx
-LIBS:microcontrollers
-LIBS:dsp
-LIBS:microchip
-LIBS:analog_switches
-LIBS:motorola
-LIBS:texas
-LIBS:intel
-LIBS:audio
-LIBS:interface
-LIBS:digital-audio
-LIBS:philips
-LIBS:display
-LIBS:cypress
-LIBS:siliconi
-LIBS:opto
-LIBS:atmel
-LIBS:contrib
-LIBS:valves
-LIBS:stm32
-LIBS:win
-LIBS:mechanical
-LIBS:switches
-LIBS:maxim
-LIBS:sensors
+EESchema Schematic File Version 4
 LIBS:kbxBinaryClock.v3-cache
-EELAYER 25 0
+EELAYER 26 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
@@ -50,7 +15,7 @@ Comment3 ""
 Comment4 ""
 $EndDescr
 $Comp
-L MAX485E U9
+L kbxBinaryClock.v3-rescue:MAX485E U9
 U 1 1 5A0ADC38
 P 9000 2400
 F 0 "U9" H 8760 2850 50  0000 C CNN
@@ -64,7 +29,7 @@ $EndComp
 Text HLabel 3400 1500 1    60   Output ~ 0
 OSC32_IN
 $Comp
-L +3.3V #PWR036
+L kbxBinaryClock.v3-rescue:+3.3V #PWR036
 U 1 1 5A0B2F0C
 P 3800 1500
 F 0 "#PWR036" H 3800 1350 50  0001 C CNN
@@ -75,7 +40,7 @@ F 3 "" H 3800 1500 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +BATT #PWR037
+L kbxBinaryClock.v3-rescue:+BATT #PWR037
 U 1 1 5A0B2F97
 P 2250 1750
 F 0 "#PWR037" H 2250 1600 50  0001 C CNN
@@ -86,7 +51,7 @@ F 3 "" H 2250 1750 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR038
+L kbxBinaryClock.v3-rescue:GND #PWR038
 U 1 1 5A0B2FCB
 P 3350 3100
 F 0 "#PWR038" H 3350 2850 50  0001 C CNN
@@ -97,7 +62,7 @@ F 3 "" H 3350 3100 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C23
+L kbxBinaryClock.v3-rescue:C C23
 U 1 1 5A0B2FFD
 P 1900 2100
 F 0 "C23" H 1925 2200 50  0000 L CNN
@@ -108,7 +73,7 @@ F 3 "" H 1900 2100 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3.3V #PWR039
+L kbxBinaryClock.v3-rescue:+3.3V #PWR039
 U 1 1 5A0B3116
 P 1900 1750
 F 0 "#PWR039" H 1900 1600 50  0001 C CNN
@@ -119,7 +84,7 @@ F 3 "" H 1900 1750 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R39
+L kbxBinaryClock.v3-rescue:R R39
 U 1 1 5A0B3562
 P 3600 1950
 F 0 "R39" V 3680 1950 50  0000 C CNN
@@ -130,7 +95,7 @@ F 3 "" H 3600 1950 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L R R38
+L kbxBinaryClock.v3-rescue:R R38
 U 1 1 5A0B35AA
 P 3600 1750
 F 0 "R38" V 3680 1750 50  0000 C CNN
@@ -141,7 +106,7 @@ F 3 "" H 3600 1750 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L GND #PWR040
+L kbxBinaryClock.v3-rescue:GND #PWR040
 U 1 1 5A0B3A49
 P 9000 3200
 F 0 "#PWR040" H 9000 2950 50  0001 C CNN
@@ -152,7 +117,7 @@ F 3 "" H 9000 3200 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3.3V #PWR041
+L kbxBinaryClock.v3-rescue:+3.3V #PWR041
 U 1 1 5A0B3ACB
 P 9000 1700
 F 0 "#PWR041" H 9000 1550 50  0001 C CNN
@@ -163,7 +128,7 @@ F 3 "" H 9000 1700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C26
+L kbxBinaryClock.v3-rescue:C C26
 U 1 1 5A0B3B29
 P 9450 1800
 F 0 "C26" H 9475 1900 50  0000 L CNN
@@ -174,7 +139,7 @@ F 3 "" H 9450 1800 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L GND #PWR042
+L kbxBinaryClock.v3-rescue:GND #PWR042
 U 1 1 5A0B3BC0
 P 9700 1900
 F 0 "#PWR042" H 9700 1650 50  0001 C CNN
@@ -185,7 +150,7 @@ F 3 "" H 9700 1900 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Conn_01x06 J2
+L kbxBinaryClock.v3-rescue:Conn_01x06 J2
 U 1 1 5A0B47CF
 P 6150 2500
 F 0 "J2" H 6150 2800 50  0000 C CNN
@@ -196,7 +161,7 @@ F 3 "" H 6150 2500 50  0001 C CNN
 	1    0    0    1   
 $EndComp
 $Comp
-L GND #PWR043
+L kbxBinaryClock.v3-rescue:GND #PWR043
 U 1 1 5A0B4904
 P 5850 2800
 F 0 "#PWR043" H 5850 2550 50  0001 C CNN
@@ -207,7 +172,7 @@ F 3 "" H 5850 2800 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3.3V #PWR044
+L kbxBinaryClock.v3-rescue:+3.3V #PWR044
 U 1 1 5A0B49D6
 P 4900 1800
 F 0 "#PWR044" H 4900 1650 50  0001 C CNN
@@ -230,7 +195,7 @@ USART2_MODE
 Text HLabel 8400 2600 0    60   Input ~ 0
 USART2_TX
 $Comp
-L Conn_02x03_Odd_Even J3
+L kbxBinaryClock.v3-rescue:Conn_02x03_Odd_Even J3
 U 1 1 5A0E0EE5
 P 10000 2700
 F 0 "J3" H 10050 2900 50  0000 C CNN
@@ -241,7 +206,7 @@ F 3 "" H 10000 2700 50  0001 C CNN
 	1    0    0    1   
 $EndComp
 $Comp
-L C C25
+L kbxBinaryClock.v3-rescue:C C25
 U 1 1 5A6187BF
 P 5800 2050
 F 0 "C25" H 5825 2150 50  0000 L CNN
@@ -252,7 +217,7 @@ F 3 "" H 5800 2050 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L +3.3V #PWR045
+L kbxBinaryClock.v3-rescue:+3.3V #PWR045
 U 1 1 5A6AC87F
 P 2950 4100
 F 0 "#PWR045" H 2950 3950 50  0001 C CNN
@@ -263,7 +228,7 @@ F 3 "" H 2950 4100 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C24
+L kbxBinaryClock.v3-rescue:C C24
 U 1 1 5A6AC90E
 P 3600 5350
 F 0 "C24" H 3625 5450 50  0000 L CNN
@@ -274,7 +239,7 @@ F 3 "" H 3600 5350 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L GND #PWR046
+L kbxBinaryClock.v3-rescue:GND #PWR046
 U 1 1 5A6ACBF8
 P 3600 5600
 F 0 "#PWR046" H 3600 5350 50  0001 C CNN
@@ -285,7 +250,7 @@ F 3 "" H 3600 5600 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L DS3234 U6
+L kbxBinaryClock.v3-rescue:DS3234 U6
 U 1 1 5A7DBF61
 P 2850 2400
 F 0 "U6" H 2600 3100 60  0000 C CNN
@@ -303,7 +268,7 @@ SPI1_MOSI
 Text HLabel 1350 2750 0    60   Output ~ 0
 SPI1_MISO
 $Comp
-L GND #PWR047
+L kbxBinaryClock.v3-rescue:GND #PWR047
 U 1 1 5A0B3065
 P 1900 2250
 F 0 "#PWR047" H 1900 2000 50  0001 C CNN
@@ -316,7 +281,7 @@ $EndComp
 Text HLabel 1350 2550 0    60   Input ~ 0
 SPI1_NSS_RTC
 $Comp
-L LM74 U8
+L kbxBinaryClock.v3-rescue:LM74 U8
 U 1 1 5A7E2809
 P 5550 4850
 F 0 "U8" H 5650 5150 60  0000 C CNN
@@ -495,7 +460,7 @@ Wire Wire Line
 	5550 4200 5550 4400
 Connection ~ 3600 4200
 $Comp
-L DS1722 U7
+L kbxBinaryClock.v3-rescue:DS1722 U7
 U 1 1 5A7E240D
 P 2850 4950
 F 0 "U7" H 3050 5550 60  0000 C CNN
@@ -512,7 +477,7 @@ Wire Wire Line
 Text Notes 2800 6050 0    60   ~ 0
 Install DS1722 *OR* LM74 -- DO NOT INSTALL BOTH
 $Comp
-L GS2 SB2
+L kbxBinaryClock.v3-rescue:GS2 SB2
 U 1 1 5A9B217E
 P 1600 2450
 F 0 "SB2" H 1700 2600 50  0000 C CNN

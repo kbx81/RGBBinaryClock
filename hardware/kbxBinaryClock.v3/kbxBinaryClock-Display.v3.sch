@@ -1,41 +1,6 @@
-EESchema Schematic File Version 2
-LIBS:power
-LIBS:device
-LIBS:transistors
-LIBS:conn
-LIBS:linear
-LIBS:regul
-LIBS:74xx
-LIBS:cmos4000
-LIBS:adc-dac
-LIBS:memory
-LIBS:xilinx
-LIBS:microcontrollers
-LIBS:dsp
-LIBS:microchip
-LIBS:analog_switches
-LIBS:motorola
-LIBS:texas
-LIBS:intel
-LIBS:audio
-LIBS:interface
-LIBS:digital-audio
-LIBS:philips
-LIBS:display
-LIBS:cypress
-LIBS:siliconi
-LIBS:opto
-LIBS:atmel
-LIBS:contrib
-LIBS:valves
-LIBS:stm32
-LIBS:win
-LIBS:mechanical
-LIBS:switches
-LIBS:maxim
-LIBS:sensors
+EESchema Schematic File Version 4
 LIBS:kbxBinaryClock.v3-cache
-EELAYER 25 0
+EELAYER 26 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
@@ -50,7 +15,7 @@ Comment3 ""
 Comment4 ""
 $EndDescr
 $Comp
-L TLC5947 U2
+L kbxBinaryClock.v3-rescue:TLC5947 U2
 U 1 1 5A0421E1
 P 2350 4950
 F 0 "U2" H 2350 5000 50  0000 C CNN
@@ -62,7 +27,7 @@ F 4 "TLC5947DAP" H 2350 4950 60  0001 C CNN "Part Number"
 	0    -1   -1   0   
 $EndComp
 $Comp
-L TLC5947 U3
+L kbxBinaryClock.v3-rescue:TLC5947 U3
 U 1 1 5A0422B0
 P 5850 4950
 F 0 "U3" H 5850 5000 50  0000 C CNN
@@ -74,7 +39,7 @@ F 4 "TLC5947DAP" H 5850 4950 60  0001 C CNN "Part Number"
 	0    -1   -1   0   
 $EndComp
 $Comp
-L TLC5947 U4
+L kbxBinaryClock.v3-rescue:TLC5947 U4
 U 1 1 5A042310
 P 9350 4950
 F 0 "U4" H 9350 5000 50  0000 C CNN
@@ -86,7 +51,7 @@ F 4 "TLC5947DAP" H 9350 4950 60  0001 C CNN "Part Number"
 	0    -1   -1   0   
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED1
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED1
 U 1 1 5A0424B3
 P 2200 950
 F 0 "LED1" H 2200 1225 50  0000 C CNN
@@ -97,7 +62,7 @@ F 3 "https://www.adafruit.com/product/302" H 2225 1100 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED2
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED2
 U 1 1 5A042502
 P 2200 1650
 F 0 "LED2" H 2200 1925 50  0000 C CNN
@@ -108,7 +73,7 @@ F 3 "https://www.adafruit.com/product/302" H 2225 1800 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED3
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED3
 U 1 1 5A04253C
 P 2200 2350
 F 0 "LED3" H 2200 2625 50  0000 C CNN
@@ -119,7 +84,7 @@ F 3 "https://www.adafruit.com/product/302" H 2225 2500 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED4
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED4
 U 1 1 5A042573
 P 2200 3050
 F 0 "LED4" H 2200 3325 50  0000 C CNN
@@ -130,7 +95,7 @@ F 3 "https://www.adafruit.com/product/302" H 2225 3200 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED5
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED5
 U 1 1 5A042599
 P 3400 950
 F 0 "LED5" H 3400 1225 50  0000 C CNN
@@ -141,7 +106,7 @@ F 3 "https://www.adafruit.com/product/302" H 3425 1100 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED6
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED6
 U 1 1 5A042665
 P 3400 1650
 F 0 "LED6" H 3400 1925 50  0000 C CNN
@@ -152,7 +117,7 @@ F 3 "https://www.adafruit.com/product/302" H 3425 1800 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED7
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED7
 U 1 1 5A04268D
 P 3400 2350
 F 0 "LED7" H 3400 2625 50  0000 C CNN
@@ -163,7 +128,7 @@ F 3 "https://www.adafruit.com/product/302" H 3425 2500 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED8
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED8
 U 1 1 5A0426B7
 P 3400 3050
 F 0 "LED8" H 3400 3325 50  0000 C CNN
@@ -174,7 +139,7 @@ F 3 "https://www.adafruit.com/product/302" H 3425 3200 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED9
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED9
 U 1 1 5A0426E6
 P 4900 950
 F 0 "LED9" H 4900 1225 50  0000 C CNN
@@ -185,7 +150,7 @@ F 3 "https://www.adafruit.com/product/302" H 4925 1100 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED10
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED10
 U 1 1 5A04271E
 P 4900 1650
 F 0 "LED10" H 4900 1925 50  0000 C CNN
@@ -196,7 +161,7 @@ F 3 "https://www.adafruit.com/product/302" H 4925 1800 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED11
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED11
 U 1 1 5A042754
 P 4900 2350
 F 0 "LED11" H 4900 2625 50  0000 C CNN
@@ -207,7 +172,7 @@ F 3 "https://www.adafruit.com/product/302" H 4925 2500 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED12
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED12
 U 1 1 5A042788
 P 4900 3050
 F 0 "LED12" H 4900 3325 50  0000 C CNN
@@ -218,7 +183,7 @@ F 3 "https://www.adafruit.com/product/302" H 4925 3200 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED13
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED13
 U 1 1 5A0427BF
 P 6100 950
 F 0 "LED13" H 6100 1225 50  0000 C CNN
@@ -229,7 +194,7 @@ F 3 "https://www.adafruit.com/product/302" H 6125 1100 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED14
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED14
 U 1 1 5A0427FF
 P 6100 1650
 F 0 "LED14" H 6100 1925 50  0000 C CNN
@@ -240,7 +205,7 @@ F 3 "https://www.adafruit.com/product/302" H 6125 1800 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED15
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED15
 U 1 1 5A042838
 P 6100 2350
 F 0 "LED15" H 6100 2625 50  0000 C CNN
@@ -251,7 +216,7 @@ F 3 "https://www.adafruit.com/product/302" H 6125 2500 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED16
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED16
 U 1 1 5A042876
 P 6100 3050
 F 0 "LED16" H 6100 3325 50  0000 C CNN
@@ -262,7 +227,7 @@ F 3 "https://www.adafruit.com/product/302" H 6125 3200 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED17
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED17
 U 1 1 5A0428B5
 P 7600 950
 F 0 "LED17" H 7600 1225 50  0000 C CNN
@@ -273,7 +238,7 @@ F 3 "https://www.adafruit.com/product/302" H 7625 1100 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED18
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED18
 U 1 1 5A042900
 P 7600 1650
 F 0 "LED18" H 7600 1925 50  0000 C CNN
@@ -284,7 +249,7 @@ F 3 "https://www.adafruit.com/product/302" H 7625 1800 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED19
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED19
 U 1 1 5A042942
 P 7600 2350
 F 0 "LED19" H 7600 2625 50  0000 C CNN
@@ -295,7 +260,7 @@ F 3 "https://www.adafruit.com/product/302" H 7625 2500 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED20
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED20
 U 1 1 5A042985
 P 7600 3050
 F 0 "LED20" H 7600 3325 50  0000 C CNN
@@ -306,7 +271,7 @@ F 3 "https://www.adafruit.com/product/302" H 7625 3200 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED21
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED21
 U 1 1 5A0429CB
 P 8800 950
 F 0 "LED21" H 8800 1225 50  0000 C CNN
@@ -317,7 +282,7 @@ F 3 "https://www.adafruit.com/product/302" H 8825 1100 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED22
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED22
 U 1 1 5A042A11
 P 8800 1650
 F 0 "LED22" H 8800 1925 50  0000 C CNN
@@ -328,7 +293,7 @@ F 3 "https://www.adafruit.com/product/302" H 8825 1800 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED23
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED23
 U 1 1 5A042A59
 P 8800 2350
 F 0 "LED23" H 8800 2625 50  0000 C CNN
@@ -339,7 +304,7 @@ F 3 "https://www.adafruit.com/product/302" H 8825 2500 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED_RGB_COMMON_ANODE LED24
+L kbxBinaryClock.v3-rescue:LED_RGB_COMMON_ANODE LED24
 U 1 1 5A042AA4
 P 8800 3050
 F 0 "LED24" H 8800 3325 50  0000 C CNN
@@ -638,7 +603,7 @@ LED1_G
 Text GLabel 8200 4000 1    60   Input ~ 0
 LED1_B
 $Comp
-L +3.3V #PWR012
+L kbxBinaryClock.v3-rescue:+3.3V #PWR012
 U 1 1 5A04E0B1
 P 700 4700
 F 0 "#PWR012" H 700 4550 50  0001 C CNN
@@ -649,7 +614,7 @@ F 3 "" H 700 4700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3.3V #PWR013
+L kbxBinaryClock.v3-rescue:+3.3V #PWR013
 U 1 1 5A04E19D
 P 4200 4700
 F 0 "#PWR013" H 4200 4550 50  0001 C CNN
@@ -660,7 +625,7 @@ F 3 "" H 4200 4700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3.3V #PWR014
+L kbxBinaryClock.v3-rescue:+3.3V #PWR014
 U 1 1 5A04E2A4
 P 7700 4700
 F 0 "#PWR014" H 7700 4550 50  0001 C CNN
@@ -671,7 +636,7 @@ F 3 "" H 7700 4700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C17
+L kbxBinaryClock.v3-rescue:C C17
 U 1 1 5A04E5DC
 P 700 5150
 F 0 "C17" H 725 5250 50  0000 L CNN
@@ -682,7 +647,7 @@ F 3 "" H 700 5150 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C18
+L kbxBinaryClock.v3-rescue:C C18
 U 1 1 5A04E682
 P 4200 5150
 F 0 "C18" H 4225 5250 50  0000 L CNN
@@ -693,7 +658,7 @@ F 3 "" H 4200 5150 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C19
+L kbxBinaryClock.v3-rescue:C C19
 U 1 1 5A04E720
 P 7700 5150
 F 0 "C19" H 7725 5250 50  0000 L CNN
@@ -704,7 +669,7 @@ F 3 "" H 7700 5150 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR015
+L kbxBinaryClock.v3-rescue:GND #PWR015
 U 1 1 5A04E7BF
 P 700 5400
 F 0 "#PWR015" H 700 5150 50  0001 C CNN
@@ -715,7 +680,7 @@ F 3 "" H 700 5400 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR016
+L kbxBinaryClock.v3-rescue:GND #PWR016
 U 1 1 5A04E84B
 P 4200 5400
 F 0 "#PWR016" H 4200 5150 50  0001 C CNN
@@ -726,7 +691,7 @@ F 3 "" H 4200 5400 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR017
+L kbxBinaryClock.v3-rescue:GND #PWR017
 U 1 1 5A04E8D7
 P 7700 5400
 F 0 "#PWR017" H 7700 5150 50  0001 C CNN
@@ -737,7 +702,7 @@ F 3 "" H 7700 5400 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR018
+L kbxBinaryClock.v3-rescue:GND #PWR018
 U 1 1 5A04E9F9
 P 11000 5400
 F 0 "#PWR018" H 11000 5150 50  0001 C CNN
@@ -748,7 +713,7 @@ F 3 "" H 11000 5400 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Q_NPN_BCE Q11
+L kbxBinaryClock.v3-rescue:Q_NPN_BCE Q11
 U 1 1 5A077CE5
 P 6500 7200
 F 0 "Q11" H 6300 7250 50  0000 L CNN
@@ -759,7 +724,7 @@ F 3 "https://www.diodes.com/assets/Datasheets/ds30036.pdf" H 6500 7200 50  0001 
 	-1   0    0    -1  
 $EndComp
 $Comp
-L Q_NPN_BCE Q10
+L kbxBinaryClock.v3-rescue:Q_NPN_BCE Q10
 U 1 1 5A07825B
 P 5900 7200
 F 0 "Q10" H 5700 7250 50  0000 L CNN
@@ -770,7 +735,7 @@ F 3 "https://www.diodes.com/assets/Datasheets/ds30036.pdf" H 5900 7200 50  0001 
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R34
+L kbxBinaryClock.v3-rescue:R R34
 U 1 1 5A0782EC
 P 6200 6750
 F 0 "R34" V 6280 6750 50  0000 C CNN
@@ -781,7 +746,7 @@ F 3 "" H 6200 6750 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R29
+L kbxBinaryClock.v3-rescue:R R29
 U 1 1 5A078487
 P 4400 6750
 F 0 "R29" V 4480 6750 50  0000 C CNN
@@ -792,7 +757,7 @@ F 3 "" H 4400 6750 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R24
+L kbxBinaryClock.v3-rescue:R R24
 U 1 1 5A07854B
 P 2800 6750
 F 0 "R24" V 2880 6750 50  0000 C CNN
@@ -803,7 +768,7 @@ F 3 "" H 2800 6750 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R35
+L kbxBinaryClock.v3-rescue:R R35
 U 1 1 5A079E1F
 P 6400 6750
 F 0 "R35" V 6480 6750 50  0000 C CNN
@@ -814,7 +779,7 @@ F 3 "" H 6400 6750 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R33
+L kbxBinaryClock.v3-rescue:R R33
 U 1 1 5A079F15
 P 6000 6750
 F 0 "R33" V 6080 6750 50  0000 C CNN
@@ -825,7 +790,7 @@ F 3 "" H 6000 6750 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R27
+L kbxBinaryClock.v3-rescue:R R27
 U 1 1 5A07A4C6
 P 3900 6950
 F 0 "R27" V 3980 6950 50  0000 C CNN
@@ -836,7 +801,7 @@ F 3 "" H 3900 6950 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R31
+L kbxBinaryClock.v3-rescue:R R31
 U 1 1 5A07A5AA
 P 4900 6950
 F 0 "R31" V 4980 6950 50  0000 C CNN
@@ -847,7 +812,7 @@ F 3 "" H 4900 6950 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R28
+L kbxBinaryClock.v3-rescue:R R28
 U 1 1 5A07A67F
 P 4200 6750
 F 0 "R28" V 4280 6750 50  0000 C CNN
@@ -858,7 +823,7 @@ F 3 "" H 4200 6750 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R30
+L kbxBinaryClock.v3-rescue:R R30
 U 1 1 5A07A755
 P 4600 6750
 F 0 "R30" V 4680 6750 50  0000 C CNN
@@ -869,7 +834,7 @@ F 3 "" H 4600 6750 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R32
+L kbxBinaryClock.v3-rescue:R R32
 U 1 1 5A07A830
 P 5700 6950
 F 0 "R32" V 5780 6950 50  0000 C CNN
@@ -880,7 +845,7 @@ F 3 "" H 5700 6950 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R36
+L kbxBinaryClock.v3-rescue:R R36
 U 1 1 5A07A90D
 P 6700 6950
 F 0 "R36" V 6780 6950 50  0000 C CNN
@@ -891,7 +856,7 @@ F 3 "" H 6700 6950 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R22
+L kbxBinaryClock.v3-rescue:R R22
 U 1 1 5A07A9EF
 P 2300 6950
 F 0 "R22" V 2380 6950 50  0000 C CNN
@@ -902,7 +867,7 @@ F 3 "" H 2300 6950 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R26
+L kbxBinaryClock.v3-rescue:R R26
 U 1 1 5A07AAD5
 P 3300 6950
 F 0 "R26" V 3380 6950 50  0000 C CNN
@@ -913,7 +878,7 @@ F 3 "" H 3300 6950 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R25
+L kbxBinaryClock.v3-rescue:R R25
 U 1 1 5A07ABC0
 P 3000 6750
 F 0 "R25" V 3080 6750 50  0000 C CNN
@@ -924,7 +889,7 @@ F 3 "" H 3000 6750 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R23
+L kbxBinaryClock.v3-rescue:R R23
 U 1 1 5A07ACAD
 P 2600 6750
 F 0 "R23" V 2680 6750 50  0000 C CNN
@@ -935,7 +900,7 @@ F 3 "" H 2600 6750 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L Q_NPN_BCE Q9
+L kbxBinaryClock.v3-rescue:Q_NPN_BCE Q9
 U 1 1 5A07B55B
 P 4700 7200
 F 0 "Q9" H 4500 7250 50  0000 L CNN
@@ -946,7 +911,7 @@ F 3 "https://www.diodes.com/assets/Datasheets/ds30036.pdf" H 4700 7200 50  0001 
 	-1   0    0    -1  
 $EndComp
 $Comp
-L Q_NPN_BCE Q8
+L kbxBinaryClock.v3-rescue:Q_NPN_BCE Q8
 U 1 1 5A07B686
 P 4100 7200
 F 0 "Q8" H 3900 7250 50  0000 L CNN
@@ -957,7 +922,7 @@ F 3 "https://www.diodes.com/assets/Datasheets/ds30036.pdf" H 4100 7200 50  0001 
 	1    0    0    -1  
 $EndComp
 $Comp
-L Q_NPN_BCE Q7
+L kbxBinaryClock.v3-rescue:Q_NPN_BCE Q7
 U 1 1 5A07B79D
 P 3100 7200
 F 0 "Q7" H 2900 7250 50  0000 L CNN
@@ -968,7 +933,7 @@ F 3 "https://www.diodes.com/assets/Datasheets/ds30036.pdf" H 3100 7200 50  0001 
 	-1   0    0    -1  
 $EndComp
 $Comp
-L Q_NPN_BCE Q6
+L kbxBinaryClock.v3-rescue:Q_NPN_BCE Q6
 U 1 1 5A07B8B0
 P 2500 7200
 F 0 "Q6" H 2300 7250 50  0000 L CNN
@@ -979,7 +944,7 @@ F 3 "https://www.diodes.com/assets/Datasheets/ds30036.pdf" H 2500 7200 50  0001 
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R20
+L kbxBinaryClock.v3-rescue:R R20
 U 1 1 5A07AD9E
 P 1800 6950
 F 0 "R20" V 1880 6950 50  0000 C CNN
@@ -990,7 +955,7 @@ F 3 "" H 1800 6950 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R21
+L kbxBinaryClock.v3-rescue:R R21
 U 1 1 5A07C816
 P 2050 6950
 F 0 "R21" V 2130 6950 50  0000 C CNN
@@ -1001,7 +966,7 @@ F 3 "" H 2050 6950 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L GND #PWR019
+L kbxBinaryClock.v3-rescue:GND #PWR019
 U 1 1 5A07E18B
 P 4400 7400
 F 0 "#PWR019" H 4400 7150 50  0001 C CNN
@@ -1012,7 +977,7 @@ F 3 "" H 4400 7400 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3.3V #PWR020
+L kbxBinaryClock.v3-rescue:+3.3V #PWR020
 U 1 1 5A0826E3
 P 10300 6150
 F 0 "#PWR020" H 10300 6000 50  0001 C CNN
@@ -1023,7 +988,7 @@ F 3 "" H 10300 6150 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R37
+L kbxBinaryClock.v3-rescue:R R37
 U 1 1 5A082828
 P 9950 6250
 F 0 "R37" V 10030 6250 50  0000 C CNN
@@ -1080,7 +1045,7 @@ SPI1_NSS_DISP
 Text HLabel 9050 5850 0    60   Input ~ 0
 SPI1_NSS_DISP
 $Comp
-L +V_IN #PWR021
+L kbxBinaryClock.v3-rescue:+V_IN #PWR021
 U 1 1 5A7F40F2
 P 1950 700
 F 0 "#PWR021" H 1950 550 50  0001 C CNN
@@ -1091,7 +1056,7 @@ F 3 "" H 1950 700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +V_IN #PWR022
+L kbxBinaryClock.v3-rescue:+V_IN #PWR022
 U 1 1 5A7F41DC
 P 3150 700
 F 0 "#PWR022" H 3150 550 50  0001 C CNN
@@ -1102,7 +1067,7 @@ F 3 "" H 3150 700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +V_IN #PWR023
+L kbxBinaryClock.v3-rescue:+V_IN #PWR023
 U 1 1 5A7F4289
 P 4650 700
 F 0 "#PWR023" H 4650 550 50  0001 C CNN
@@ -1113,7 +1078,7 @@ F 3 "" H 4650 700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +V_IN #PWR024
+L kbxBinaryClock.v3-rescue:+V_IN #PWR024
 U 1 1 5A7F4336
 P 5850 700
 F 0 "#PWR024" H 5850 550 50  0001 C CNN
@@ -1124,7 +1089,7 @@ F 3 "" H 5850 700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +V_IN #PWR025
+L kbxBinaryClock.v3-rescue:+V_IN #PWR025
 U 1 1 5A7F43E3
 P 7350 700
 F 0 "#PWR025" H 7350 550 50  0001 C CNN
@@ -1135,7 +1100,7 @@ F 3 "" H 7350 700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +V_IN #PWR026
+L kbxBinaryClock.v3-rescue:+V_IN #PWR026
 U 1 1 5A7F4490
 P 8550 700
 F 0 "#PWR026" H 8550 550 50  0001 C CNN

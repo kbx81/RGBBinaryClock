@@ -1,41 +1,6 @@
-EESchema Schematic File Version 2
-LIBS:power
-LIBS:device
-LIBS:transistors
-LIBS:conn
-LIBS:linear
-LIBS:regul
-LIBS:74xx
-LIBS:cmos4000
-LIBS:adc-dac
-LIBS:memory
-LIBS:xilinx
-LIBS:microcontrollers
-LIBS:dsp
-LIBS:microchip
-LIBS:analog_switches
-LIBS:motorola
-LIBS:texas
-LIBS:intel
-LIBS:audio
-LIBS:interface
-LIBS:digital-audio
-LIBS:philips
-LIBS:display
-LIBS:cypress
-LIBS:siliconi
-LIBS:opto
-LIBS:atmel
-LIBS:contrib
-LIBS:valves
-LIBS:stm32
-LIBS:win
-LIBS:mechanical
-LIBS:switches
-LIBS:maxim
-LIBS:sensors
+EESchema Schematic File Version 4
 LIBS:kbxBinaryClock.v2.1-cache
-EELAYER 25 0
+EELAYER 26 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
@@ -50,7 +15,7 @@ Comment3 ""
 Comment4 ""
 $EndDescr
 $Comp
-L DS3231 U6
+L kbxBinaryClock.v2.1-rescue:DS3231 U6
 U 1 1 5A0ADBD0
 P 2900 2500
 F 0 "U6" H 2800 2975 50  0000 R CNN
@@ -61,7 +26,7 @@ F 3 "" H 3170 2750 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L MAX485E U9
+L kbxBinaryClock.v2.1-rescue:MAX485E U9
 U 1 1 5A0ADC38
 P 9000 2400
 F 0 "U9" H 8760 2850 50  0000 C CNN
@@ -74,7 +39,7 @@ $EndComp
 Text HLabel 3600 1500 1    60   Output ~ 0
 OSC32_IN
 $Comp
-L +3.3V #PWR036
+L power:+3.3V #PWR036
 U 1 1 5A0B2F0C
 P 2900 1500
 F 0 "#PWR036" H 2900 1350 50  0001 C CNN
@@ -85,7 +50,7 @@ F 3 "" H 2900 1500 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R40
+L Device:R R40
 U 1 1 5A0B2F28
 P 3150 1600
 F 0 "R40" V 3230 1600 50  0000 C CNN
@@ -96,7 +61,7 @@ F 3 "" H 3150 1600 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L +BATT #PWR037
+L power:+BATT #PWR037
 U 1 1 5A0B2F97
 P 3800 1500
 F 0 "#PWR037" H 3800 1350 50  0001 C CNN
@@ -107,7 +72,7 @@ F 3 "" H 3800 1500 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR038
+L power:GND #PWR038
 U 1 1 5A0B2FCB
 P 2900 3200
 F 0 "#PWR038" H 2900 2950 50  0001 C CNN
@@ -118,7 +83,7 @@ F 3 "" H 2900 3200 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C23
+L Device:C C23
 U 1 1 5A0B2FFD
 P 1950 1600
 F 0 "C23" H 1975 1700 50  0000 L CNN
@@ -129,7 +94,7 @@ F 3 "" H 1950 1600 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L GND #PWR039
+L power:GND #PWR039
 U 1 1 5A0B3065
 P 1700 1600
 F 0 "#PWR039" H 1700 1350 50  0001 C CNN
@@ -140,7 +105,7 @@ F 3 "" H 1700 1600 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R39
+L Device:R R39
 U 1 1 5A0B3562
 P 2400 1750
 F 0 "R39" V 2480 1750 50  0000 C CNN
@@ -151,7 +116,7 @@ F 3 "" H 2400 1750 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R38
+L Device:R R38
 U 1 1 5A0B35AA
 P 2200 1750
 F 0 "R38" V 2280 1750 50  0000 C CNN
@@ -162,7 +127,7 @@ F 3 "" H 2200 1750 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR040
+L power:GND #PWR040
 U 1 1 5A0B3A49
 P 9000 3200
 F 0 "#PWR040" H 9000 2950 50  0001 C CNN
@@ -173,7 +138,7 @@ F 3 "" H 9000 3200 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3.3V #PWR041
+L power:+3.3V #PWR041
 U 1 1 5A0B3ACB
 P 9000 1700
 F 0 "#PWR041" H 9000 1550 50  0001 C CNN
@@ -184,7 +149,7 @@ F 3 "" H 9000 1700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C26
+L Device:C C26
 U 1 1 5A0B3B29
 P 9450 1800
 F 0 "C26" H 9475 1900 50  0000 L CNN
@@ -195,7 +160,7 @@ F 3 "" H 9450 1800 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L GND #PWR042
+L power:GND #PWR042
 U 1 1 5A0B3BC0
 P 9700 1900
 F 0 "#PWR042" H 9700 1650 50  0001 C CNN
@@ -206,7 +171,7 @@ F 3 "" H 9700 1900 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Conn_01x06 J2
+L kbxBinaryClock.v2.1-rescue:Conn_01x06 J2
 U 1 1 5A0B47CF
 P 6150 2500
 F 0 "J2" H 6150 2800 50  0000 C CNN
@@ -217,7 +182,7 @@ F 3 "" H 6150 2500 50  0001 C CNN
 	1    0    0    1   
 $EndComp
 $Comp
-L GND #PWR043
+L power:GND #PWR043
 U 1 1 5A0B4904
 P 5850 2800
 F 0 "#PWR043" H 5850 2550 50  0001 C CNN
@@ -228,7 +193,7 @@ F 3 "" H 5850 2800 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3.3V #PWR044
+L power:+3.3V #PWR044
 U 1 1 5A0B49D6
 P 4900 1800
 F 0 "#PWR044" H 4900 1650 50  0001 C CNN
@@ -255,7 +220,7 @@ USART2_MODE
 Text HLabel 8400 2600 0    60   Input ~ 0
 USART2_TX
 $Comp
-L Conn_02x03_Odd_Even J3
+L kbxBinaryClock.v2.1-rescue:Conn_02x03_Odd_Even J3
 U 1 1 5A0E0EE5
 P 10000 2700
 F 0 "J3" H 10050 2900 50  0000 C CNN
@@ -266,7 +231,7 @@ F 3 "" H 10000 2700 50  0001 C CNN
 	1    0    0    1   
 $EndComp
 $Comp
-L C C25
+L Device:C C25
 U 1 1 5A6187BF
 P 5800 2050
 F 0 "C25" H 5825 2150 50  0000 L CNN
@@ -277,7 +242,7 @@ F 3 "" H 5800 2050 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L DS1621 U7
+L kbxBinaryClock.v2.1-rescue:DS1621 U7
 U 1 1 5A6AC3DF
 P 2900 5200
 F 0 "U7" H 3170 5750 50  0000 C CNN
@@ -288,7 +253,7 @@ F 3 "" H 2900 5200 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3.3V #PWR045
+L power:+3.3V #PWR045
 U 1 1 5A6AC87F
 P 2900 4250
 F 0 "#PWR045" H 2900 4100 50  0001 C CNN
@@ -299,7 +264,7 @@ F 3 "" H 2900 4250 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C24
+L Device:C C24
 U 1 1 5A6AC90E
 P 4150 4650
 F 0 "C24" H 4175 4750 50  0000 L CNN
@@ -310,7 +275,7 @@ F 3 "" H 4150 4650 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L GND #PWR046
+L power:GND #PWR046
 U 1 1 5A6ACBF8
 P 4150 4850
 F 0 "#PWR046" H 4150 4600 50  0001 C CNN
@@ -321,7 +286,7 @@ F 3 "" H 4150 4850 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR047
+L power:GND #PWR047
 U 1 1 5A6ACE92
 P 2900 5900
 F 0 "#PWR047" H 2900 5650 50  0001 C CNN
@@ -332,7 +297,7 @@ F 3 "" H 2900 5900 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R41
+L Device:R R41
 U 1 1 5A800EAE
 P 3150 1800
 F 0 "R41" V 3230 1800 50  0000 C CNN
@@ -345,7 +310,7 @@ $EndComp
 Text HLabel 1400 2700 0    60   Output ~ 0
 RESET
 $Comp
-L GS2 SB2
+L win:GS2 SB2
 U 1 1 5A9B3265
 P 1900 2700
 F 0 "SB2" H 2000 2850 50  0000 C CNN
@@ -356,7 +321,7 @@ F 3 "" H 1900 2700 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L MCP9804_MSOP U8
+L kbxBinaryClock.v2.1-rescue:MCP9804_MSOP U8
 U 1 1 5AB87DF3
 P 6100 5100
 F 0 "U8" H 5850 5550 50  0000 C CNN

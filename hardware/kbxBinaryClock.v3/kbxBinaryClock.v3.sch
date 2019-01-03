@@ -1,41 +1,6 @@
-EESchema Schematic File Version 2
-LIBS:power
-LIBS:device
-LIBS:transistors
-LIBS:conn
-LIBS:linear
-LIBS:regul
-LIBS:74xx
-LIBS:cmos4000
-LIBS:adc-dac
-LIBS:memory
-LIBS:xilinx
-LIBS:microcontrollers
-LIBS:dsp
-LIBS:microchip
-LIBS:analog_switches
-LIBS:motorola
-LIBS:texas
-LIBS:intel
-LIBS:audio
-LIBS:interface
-LIBS:digital-audio
-LIBS:philips
-LIBS:display
-LIBS:cypress
-LIBS:siliconi
-LIBS:opto
-LIBS:atmel
-LIBS:contrib
-LIBS:valves
-LIBS:stm32
-LIBS:win
-LIBS:mechanical
-LIBS:switches
-LIBS:maxim
-LIBS:sensors
+EESchema Schematic File Version 4
 LIBS:kbxBinaryClock.v3-cache
-EELAYER 25 0
+EELAYER 26 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
@@ -128,7 +93,7 @@ Wire Wire Line
 Wire Wire Line
 	4600 5400 5900 5400
 Wire Wire Line
-	4350 2500 5900 2500
+	4350 2500 5700 2500
 Wire Wire Line
 	4600 4100 4350 4100
 Wire Wire Line
@@ -154,7 +119,7 @@ Wire Wire Line
 Wire Wire Line
 	5100 3400 5100 4700
 Wire Wire Line
-	4350 2400 5900 2400
+	4350 2400 5600 2400
 Wire Wire Line
 	4350 2300 5900 2300
 Wire Wire Line
@@ -193,4 +158,8 @@ Wire Wire Line
 Wire Wire Line
 	5700 3900 5700 2500
 Connection ~ 5700 2500
+Wire Wire Line
+	5600 2400 5900 2400
+Wire Wire Line
+	5700 2500 5900 2500
 $EndSCHEMATC
