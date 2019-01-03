@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 //
+#include "Application.h"
 #include "DateTime.h"
 #include "Hardware.h"
 #include "RgbLed.h"
@@ -26,9 +27,6 @@ namespace kbxBinaryClock {
 
   // where settings will be read/written in FLASH
   const uint32_t Settings::cSettingsFlashAddress = 0x0801f000;
-
-  // key used for validating settings
-  const uint32_t Settings::cSettingsValidationKey = 0x55aa55aa;
 
   // conatins a mask for bitfields and a maximum value for other types of data
   const uint16_t Settings::cSettingData[] = { 0x07ff,   // SystemOptions
@@ -51,10 +49,11 @@ namespace kbxBinaryClock {
                                               31,       // TemperatureCalibration
                                               7,        // BeeperVolume
                                               65535,    // TimerResetValue
+                                              100,      // DisplayRefreshInterval
                                               512 - 72 }; // DmxAddress
 
   Settings::Settings()
-  : _validityKey(cSettingsValidationKey)
+  : _crc(0)
   {
     initialize();
   }
@@ -62,23 +61,8 @@ namespace kbxBinaryClock {
 
   void Settings::initialize()
   {
-    uint16_t intensity = 4095,
-             rate = 100;
-    uint8_t  i = 0;
-    RgbLed   defaultRed(intensity, 0, 0, rate),
-             defaultOrange(intensity, intensity / 3, 0, rate),
-             defaultYellow(intensity, intensity, 0, rate),
-             defaultGreen(0, intensity, 0, rate),
-             defaultCyan(0, intensity, intensity, rate),
-             defaultBlue(0, 0, intensity, rate),
-             defaultViolet(intensity / 8, 0, intensity, rate),
-             defaultMagenta(intensity, 0, intensity, rate),
-             defaultWhite(intensity, intensity, intensity, rate),
-             defaultGray(intensity / 12, intensity / 12, intensity / 12, rate),
-             defaultOff(0, 0, 0, rate);
-
     // set default time slots every three hours starting at 0100 hours
-    for (i = static_cast<uint8_t>(Slot::Slot1); i <= static_cast<uint8_t>(Slot::Slot8); i++)
+    for (uint8_t i = static_cast<uint8_t>(Slot::Slot1); i <= static_cast<uint8_t>(Slot::Slot8); i++)
     {
       _time[i].setTime((3 * i) + 1, 30, 0);
     }
@@ -90,7 +74,7 @@ namespace kbxBinaryClock {
     _setting[static_cast<uint8_t>(TimeDisplayDuration)] = 24;
     _setting[static_cast<uint8_t>(DateDisplayDuration)] = 3;
     _setting[static_cast<uint8_t>(TemperatureDisplayDuration)] = 3;
-    _setting[static_cast<uint8_t>(FadeRate)] = 100;
+    _setting[static_cast<uint8_t>(FadeDuration)] = 100;
     _setting[static_cast<uint8_t>(DstBeginMonth)] = 3;
     _setting[static_cast<uint8_t>(DstBeginDowOrdinal)] = 2;
     _setting[static_cast<uint8_t>(DstEndMonth)] = 11;
@@ -103,66 +87,72 @@ namespace kbxBinaryClock {
     _setting[static_cast<uint8_t>(TemperatureCalibration)] = 10;
     _setting[static_cast<uint8_t>(BeeperVolume)] = 7;
     _setting[static_cast<uint8_t>(TimerResetValue)] = 30;
+    _setting[static_cast<uint8_t>(DisplayRefreshInterval)] = 0;
     _setting[static_cast<uint8_t>(DmxAddress)] = 0;
 
-    _color0[Slot::Slot1] = defaultRed;    // 0130
-    _color1[Slot::Slot1] = defaultOrange;
-    _color0[Slot::Slot2] = defaultRed;    // 0430
-    _color1[Slot::Slot2] = defaultOrange;
-    _color0[Slot::Slot3] = defaultOrange; // 0730
-    _color1[Slot::Slot3] = defaultYellow;
-    _color0[Slot::Slot4] = defaultYellow; // 1030
-    _color1[Slot::Slot4] = defaultMagenta;
-    _color0[Slot::Slot5] = defaultCyan;   // 1330 / 1:30 pm
-    _color1[Slot::Slot5] = defaultYellow;
-    _color0[Slot::Slot6] = defaultOrange; // 1630 / 4:30 pm
-    _color1[Slot::Slot6] = defaultMagenta;
-    _color0[Slot::Slot7] = defaultBlue;   // 1930 / 7:30 pm
-    _color1[Slot::Slot7] = defaultOrange;
-    _color0[Slot::Slot8] = defaultRed;    // 2230 / 10:30 pm
-    _color1[Slot::Slot8] = defaultOrange;
-    _color0[Slot::SlotDate] = defaultGray;
-    _color1[Slot::SlotDate] = defaultWhite;
-    _color0[Slot::SlotTemperature] = defaultBlue;
-    _color1[Slot::SlotTemperature] = defaultYellow;
-    _color0[Slot::SlotTimer] = defaultBlue;
-    _color1[Slot::SlotTimer] = defaultWhite;
-    _color0[Slot::SlotMenu] = defaultGray;
-    _color1[Slot::SlotMenu] = defaultWhite;
-    _color0[Slot::SlotSet] = defaultGreen;
-    _color1[Slot::SlotSet] = defaultRed;
-    _color0[Slot::SlotDmx] = defaultOff;
-    _color1[Slot::SlotDmx] = defaultGray;
-    _color0[Slot::SlotCalculated] = defaultGreen;
-    _color1[Slot::SlotCalculated] = defaultRed;
+    _color[Color::Color0][Slot::Slot1] = Application::red;    // 0130
+    _color[Color::Color1][Slot::Slot1] = Application::orange;
+    _color[Color::Color0][Slot::Slot2] = Application::red;    // 0430
+    _color[Color::Color1][Slot::Slot2] = Application::orange;
+    _color[Color::Color0][Slot::Slot3] = Application::orange; // 0730
+    _color[Color::Color1][Slot::Slot3] = Application::yellow;
+    _color[Color::Color0][Slot::Slot4] = Application::yellow; // 1030
+    _color[Color::Color1][Slot::Slot4] = Application::magenta;
+    _color[Color::Color0][Slot::Slot5] = Application::cyan;   // 1330 / 1:30 pm
+    _color[Color::Color1][Slot::Slot5] = Application::yellow;
+    _color[Color::Color0][Slot::Slot6] = Application::orange; // 1630 / 4:30 pm
+    _color[Color::Color1][Slot::Slot6] = Application::magenta;
+    _color[Color::Color0][Slot::Slot7] = Application::blue;   // 1930 / 7:30 pm
+    _color[Color::Color1][Slot::Slot7] = Application::orange;
+    _color[Color::Color0][Slot::Slot8] = Application::red;    // 2230 / 10:30 pm
+    _color[Color::Color1][Slot::Slot8] = Application::orange;
+    _color[Color::Color0][Slot::SlotDate] = Application::gray;
+    _color[Color::Color1][Slot::SlotDate] = Application::white;
+    _color[Color::Color0][Slot::SlotTemperature] = Application::blue;
+    _color[Color::Color1][Slot::SlotTemperature] = Application::yellow;
+    _color[Color::Color0][Slot::SlotTimer] = Application::blue;
+    _color[Color::Color1][Slot::SlotTimer] = Application::white;
+    _color[Color::Color0][Slot::SlotMenu] = Application::gray;
+    _color[Color::Color1][Slot::SlotMenu] = Application::white;
+    _color[Color::Color0][Slot::SlotSet] = Application::green;
+    _color[Color::Color1][Slot::SlotSet] = Application::red;
+    _color[Color::Color0][Slot::SlotDmx] = Application::gray;
+    _color[Color::Color1][Slot::SlotDmx] = Application::white;
+    _color[Color::Color0][Slot::SlotCalculated] = Application::green;
+    _color[Color::Color1][Slot::SlotCalculated] = Application::red;
 
-    _color0[Slot::SlotMenu].setDuration(0);
-    _color1[Slot::SlotMenu].setDuration(0);
-    _color0[Slot::SlotSet].setDuration(0);
-    _color1[Slot::SlotSet].setDuration(0);
-
-    _validityKey = cSettingsValidationKey;  // settings are now valid
+    // _color[Color::Color0][Slot::SlotMenu].setDuration(0);
+    // _color[Color::Color1][Slot::SlotMenu].setDuration(0);
+    // _color[Color::Color0][Slot::SlotSet].setDuration(0);
+    // _color[Color::Color1][Slot::SlotSet].setDuration(0);
 }
 
 
-  void Settings::loadFromFlash()
+  bool Settings::loadFromFlash()
   {
-    RgbLed orange(1024, 120, 0, 0),
-           green(0, 768, 0, 0);
-
     Hardware::readFlash(cSettingsFlashAddress, sizeof(Settings), (uint8_t*)this);
 
-    if (_validityKey != cSettingsValidationKey)
+    uint32_t loadedCrc = _crc;  // save before zeroing for the CRC computation
+
+    _crc = 0;   // always compute the CRC with this as zero
+
+    if (loadedCrc != Hardware::getCRC((uint32_t*)this, sizeof(Settings) / 4))
     {
       initialize();
-      // blink to alert that settings could not be loaded
-      Hardware::blinkStatusLed(green, orange, 8, 100);
+
+      return false;
     }
+    return true;
   }
 
 
   uint32_t Settings::saveToFlash()
   {
+    _crc = 0;   // always compute the CRC with this as zero
+
+    // compute the new CRC value and save it before we write it all to FLASH
+    _crc = Hardware::getCRC((uint32_t*)this, sizeof(Settings) / 4);
+
     return Hardware::writeFlash(cSettingsFlashAddress, (uint8_t*)this, sizeof(Settings));
   }
 
@@ -243,35 +233,27 @@ namespace kbxBinaryClock {
   }
 
 
-  RgbLed Settings::getColor0(const Slot slot)
+  RgbLed Settings::getColor(const Color color, const Slot slot, const bool setFadeDuration)
   {
-    return _color0[static_cast<uint8_t>(slot)];
+    return getColor(static_cast<uint8_t>(color), static_cast<uint8_t>(slot), setFadeDuration);
   }
 
 
-  RgbLed Settings::getColor0(const uint8_t slot)
+  RgbLed Settings::getColor(const uint8_t color, const uint8_t slot, const bool setFadeDuration)
   {
-    if (slot <= static_cast<uint8_t>(Slot::SlotCalculated))
+    RgbLed led;
+
+    if ((color <= static_cast<uint8_t>(Color::Color1)) && (slot <= static_cast<uint8_t>(Slot::SlotCalculated)))
     {
-      return _color0[static_cast<uint8_t>(slot)];
+      led = _color[color][slot];
+
+      if (setFadeDuration == true)
+      {
+        led.setDuration(_setting[static_cast<uint8_t>(FadeDuration)]);
+      }
     }
-    return _color0[static_cast<uint8_t>(Slot::Slot1)];
-  }
 
-
-  RgbLed Settings::getColor1(const Slot slot)
-  {
-    return _color1[static_cast<uint8_t>(slot)];
-  }
-
-
-  RgbLed Settings::getColor1(const uint8_t slot)
-  {
-    if (slot <= static_cast<uint8_t>(Slot::SlotCalculated))
-    {
-      return _color1[static_cast<uint8_t>(slot)];
-    }
-    return _color1[static_cast<uint8_t>(Slot::Slot1)];
+    return led;
   }
 
 
@@ -285,8 +267,8 @@ namespace kbxBinaryClock {
   {
     if ((slot <= static_cast<uint8_t>(Slot::SlotDmx)))
     {
-      _color0[slot] = color0;
-      _color1[slot] = color1;
+      _color[Color::Color0][slot] = color0;
+      _color[Color::Color1][slot] = color1;
     }
   }
 
@@ -294,8 +276,6 @@ namespace kbxBinaryClock {
   void Settings::refreshCalculatedColors()
   {
     DateTime currentTime = Hardware::getDateTime();
-    RgbLed   defaultWhite(4095, 4095, 4095, _setting[static_cast<uint8_t>(FadeRate)]),
-             defaultDarkWhite(512, 512, 512, _setting[static_cast<uint8_t>(FadeRate)]);
     int32_t i, delta, percentage, secondsSinceMidnight,
             // minSecs = 0,  // first/earliest slot
             prevSecs = 0, // slot most recently passed
@@ -309,8 +289,8 @@ namespace kbxBinaryClock {
     secondsSinceMidnight = (int32_t)currentTime.secondsSinceMidnight(false);
 
     // we could set the rate, too, but other functions don't, so...
-    // _color0[Slot::SlotCalculated].setDuration(_setting[static_cast<uint8_t>(FadeRate)]);
-    // _color1[Slot::SlotCalculated].setDuration(_setting[static_cast<uint8_t>(FadeRate)]);
+    // _color[Color::Color0][Slot::SlotCalculated].setDuration(_setting[static_cast<uint8_t>(FadeRate)]);
+    // _color[Color::Color1][Slot::SlotCalculated].setDuration(_setting[static_cast<uint8_t>(FadeRate)]);
 
     if (Hardware::rtcIsSet() == true)
     {
@@ -374,19 +354,19 @@ namespace kbxBinaryClock {
         percentage = 10000 * (secondsSinceMidnight - _time[prevSlot].secondsSinceMidnight(false));
         percentage /= (nextSecs - _time[prevSlot].secondsSinceMidnight(false));
 
-        _color0[Slot::SlotCalculated].setFromMergedRgbLeds(percentage, _color0[prevSlot], _color0[nextSlot]);
-        _color1[Slot::SlotCalculated].setFromMergedRgbLeds(percentage, _color1[prevSlot], _color1[nextSlot]);
+        _color[Color::Color0][Slot::SlotCalculated].setFromMergedRgbLeds(percentage, _color[Color::Color0][prevSlot], _color[Color::Color0][nextSlot]);
+        _color[Color::Color1][Slot::SlotCalculated].setFromMergedRgbLeds(percentage, _color[Color::Color1][prevSlot], _color[Color::Color1][nextSlot]);
       }
       else
       {
-        _color0[Slot::SlotCalculated] = _color0[prevSlot];
-        _color1[Slot::SlotCalculated] = _color1[prevSlot];
+        _color[Color::Color0][Slot::SlotCalculated] = _color[Color::Color0][prevSlot];
+        _color[Color::Color1][Slot::SlotCalculated] = _color[Color::Color1][prevSlot];
       }
     }
     else
     {
-      _color0[Slot::SlotCalculated] = defaultDarkWhite;
-      _color1[Slot::SlotCalculated] = defaultWhite;
+      _color[Color::Color0][Slot::SlotCalculated] = Application::gray;
+      _color[Color::Color1][Slot::SlotCalculated] = Application::white;
     }
   }
 

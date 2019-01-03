@@ -52,10 +52,6 @@ static const uint8_t cChannelMultiplier = 4;
 //  Tones are queued by Hardware::tone() so they'll sound constant if needed
 static const uint8_t cToneDuration = 60;
 
-// The application's current settings
-//
-static Settings *_pSettings;
-
 // Master intensity level
 //
 volatile static uint16_t _masterIntensityLevel;
@@ -71,90 +67,81 @@ volatile static uint16_t _strobeDelay;
 
 void initialize()
 {
-  _pSettings = Application::getSettingsPtr();
 }
 
 
 void controller()
 {
   Dmx512Packet* currentPacket = Dmx512Rx::getLastPacket();
-  uint32_t _top;
-  uint16_t pitch, rate, address = _pSettings->getRawSetting(Settings::Setting::DmxAddress);
-  uint8_t level;
   RgbLed dmxLed[2];
-  const Application::OperatingMode opMode[] = {Application::OperatingMode::OperatingModeDmx512Display,
-                                               Application::OperatingMode::OperatingModeFixedDisplay,
-                                               Application::OperatingMode::OperatingModeFixedDisplay,
-                                               Application::OperatingMode::OperatingModeFixedDisplay,
-                                               Application::OperatingMode::OperatingModeTimerCounter,
-                                               Application::OperatingMode::OperatingModeTimerCounter,
-                                               Application::OperatingMode::OperatingModeTimerCounter,
-                                               Application::OperatingMode::OperatingModeTimerCounter};
-  const ViewMode viewMode[] = {ViewMode::ViewMode0,
-                               ViewMode::ViewMode0,
-                               ViewMode::ViewMode2,
-                               ViewMode::ViewMode3,
-                               ViewMode::ViewMode0,
-                               ViewMode::ViewMode1,
-                               ViewMode::ViewMode2,
-                               ViewMode::ViewMode3};
+  Settings *pSettings = Application::getSettingsPtr();
+  uint32_t _top = 0;
+  uint16_t pitch, duration, address = pSettings->getRawSetting(Settings::Setting::DmxAddress);
+  uint8_t level = 0;
+  const Application::OperatingMode opMode[] = { Application::OperatingMode::OperatingModeDmx512Display,
+                                                Application::OperatingMode::OperatingModeFixedDisplay,
+                                                Application::OperatingMode::OperatingModeFixedDisplay,
+                                                Application::OperatingMode::OperatingModeFixedDisplay,
+                                                Application::OperatingMode::OperatingModeTimerCounter,
+                                                Application::OperatingMode::OperatingModeTimerCounter,
+                                                Application::OperatingMode::OperatingModeTimerCounter,
+                                                Application::OperatingMode::OperatingModeTimerCounter };
+  const ViewMode viewMode[] = { ViewMode::ViewMode0,
+                                ViewMode::ViewMode0,
+                                ViewMode::ViewMode2,
+                                ViewMode::ViewMode3,
+                                ViewMode::ViewMode0,
+                                ViewMode::ViewMode1,
+                                ViewMode::ViewMode2,
+                                ViewMode::ViewMode3 };
 
-  if (Application::getExternalControlState() == Application::ExternalControl::Dmx512ExtControlEnum)
+  if (currentPacket->startCode() == 0)
   {
-    if (currentPacket->startCode() == 0)
+    if (pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DmxExtended) == true)
     {
-      if (_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DmxExtended) == true)
+      level = currentPacket->channel(address++) / 32;
+      Application::setOperatingMode(opMode[level]);
+      Application::setViewMode(viewMode[level]);
+      // volume only uses upper three bits
+      level = currentPacket->channel(address++) >> 5;
+      Hardware::setVolume(level);
+
+      pitch = currentPacket->channel(address++);
+      Hardware::tone(pitch * cPitchMultiplier, cToneDuration);
+
+      _strobeDelay = currentPacket->channel(address++) * cChannelMultiplier;
+      if (_strobeDelay > 0)
       {
-        level = currentPacket->channel(address++) / 32;
-        Application::setOperatingMode(opMode[level]);
-        Application::setViewMode(viewMode[level]);
-        // volume only uses upper three bits
-        level = currentPacket->channel(address++) >> 5;
-        Hardware::setVolume(level);
-
-        pitch = currentPacket->channel(address++);
-        Hardware::tone(pitch * cPitchMultiplier, cToneDuration);
-
-        _strobeDelay = currentPacket->channel(address++) * cChannelMultiplier;
-        if (_strobeDelay > 0)
-        {
-          _strobeDelay += cStrobeMinimumRate;
-        }
-        else
-        {
-          _strobeCounter = 0;
-        }
-
-        rate = currentPacket->channel(address++) * cChannelMultiplier;
-        dmxLed[0].setDuration(rate);
-        dmxLed[1].setDuration(rate);
-
-        // Set display blanking/driver current level
-        _top = (currentPacket->channel(address++) * RgbLed::cLed100Percent);
-        _masterIntensityLevel = static_cast<uint16_t>(_top / 255);
-        // _masterIntensityLevel = currentPacket->channel(address++);
-
-        dmxLed[0].setRed(currentPacket->channel(address++) << cChannelMultiplier);
-        dmxLed[0].setGreen(currentPacket->channel(address++) << cChannelMultiplier);
-        dmxLed[0].setBlue(currentPacket->channel(address++) << cChannelMultiplier);
-
-        dmxLed[1].setRed(currentPacket->channel(address++) << cChannelMultiplier);
-        dmxLed[1].setGreen(currentPacket->channel(address++) << cChannelMultiplier);
-        dmxLed[1].setBlue(currentPacket->channel(address++) << cChannelMultiplier);
-
-        _pSettings->setColors(Settings::Slot::SlotDmx, dmxLed[0], dmxLed[1]);
-
-        // if (_masterIntensityLevel > 0)
-        // {
-          DisplayManager::setMasterIntensity(_masterIntensityLevel);
-        // }
+        _strobeDelay += cStrobeMinimumRate;
       }
       else
       {
-        _top = (currentPacket->channel(address) * RgbLed::cLed100Percent);
-        _masterIntensityLevel = static_cast<uint16_t>(_top / 255);
+        _strobeCounter = 0;
       }
+
+      duration = currentPacket->channel(address++) * cChannelMultiplier;
+
+      // Set display blanking/driver current level
+      _top = (currentPacket->channel(address++) * RgbLed::cLed100Percent);
+
+      dmxLed[0].setDuration(duration);
+      dmxLed[0].setRed(currentPacket->channel(address++) << cChannelMultiplier);
+      dmxLed[0].setGreen(currentPacket->channel(address++) << cChannelMultiplier);
+      dmxLed[0].setBlue(currentPacket->channel(address++) << cChannelMultiplier);
+
+      dmxLed[1].setDuration(duration);
+      dmxLed[1].setRed(currentPacket->channel(address++) << cChannelMultiplier);
+      dmxLed[1].setGreen(currentPacket->channel(address++) << cChannelMultiplier);
+      dmxLed[1].setBlue(currentPacket->channel(address++) << cChannelMultiplier);
+
+      pSettings->setColors(Settings::Slot::SlotDmx, dmxLed[0], dmxLed[1]);
     }
+    else
+    {
+      _top = (currentPacket->channel(address) * RgbLed::cLed100Percent);
+    }
+    _masterIntensityLevel = static_cast<uint16_t>(_top / 255);
+    DisplayManager::setMasterIntensity(_masterIntensityLevel);
   }
 }
 

@@ -39,11 +39,6 @@
 namespace kbxBinaryClock {
 
 
-// const uint8_t cPixelCount = 24;
-// const uint8_t cLedCount = cPixelCount * 3;
-// const uint16_t cLedMaxIntensity = 4095;
-
-
 Display::Display()
 : _color0(0, 128, 0),
   _color1(128, 0, 0),
@@ -58,7 +53,7 @@ Display::Display(const RgbLed &color0, const RgbLed &color1, const RgbLed *data)
 : _color0(color0),
   _color1(color1),
   _displayBitmap(0x000000),
-  _displayBitmapMask(0xffffff)
+  _displayBitmapMask(0x000000)
 {
   uint8_t i = 0;
 
@@ -66,7 +61,6 @@ Display::Display(const RgbLed &color0, const RgbLed &color1, const RgbLed *data)
   {
     _display[i] = data[i];
   }
-  _displayBitmapMask = 0x000000;
 }
 
 
@@ -76,9 +70,7 @@ Display::Display(const RgbLed &color0, const RgbLed &color1, const uint32_t bitm
   _displayBitmap(bitmap),
   _displayBitmapMask(0xffffff)
 {
-  uint8_t i = 0;
-
-  for (i = 0; i < cPixelCount; i++)
+  for (uint8_t i = 0; i < cPixelCount; i++)
   {
     if (((bitmap >> i) & 1) == 1)
     {
@@ -98,11 +90,9 @@ Display::Display(const RgbLed &color0, const RgbLed &color1, const uint8_t byte2
   _displayBitmap(byte0),
   _displayBitmapMask(0xffffff)
 {
-  uint8_t  i = 0;
-
   _displayBitmap |= (((uint32_t)byte2 << 16 ) | ((uint32_t)byte1 << 8));
 
-  for (i = 0; i < cPixelCount; i++)
+  for (uint8_t i = 0; i < cPixelCount; i++)
   {
     if (((_displayBitmap >> i) & 1) == 1)
     {
@@ -164,9 +154,7 @@ void Display::setDisplayColor1(const RgbLed &color)
 
 void Display::setDisplayFromRaw(const RgbLed *data)
 {
-  uint8_t i = 0;
-
-  for (i = 0; i < cPixelCount; i++)
+  for (uint8_t i = 0; i < cPixelCount; i++)
   {
     _display[i] = data[i];
   }
@@ -243,9 +231,10 @@ void Display::setDisplayFromNibbles(const uint8_t byte5, const uint8_t byte4, co
 
 void Display::setPixelFromState(const uint8_t pixelNumber, const bool ledState)
 {
+  // set the pixel from the appropriate color "state"
   if (pixelNumber < cPixelCount)
   {
-    if (ledState)
+    if (ledState == true)
     {
       _display[pixelNumber] = _color1;
     }
@@ -254,6 +243,17 @@ void Display::setPixelFromState(const uint8_t pixelNumber, const bool ledState)
       _display[pixelNumber] = _color0;
     }
   }
+  // update bitmap
+  if ((_displayBitmap & (1 << pixelNumber)) != 0)
+  {
+    _displayBitmap |= (1 << pixelNumber);
+  }
+  else
+  {
+    _displayBitmap &= ~(1 << pixelNumber);
+  }
+  // update bitmask
+  _displayBitmapMask |= (1 << pixelNumber);
 }
 
 
@@ -263,6 +263,8 @@ void Display::setPixelFromRaw(const uint8_t pixelNumber, const RgbLed &color)
   {
     _display[pixelNumber] = color;
   }
+  // update bitmask
+  _displayBitmapMask &= ~(1 << pixelNumber);
 }
 
 
@@ -272,6 +274,8 @@ void Display::setPixelOff(const uint8_t pixelNumber)
   {
     _display[pixelNumber].setOff();
   }
+  // update bitmask
+  _displayBitmapMask &= ~(1 << pixelNumber);
 }
 
 
@@ -281,9 +285,33 @@ void Display::setPixelsOff(const uint32_t bitmap)
   {
     if (((bitmap >> i) & 1) == 1)
     {
-      _display[i].setOff();
+      setPixelOff(i);
     }
   }
+}
+
+
+void Display::setMsbPixelsOff(const bool useBcdMode, const uint32_t keepOnMask)
+{
+  const uint32_t fullMask = 0xffffffff;
+  uint32_t msbMask = 0;
+  uint8_t  i, currentByte = 0, blockMask = 0xff, passes = 3, width = 8;
+
+  if (useBcdMode == true)
+  {
+    blockMask = 0xf;
+    passes = 6;
+    width  = 4;
+  }
+
+  for (i = 0; i < passes; i++)
+  {
+    currentByte = (_displayBitmap >> (width * i)) & blockMask;
+
+    msbMask |= (fullMask >> (__builtin_clz(currentByte))) << (width * i);
+  }
+
+  setPixelsOff((~msbMask) & keepOnMask);
 }
 
 
@@ -291,7 +319,7 @@ bool Display::getPixelState(const uint8_t pixelNumber) const
 {
   if (pixelNumber < cPixelCount)
   {
-    if ((_displayBitmap & (1 << pixelNumber)) == true)
+    if ((_displayBitmap & (1 << pixelNumber)) != 0)
     {
       return true;
     }
@@ -311,7 +339,7 @@ bool Display::getPixelMask(const uint8_t pixelNumber) const
 {
   if (pixelNumber < cPixelCount)
   {
-    if ((_displayBitmapMask & (1 << pixelNumber)) == true)
+    if ((_displayBitmapMask & (1 << pixelNumber)) != 0)
     {
       return true;
     }

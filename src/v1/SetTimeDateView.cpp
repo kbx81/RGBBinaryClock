@@ -31,6 +31,14 @@ namespace kbxBinaryClock {
 const uint16_t SetTimeDateView::cLowlightPercentage = 2500;
 
 
+SetTimeDateView::SetTimeDateView()
+  : _selectedByte(0),
+    _mode(Application::OperatingMode::OperatingModeSetClock),
+    _settings(Settings())
+{
+}
+
+
 void SetTimeDateView::enter()
 {
   DateTime setDateTime;
@@ -49,7 +57,7 @@ void SetTimeDateView::enter()
     default:
     // Subtract the first in the OperatingModeSlotxTime series from the
     //   current mode to get the slot we're modifying
-    setDateTime = _settings.getTime(_mode - Application::OperatingMode::OperatingModeSlot1Time);
+    setDateTime = _settings.getTime(Application::getOperatingModeRelatedSetting(_mode));
     break;
   }
 
@@ -78,8 +86,9 @@ void SetTimeDateView::enter()
 }
 
 
-void SetTimeDateView::keyHandler(Keys::Key key)
+bool SetTimeDateView::keyHandler(Keys::Key key)
 {
+  bool tick = true;
   DateTime setDateTime = Hardware::getDateTime();
 
   if (key == Keys::Key::A)
@@ -104,7 +113,7 @@ void SetTimeDateView::keyHandler(Keys::Key key)
       default:
       // Subtract the first in the OperatingModeSlotxTime series from the
       //   current mode to get the slot we're modifying
-      _settings.setTime(_mode - Application::OperatingMode::OperatingModeSlot1Time, setDateTime);
+      _settings.setTime(Application::getOperatingModeRelatedSetting(_mode), setDateTime);
       Application::setSettings(_settings);
       break;
     }
@@ -114,6 +123,7 @@ void SetTimeDateView::keyHandler(Keys::Key key)
 
   if (key == Keys::Key::B)
   {
+    tick = false;
   }
 
   if (key == Keys::Key::C)
@@ -132,6 +142,7 @@ void SetTimeDateView::keyHandler(Keys::Key key)
       if (--_setValues[_selectedByte] < 1)
       {
         _setValues[_selectedByte] = 1;
+        tick = false;
       }
 
       if (_selectedByte > 0)   // month or year is selected...
@@ -149,6 +160,7 @@ void SetTimeDateView::keyHandler(Keys::Key key)
       if (--_setValues[_selectedByte] > _maxValues[_selectedByte])
       {
         _setValues[_selectedByte] = 0;
+        tick = false;
       }
     }
   }
@@ -158,9 +170,10 @@ void SetTimeDateView::keyHandler(Keys::Key key)
     if (++_setValues[_selectedByte] > _maxValues[_selectedByte])
     {
       _setValues[_selectedByte] = _maxValues[_selectedByte];
+      tick = false;
     }
 
-    if (_mode == Application::OperatingMode::OperatingModeSetDate && _selectedByte > 0)   // month or year is selected
+    if ((_mode == Application::OperatingMode::OperatingModeSetDate) && (_selectedByte > 0))   // month or year is selected
     {
       setDateTime.setDate(2000 + _setValues[2], _setValues[1], _setValues[0]);
       _maxValues[0] = setDateTime.daysThisMonth();   // update max days in the month
@@ -175,15 +188,17 @@ void SetTimeDateView::keyHandler(Keys::Key key)
   {
     Application::setOperatingMode(Application::OperatingMode::OperatingModeMainMenu);
   }
+
+  return tick;
 }
 
 
 void SetTimeDateView::loop()
 {
-  RgbLed color0Highlight = _settings.getColor0(Settings::Slot::SlotSet),
-         color1Highlight = _settings.getColor1(Settings::Slot::SlotSet),
-         color0Lowlight = _settings.getColor0(Settings::Slot::SlotSet),
-         color1Lowlight = _settings.getColor1(Settings::Slot::SlotSet),
+  RgbLed color0Highlight = _settings.getColor(Settings::Color::Color0, Settings::Slot::SlotSet),
+         color1Highlight = _settings.getColor(Settings::Color::Color1, Settings::Slot::SlotSet),
+         color0Lowlight = _settings.getColor(Settings::Color::Color0, Settings::Slot::SlotSet),
+         color1Lowlight = _settings.getColor(Settings::Color::Color1, Settings::Slot::SlotSet),
          statusLed;
   uint8_t  i, adjustedHour = _setValues[2],
            workingByte = _setValues[_selectedByte];
@@ -200,11 +215,11 @@ void SetTimeDateView::loop()
     if (adjustedHour >= 12)
     {
       adjustedHour = adjustedHour - 12;
-      statusLed = _settings.getColor1(Settings::Slot::SlotSet);
+      statusLed = _settings.getColor(Settings::Color::Color1, Settings::Slot::SlotSet);
     }
     else
     {
-      statusLed = _settings.getColor0(Settings::Slot::SlotSet);
+      statusLed = _settings.getColor(Settings::Color::Color0, Settings::Slot::SlotSet);
     }
 
     if (adjustedHour == 0)

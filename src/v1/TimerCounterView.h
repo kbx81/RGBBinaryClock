@@ -43,8 +43,9 @@ enum TimerMode : uint8_t
 public: // Implement the TimerCounterView class
   static const uint32_t cMaxBcdValue;
 
+  TimerCounterView();
   virtual void enter() override;
-  virtual void keyHandler(Keys::Key key) override;
+  virtual bool keyHandler(Keys::Key key) override;
   virtual void loop() override;
 
 private:
@@ -56,9 +57,9 @@ private:
   //
   uint32_t _timerValue;
 
-  // the fade rate that will be used for the display
+  // the fade duration that will be used for the display
   //
-  uint16_t _fadeRate;
+  uint16_t _fadeDuration;
 
   // direction for the timer to count
   //
@@ -67,10 +68,6 @@ private:
   // true if the alarm is ready to be activated
   //
   bool _alarmReady;
-
-  // Settings to be used by the view
-  //
-  Settings *_pSettings;
 
 };
 

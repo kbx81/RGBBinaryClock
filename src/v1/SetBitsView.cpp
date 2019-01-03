@@ -30,24 +30,36 @@ namespace kbxBinaryClock {
 const uint16_t SetBitsView::cLowlightPercentage = 2500;
 
 
+SetBitsView::SetBitsView()
+  : _setBits(0),
+    _bitsMask(0),
+    _selectedBit(0),
+    _mode(Application::OperatingMode::OperatingModeSetSystemOptions),
+    _settings(Settings())
+{
+}
+
+
 void SetBitsView::enter()
 {
   _mode = Application::getOperatingMode();
 
   _settings = Application::getSettings();
 
-  _setBits = _settings.getRawSetting(static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSetSystemOptions));
-  _bitsMask = Settings::cSettingData[static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSetSystemOptions)];
+  _setBits = _settings.getRawSetting(Application::getOperatingModeRelatedSetting(_mode));
+  _bitsMask = Settings::cSettingData[Application::getOperatingModeRelatedSetting(_mode)];
 
   _selectedBit = 0;
 }
 
 
-void SetBitsView::keyHandler(Keys::Key key)
+bool SetBitsView::keyHandler(Keys::Key key)
 {
+  bool tick = true;
+
   if (key == Keys::Key::A)
   {
-    _settings.setRawSetting(static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSetSystemOptions), _setBits);
+    _settings.setRawSetting(Application::getOperatingModeRelatedSetting(_mode), _setBits);
     Application::setSettings(_settings);
 
     DisplayManager::doubleBlink();
@@ -55,12 +67,26 @@ void SetBitsView::keyHandler(Keys::Key key)
 
   if (key == Keys::Key::B)
   {
-    _setBits &= ~(1 << _selectedBit);
+    if ((_setBits & (1 << _selectedBit)) != 0)
+    {
+      _setBits &= ~(1 << _selectedBit);
+    }
+    else
+    {
+      tick = false;
+    }
   }
 
   if (key == Keys::Key::C)
   {
-    _setBits |= (1 << _selectedBit);
+    if ((_setBits & (1 << _selectedBit)) == 0)
+    {
+      _setBits |= (1 << _selectedBit);
+    }
+    else
+    {
+      tick = false;
+    }
   }
 
   if (key == Keys::Key::D)
@@ -68,14 +94,18 @@ void SetBitsView::keyHandler(Keys::Key key)
     if (--_selectedBit > 15)
     {
       _selectedBit = 0;
+
+      tick = false;
     }
   }
 
   if (key == Keys::Key::U)
   {
-    if (++_selectedBit >= __builtin_ctz(~_bitsMask) - 1)
+    if (++_selectedBit > __builtin_ctz(~_bitsMask) - 1)
     {
       _selectedBit = __builtin_ctz(~_bitsMask) - 1;
+
+      tick = false;
     }
   }
 
@@ -83,15 +113,17 @@ void SetBitsView::keyHandler(Keys::Key key)
   {
     Application::setOperatingMode(Application::OperatingMode::OperatingModeMainMenu);
   }
+
+  return tick;
 }
 
 
 void SetBitsView::loop()
 {
-  RgbLed color0Highlight = _settings.getColor0(Settings::Slot::SlotSet),
-         color1Highlight = _settings.getColor1(Settings::Slot::SlotSet),
-         color0Lowlight = _settings.getColor0(Settings::Slot::SlotSet),
-         color1Lowlight = _settings.getColor1(Settings::Slot::SlotSet);
+  RgbLed color0Highlight = _settings.getColor(Settings::Color::Color0, Settings::Slot::SlotSet),
+         color1Highlight = _settings.getColor(Settings::Color::Color1, Settings::Slot::SlotSet),
+         color0Lowlight = _settings.getColor(Settings::Color::Color0, Settings::Slot::SlotSet),
+         color1Lowlight = _settings.getColor(Settings::Color::Color1, Settings::Slot::SlotSet);
 
   color0Lowlight.adjustIntensity(SetBitsView::cLowlightPercentage);
   color1Lowlight.adjustIntensity(SetBitsView::cLowlightPercentage);

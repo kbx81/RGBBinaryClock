@@ -94,6 +94,7 @@ DateTime::DateTime()
 
 
 DateTime::DateTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second)
+  : _year(year), _month(month), _day(day), _hour(hour), _minute(minute), _second(second), _dayOfWeek(0)
 {
   setDate(year, month, day);
   setTime(hour, minute, second);

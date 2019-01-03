@@ -42,8 +42,9 @@ enum FixedDisplayItem : uint8_t
 // The view which displays either the date, time, temperature, or a rotation
 //
 public: // Implement the TimeDateTempView class
+  TimeDateTempView();
   virtual void enter() override;
-  virtual void keyHandler(Keys::Key key) override;
+  virtual bool keyHandler(Keys::Key key) override;
   virtual void loop() override;
 
 private:
@@ -53,10 +54,6 @@ private:
   //
   uint32_t _lastSwitchTime;
 
-  // the main application's mode
-  //
-  Application::OperatingMode _mode;
-
   // temperature
   //
   int32_t _currentTemperature;
@@ -65,9 +62,9 @@ private:
   //
   DateTime _currentTime;
 
-  // Settings to be used by the view
+  // the main application's mode
   //
-  Settings *_pSettings;
+  Application::OperatingMode _mode;
 
 };
 

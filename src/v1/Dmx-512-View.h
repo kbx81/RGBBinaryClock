@@ -33,8 +33,9 @@ class Dmx512View : public View {
 // The view which displays either the date, time, temperature, or a rotation
 //
 public: // Implement the Dmx512View class
+  Dmx512View();
   virtual void enter() override;
-  virtual void keyHandler(Keys::Key key) override;
+  virtual bool keyHandler(Keys::Key key) override;
   virtual void loop() override;
 
 private:
@@ -45,10 +46,6 @@ private:
   // the main application's mode
   //
   Application::OperatingMode _mode;
-
-  // Settings to be used by the view
-  //
-  Settings *_pSettings;
 
 };
 

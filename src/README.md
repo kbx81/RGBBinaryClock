@@ -26,7 +26,7 @@ The code is written for the STM32F072 microcontroller used on the RGB Binary
  that if you do so, it may be necessary to tweak some paths in the Makefile(s),
  but otherwise things should work without much trouble. You'll also (of course)
  need a (gcc) compiler to build the code base. (At the time of this writing,
- I've been building it with gcc on macOS High Sierra.)
+ I've been building it with gcc on macOS Mojave and High Sierra.)
 
 The STM32F072 microcontroller is a rich device with a lot of peripherals. Many
  of these peripherals are leveraged in the code to enable it work as efficiently
@@ -34,6 +34,7 @@ The STM32F072 microcontroller is a rich device with a lot of peripherals. Many
 
 * ADC - the analog to digital converter, used for sensing light level from the
   attached phototransistor
+* CRC - used to compute a checksum for settings data stored in FLASH
 * DMA - direct memory access controller, used to speedily move data to/from
   other I/O peripherals such as I2C, SPI, and USARTs
 * FLASH controller - erases and writes settings to a dedicated block of FLASH so
@@ -58,9 +59,10 @@ The STM32F072 microcontroller is a rich device with a lot of peripherals. Many
 As of 2018-12-20, the source code has been consolidated into a single tree. When
  compiling (with gcc), you'll need to add `-DHARDWARE_VERSION=X` to the command
  line, where `X` is the major version number of the hardware you're targeting.
- This will make maintaining the code base significantly easier moving forward,
- albeit at the expense of some extra bloat in some of the source files. Be aware
- of this if you choose to build it yourself and/or do some hacking!
+ Note that this switch has already been added to the included Makefile. In
+ general, the consolidated sources will make maintaining the code base easier
+ moving forward, albeit at the expense of some extra bloat in some of the source
+ files. Be aware of this if you choose to build it yourself and/or do some hacking!
 
 ## I want to hack. Where do I start?
 

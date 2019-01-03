@@ -29,7 +29,16 @@ namespace kbxBinaryClock {
 
 
 const uint16_t SetColorsView::cMaxDelta = 256;
-const uint8_t SetColorsView::cDeltaShiftAmt = 4;  // shift (left) by eight bits
+const uint8_t  SetColorsView::cDeltaShiftAmt = 4;  // shift (left) by eight bits
+
+
+SetColorsView::SetColorsView()
+  : _selectedParam(Color::Red0),
+    _delta(cMaxDelta),
+    _mode(Application::OperatingMode::OperatingModeSlot1Colors),
+    _settings(Settings())
+{
+}
 
 
 void SetColorsView::enter()
@@ -43,8 +52,8 @@ void SetColorsView::enter()
 
   // Subtract the first in the OperatingModeSlotxColors series from the
   //   current mode to get the slot we're modifying
-  RgbLed color0(_settings.getColor0(static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSlot1Colors))),
-         color1(_settings.getColor1(static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSlot1Colors)));
+  RgbLed color0(_settings.getColor(0, Application::getOperatingModeRelatedSetting(_mode))),
+         color1(_settings.getColor(1, Application::getOperatingModeRelatedSetting(_mode)));
 
   _setValues[Color::Red0] = color0.getRed();
   _setValues[Color::Green0] = color0.getGreen();
@@ -58,8 +67,10 @@ void SetColorsView::enter()
 }
 
 
-void SetColorsView::keyHandler(Keys::Key key)
+bool SetColorsView::keyHandler(Keys::Key key)
 {
+  bool tick = true;
+
   SCVDisplayItem currentDisplayMode = static_cast<SCVDisplayItem>(Application::getViewMode());
 
   if (key == Keys::Key::A)
@@ -132,27 +143,25 @@ void SetColorsView::keyHandler(Keys::Key key)
   {
     Application::setOperatingMode(Application::OperatingMode::OperatingModeMainMenu);
   }
+
+  return tick;
 }
 
 
 void SetColorsView::loop()
 {
   DateTime current = Hardware::getDateTime();
+  // bcDisp is initialized for DeltaValue view mode
+  Display bcDisp(Application::darkGray, Application::gray, _delta << 8);
+  SCVDisplayItem currentDisplayMode = static_cast<SCVDisplayItem>(Application::getViewMode());
+  RgbLed mixedColor0(_setValues[Color::Red0], _setValues[Color::Green0], _setValues[Color::Blue0]),
+         mixedColor1(_setValues[Color::Red1], _setValues[Color::Green1], _setValues[Color::Blue1]),
+         red(2048, 0, 0),
+         green(0, 2048, 0),
+         blue(0, 0, 2048);
   uint32_t secondsBitMask = current.second(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)),
            displayBitMask = _setValues[_selectedParam];
-  uint16_t rate = 0;
-  SCVDisplayItem currentDisplayMode = static_cast<SCVDisplayItem>(Application::getViewMode());
-  RgbLed mixedColor0(_setValues[Color::Red0], _setValues[Color::Green0], _setValues[Color::Blue0], rate),
-         mixedColor1(_setValues[Color::Red1], _setValues[Color::Green1], _setValues[Color::Blue1], rate),
-         red(2048, 0, 0, rate),
-         green(0, 2048, 0, rate),
-         blue(0, 0, 2048, rate),
-         white(2048, 2048, 2048, rate),
-         gray(384, 384, 384, rate),
-         off(0, 0, 0, rate);
-  // bcDisp is initialized for DeltaValue view mode
-  Display bcDisp(off, white, _delta << 8);
-  // ...we change it here if we're not in that mode
+  // update bcDisp if we're not in DeltaValue view mode
   if (currentDisplayMode == SCVDisplayItem::ColorMixer)
   {
     // display value in BCD if settings say so
@@ -165,32 +174,32 @@ void SetColorsView::loop()
     {
       case Color::Blue0:
         bcDisp.setDisplayColor0(blue);
-        bcDisp.setDisplayColor1(white);
+        bcDisp.setDisplayColor1(Application::gray);
         break;
 
       case Color::Green0:
         bcDisp.setDisplayColor0(green);
-        bcDisp.setDisplayColor1(white);
+        bcDisp.setDisplayColor1(Application::gray);
         break;
 
       case Color::Red0:
         bcDisp.setDisplayColor0(red);
-        bcDisp.setDisplayColor1(white);
+        bcDisp.setDisplayColor1(Application::gray);
         break;
 
       case Color::Blue1:
-        bcDisp.setDisplayColor0(gray);
+        bcDisp.setDisplayColor0(Application::darkGray);
         bcDisp.setDisplayColor1(blue);
         break;
 
       case Color::Green1:
-        bcDisp.setDisplayColor0(gray);
+        bcDisp.setDisplayColor0(Application::darkGray);
         bcDisp.setDisplayColor1(green);
         break;
 
       case Color::Red1:
       default:
-        bcDisp.setDisplayColor0(gray);
+        bcDisp.setDisplayColor0(Application::darkGray);
         bcDisp.setDisplayColor1(red);
         // break;
     }
@@ -211,7 +220,7 @@ void SetColorsView::loop()
   }
   // Subtract the first in the OperatingModeSlotxColors series from the
   //   current mode to get the slot we're modifying
-  _settings.setColors(static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSlot1Colors), mixedColor0, mixedColor1);
+  _settings.setColors(Application::getOperatingModeRelatedSetting(_mode), mixedColor0, mixedColor1);
 
   DisplayManager::writeDisplay(bcDisp);
 }

@@ -30,13 +30,16 @@
 namespace kbxBinaryClock {
 
 
+Dmx512View::Dmx512View()
+  : _mode(Application::OperatingMode::OperatingModeDmx512Display)
+{
+}
+
+
 void Dmx512View::enter()
 {
   _mode = Application::getOperatingMode();
 
-  _pSettings = Application::getSettingsPtr();
-
-  DisplayManager::setDisplayBlanking(true);
   // Application should handle this but we'll do it here, too, for consistency
   Application::setIntensityAutoAdjust(false);
 
@@ -44,12 +47,17 @@ void Dmx512View::enter()
 }
 
 
-void Dmx512View::keyHandler(Keys::Key key)
+bool Dmx512View::keyHandler(Keys::Key key)
 {
+  bool tick = false;
+
   if (key == Keys::Key::E)
   {
     Application::setOperatingMode(Application::OperatingMode::OperatingModeMainMenu);
+    tick = true;
   }
+
+  return tick;
 }
 
 
@@ -58,13 +66,14 @@ void Dmx512View::loop()
   Dmx512Packet* currentPacket = Dmx512Rx::getLastPacket();
   Display dmxDisplay;
   RgbLed currentLed;
-  uint16_t rate, address = _pSettings->getRawSetting(Settings::Setting::DmxAddress);
+  Settings *pSettings = Application::getSettingsPtr();
+  uint16_t rate, address = pSettings->getRawSetting(Settings::Setting::DmxAddress);
 
-  if (Application::getExternalControlState() == Application::ExternalControl::Dmx512ExtControlEnum)
+  if (Dmx512Rx::signalIsActive() == true)
   {
     if (currentPacket->startCode() == 0)
     {
-      if (_pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DmxExtended) == true)
+      if (pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DmxExtended) == true)
       {
         address += 4;
 
@@ -89,6 +98,7 @@ void Dmx512View::loop()
   }
   else
   {
+    DisplayManager::setDisplayBlanking(false);
     // Kick us back to the main menu if the signal was lost
     Application::setOperatingMode(Application::OperatingMode::OperatingModeMainMenu);
   }

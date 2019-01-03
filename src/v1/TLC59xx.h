@@ -205,20 +205,20 @@ private:
   static const uint8_t cTLC5951LodBaseIndex;
   static const uint8_t cTLC5951LsdBaseIndex;
 
-  ReversingMode _reversingMode;
-
-  uint16_t* _pPwmBuffer;
-  uint8_t*  _pDcBcFcUdBuffer;
-
   uint16_t _numberOfDevices;
 
-  uint8_t _pwmChannelsPerDevice;
-  uint8_t _DcBcFcUdShiftRegSize;
+  ReversingMode _reversingMode;
 
   uint8_t _dataOffset;
 
   bool _gsHwRefreshRequired;
   bool _dcBcFcUdHwRefreshRequired;
+
+  uint8_t _dcBcFcUdShiftRegSize;
+  uint8_t _pwmChannelsPerDevice;
+
+  uint16_t* _pPwmBuffer;
+  uint8_t*  _pDcBcFcUdBuffer;
 
   uint16_t _getModifiedChannel(const uint16_t channel);
 };

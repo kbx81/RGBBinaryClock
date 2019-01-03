@@ -42,6 +42,9 @@ namespace kbxBinaryClock {
 
 
 RgbCrossfader::RgbCrossfader()
+  : _active(RgbLed()),
+    _start(RgbLed()),
+    _target(RgbLed())
 {
 }
 

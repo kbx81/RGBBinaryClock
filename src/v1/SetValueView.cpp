@@ -26,6 +26,15 @@
 namespace kbxBinaryClock {
 
 
+SetValueView::SetValueView()
+  : _setValue(0),
+    _maxValue(0),
+    _mode(Application::OperatingMode::OperatingModeSetTimerResetValue),
+    _settings(Settings())
+{
+}
+
+
 void SetValueView::enter()
 {
   _mode = Application::getOperatingMode();
@@ -34,18 +43,20 @@ void SetValueView::enter()
 
   // Subtract the first in the OperatingModeSetDurationClock series from the
   //   current mode to get the value we're modifying
-  _setValue = _settings.getRawSetting(static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSetDurationClock + Settings::Setting::TimeDisplayDuration));
-  _maxValue = Settings::cSettingData[static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSetDurationClock + Settings::Setting::TimeDisplayDuration)];
+  _setValue = _settings.getRawSetting(Application::getOperatingModeRelatedSetting(_mode));
+  _maxValue = Settings::cSettingData[Application::getOperatingModeRelatedSetting(_mode)];
 }
 
 
-void SetValueView::keyHandler(Keys::Key key)
+bool SetValueView::keyHandler(Keys::Key key)
 {
+  bool tick = true;
+
   if (key == Keys::Key::A)
   {
     // Subtract the first in the OperatingModeSetDurationClock series from the
     //   current mode to get the value we're modifying
-    _settings.setRawSetting(static_cast<uint8_t>(_mode - Application::OperatingMode::OperatingModeSetDurationClock + Settings::Setting::TimeDisplayDuration), _setValue);
+    _settings.setRawSetting(Application::getOperatingModeRelatedSetting(_mode), _setValue);
     Application::setSettings(_settings);
 
     DisplayManager::doubleBlink();
@@ -53,12 +64,26 @@ void SetValueView::keyHandler(Keys::Key key)
 
   if (key == Keys::Key::B)
   {
-    _setValue = 1;
+    if (_setValue == 1)
+    {
+      tick = false;
+    }
+    else
+    {
+      _setValue = 1;
+    }
   }
 
   if (key == Keys::Key::C)
   {
-    _setValue = _maxValue;
+    if (_setValue == _maxValue)
+    {
+      tick = false;
+    }
+    else
+    {
+      _setValue = _maxValue;
+    }
   }
 
   if (key == Keys::Key::D)
@@ -66,11 +91,13 @@ void SetValueView::keyHandler(Keys::Key key)
     if (--_setValue > _maxValue)
     {
       _setValue = 0;
+      tick = false;
     }
 
     if (!_setValue && (_maxValue == 12 || _maxValue == 4))  // it's a month or an ordinal
     {
       _setValue = 1;
+      tick = false;
     }
   }
 
@@ -79,6 +106,7 @@ void SetValueView::keyHandler(Keys::Key key)
     if (++_setValue > _maxValue)
     {
       _setValue = _maxValue;
+      tick = false;
     }
   }
 
@@ -86,6 +114,8 @@ void SetValueView::keyHandler(Keys::Key key)
   {
     Application::setOperatingMode(Application::OperatingMode::OperatingModeMainMenu);
   }
+
+  return tick;
 }
 
 
@@ -110,7 +140,7 @@ void SetValueView::loop()
   }
 
   // now we can create a new display object with the right colors and bitmask
-  Display bcDisp(_settings.getColor0(Settings::Slot::SlotSet), _settings.getColor1(Settings::Slot::SlotSet), displayBitMask);
+  Display bcDisp(_settings.getColor(Settings::Color::Color0, Settings::Slot::SlotSet), _settings.getColor(Settings::Color::Color1, Settings::Slot::SlotSet), displayBitMask);
 
   DisplayManager::writeDisplay(bcDisp);
 }

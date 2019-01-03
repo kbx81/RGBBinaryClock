@@ -143,6 +143,13 @@ public:
   ///
   void setPixelsOff(const uint32_t bitmap);
 
+  /// @brief Set MSb pixels in a binary or BCD display to be off
+  ///
+  /// @param useBcdMode treat display as BCD
+  /// @param keepOnMask passed through to setPixelsOff() to keep selected pixels on
+  ///
+  void setMsbPixelsOff(const bool useBcdMode, const uint32_t keepOnMask = 0xfffffe);
+
   /// @brief Get a single pixel's state
   ///
   /// @param pixelNumber Number of pixel to set (0 through 23)

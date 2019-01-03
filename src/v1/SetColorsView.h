@@ -51,8 +51,9 @@ public: // Implement the SetColorsView class
     Blue1 = 5
   };
 
+  SetColorsView();
   virtual void enter() override;
-  virtual void keyHandler(Keys::Key key) override;
+  virtual bool keyHandler(Keys::Key key) override;
   virtual void loop() override;
 
 private:

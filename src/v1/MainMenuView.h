@@ -32,8 +32,9 @@ class MainMenuView : public View {
 // The view which displays either the date, time, temperature, or a rotation
 //
 public: // Implement the MainMainView class
+  MainMenuView();
   virtual void enter() override;
-  virtual void keyHandler(Keys::Key key) override;
+  virtual bool keyHandler(Keys::Key key) override;
   virtual void loop() override;
 
 private:
@@ -44,10 +45,6 @@ private:
   // the mode that was last selected
   //
   uint8_t _previousMode;
-
-  // Settings to be used by the view
-  //
-  Settings _settings;
 
 };
 

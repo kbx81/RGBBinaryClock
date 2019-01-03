@@ -26,6 +26,7 @@
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/cm3/systick.h>
 #include <libopencm3/stm32/adc.h>
+#include <libopencm3/stm32/crc.h>
 #include <libopencm3/stm32/dma.h>
 #include <libopencm3/stm32/flash.h>
 #include <libopencm3/stm32/gpio.h>
@@ -240,8 +241,6 @@ volatile static size_t _i2cNumberRx;
 //
 volatile static I2cState _i2cState = I2cState::I2cIdle;
 
-// tracks what the SPI is doing
-//
 // tracks what the SPI MISO is set to
 //
 static SpiPeripheral _spiActivePeripheral = SpiPeripheral::NotInitialized;
@@ -403,7 +402,9 @@ void _clockSetup()
 
   rcc_periph_clock_enable(RCC_DMA);
 
-  rcc_periph_clock_enable(RCC_RTC);
+  rcc_periph_clock_enable(RCC_PWR);
+
+  rcc_periph_clock_enable(RCC_CRC);
 
   rcc_periph_clock_enable(RCC_TIM1);
   rcc_periph_clock_enable(RCC_TIM2);
@@ -688,6 +689,10 @@ void _i2cRecover()
 
 
 // Configure RTC and ensure it's running
+// Status LED behavior (for v2+):
+//  Cyan: Normal startup
+//  Red/Cyan blink: Oscillator was stopped, reinitialization occured
+//  Red/Yellow blink: Oscillator did not start within the expected time
 //
 void _rtcSetup()
 {
@@ -697,45 +702,19 @@ void _rtcSetup()
   uint32_t sync = 255;
   uint16_t timeout = 474;
 
-  RgbLed red(2048, 0, 0, 0),
-         yellow(2048, 1536, 0, 0),
-         green(0, 2048, 0, 0),
-         blue(0, 0, 2048, 0);
-
-  if (rcc_is_osc_ready(RCC_LSE) == false)
+  if (cTargetHardwareVersion == 1)
   {
-    blinkStatusLed(blue, red, 2, 100);
-
     pwr_disable_backup_domain_write_protect();
+    // we used the HSE oscillator
+    rcc_set_rtc_clock_source(RCC_HSE);
+    sync = 1953;
 
-    // reset the RTC to ensure it's in a known state
-    RCC_BDCR |= RCC_BDCR_BDRST;
-    RCC_BDCR &= ~RCC_BDCR_BDRST;
+    rcc_enable_rtc_clock();
 
-    if (_externalRtcConnected == true)
-    {
-      rcc_osc_bypass_enable(RCC_LSE);
-    }
+    rtc_unlock();
 
-    if (cTargetHardwareVersion >= 2)
-    {
-      rcc_osc_on(RCC_LSE);
-      rcc_wait_for_osc_ready(RCC_LSE);
-
-      rcc_set_rtc_clock_source(RCC_LSE);
-    }
-    else
-    {
-      rcc_set_rtc_clock_source(RCC_HSE);
-      sync = 1953;
-    }
-
-  	rcc_enable_rtc_clock();
-
-  	rtc_unlock();
-
-  	// enter init mode -- this lets us test that everything is working as expected
-  	RTC_ISR |= RTC_ISR_INIT;
+    // enter init mode -- this lets us test that everything is working as expected
+    RTC_ISR |= RTC_ISR_INIT;
     while (((RTC_ISR & RTC_ISR_INITF) == 0) && (--timeout > 0));
 
     // do a blinky thing to indicate the problem if we had to wait too long :(
@@ -745,24 +724,85 @@ void _rtcSetup()
       RCC_BDCR |= RCC_BDCR_BDRST;
       RCC_BDCR &= ~RCC_BDCR_BDRST;
 
-      blinkStatusLed(red, yellow, 20, 500);
+      blinkStatusLed(Application::red, Application::yellow, 20, 500);
     }
 
-  	// set synch prescaler, using defaults for 1Hz out
-  	rtc_set_prescaler(sync, async);
+    // set synch prescaler, using defaults for 1Hz out
+    rtc_set_prescaler(sync, async);
 
-  	// exit init mode
-  	RTC_ISR &= ~(RTC_ISR_INIT);
+    // exit init mode
+    RTC_ISR &= ~(RTC_ISR_INIT);
 
     rtc_lock();
 
-  	// And wait for synchro...
-  	rtc_wait_for_synchro();
+    // And wait for synchro...
+    rtc_wait_for_synchro();
     pwr_enable_backup_domain_write_protect();
   }
   else
   {
-    blinkStatusLed(blue, green, 2, 100);
+    if (rcc_is_osc_ready(RCC_LSE) == false)
+    {
+      blinkStatusLed(Application::red, Application::cyan, 4, 100);
+
+      pwr_disable_backup_domain_write_protect();
+
+      // reset the RTC to ensure it's in a known state
+      RCC_BDCR |= RCC_BDCR_BDRST;
+      RCC_BDCR &= ~RCC_BDCR_BDRST;
+
+      if (_externalRtcConnected == true)
+      {
+        rcc_osc_bypass_enable(RCC_LSE);
+      }
+
+      if (cTargetHardwareVersion >= 2)
+      {
+        rcc_osc_on(RCC_LSE);
+        rcc_wait_for_osc_ready(RCC_LSE);
+
+        rcc_set_rtc_clock_source(RCC_LSE);
+      }
+      else
+      {
+        rcc_set_rtc_clock_source(RCC_HSE);
+        sync = 1953;
+      }
+
+    	rcc_enable_rtc_clock();
+
+    	rtc_unlock();
+
+    	// enter init mode -- this lets us test that everything is working as expected
+    	RTC_ISR |= RTC_ISR_INIT;
+      while (((RTC_ISR & RTC_ISR_INITF) == 0) && (--timeout > 0));
+
+      // do a blinky thing to indicate the problem if we had to wait too long :(
+      if (timeout == 0)
+      {
+        // reset the RTC to undo anything that might've been done above
+        RCC_BDCR |= RCC_BDCR_BDRST;
+        RCC_BDCR &= ~RCC_BDCR_BDRST;
+
+        blinkStatusLed(Application::red, Application::yellow, 20, 500);
+      }
+
+    	// set synch prescaler, using defaults for 1Hz out
+    	rtc_set_prescaler(sync, async);
+
+    	// exit init mode
+    	RTC_ISR &= ~(RTC_ISR_INIT);
+
+      rtc_lock();
+
+    	// And wait for synchro...
+    	rtc_wait_for_synchro();
+      pwr_enable_backup_domain_write_protect();
+    }
+    else
+    {
+      setStatusLed(Application::cyan);
+    }
   }
 }
 
@@ -1019,6 +1059,8 @@ void _timerSetup()
   timer_enable_counter(TIM2);
   timer_enable_counter(TIM3);
   timer_enable_counter(TIM14);
+
+  setRedLed(Display::cLedMaxIntensity); // show signs of life...
 }
 
 
@@ -1184,10 +1226,7 @@ void _refreshInternalTemp()
 void initialize()
 {
   uint32_t startupDisplayBitmap = cTargetHardwareVersion << 16;
-  RgbLed   startupDarkWhite(144, 114, 118, 0),
-           startupBrightWhite(512, 380, 480, 0),
-           startupOff(0, 0, 0, 0);
-  Display  startupDisplay(startupDarkWhite, startupBrightWhite, startupDisplayBitmap);
+  Display  startupDisplay(Application::darkGray, Application::gray, startupDisplayBitmap);
 
   // First, set up all the hardware things
   _clockSetup();
@@ -1300,22 +1339,21 @@ void initialize()
 
   _rtcSetup();
 
-  DisplayManager::initialize();
-  DisplayManager::setDisplayBlanking(false);
-
   startupDisplay.setDisplayFromBitmap(startupDisplayBitmap);
-  DisplayManager::writeDisplay(startupDisplay, startupDarkWhite);
+
+  DisplayManager::initialize();
+  DisplayManager::setStatusLedAutoRefreshing(true);
+  DisplayManager::setDisplayBlanking(false);
+  DisplayManager::writeDisplay(startupDisplay, Application::darkGray);
   delay(250);
   startupDisplayBitmap = 0;
-  startupDisplay.setDisplayColor0(startupOff);
-  startupDisplay.setDisplayColor1(startupOff);
+  startupDisplay.setDisplayColor0(RgbLed());
+  // startupDisplay.setDisplayColor1(RgbLed());
   startupDisplay.setDisplayFromBitmap(startupDisplayBitmap);
-  DisplayManager::writeDisplay(startupDisplay, startupOff);
+  DisplayManager::writeDisplay(startupDisplay, RgbLed());
   delay(250);
 
   refresh();
-  // set status LED off
-  setStatusLed(startupOff);
 }
 
 
@@ -1775,9 +1813,9 @@ bool rtcIsSet()
 
 int32_t temperature(const bool fahrenheit, const bool bcd)
 {
-  if (fahrenheit)
+  if (fahrenheit == true)
   {
-    if (bcd)
+    if (bcd == true)
     {
       return uint32ToBcd((uint16_t)((_temperatureXcBaseMultiplier * 18) / 10000) + 32);
     }
@@ -1785,7 +1823,7 @@ int32_t temperature(const bool fahrenheit, const bool bcd)
   }
   else
   {
-    if (bcd)
+    if (bcd == true)
     {
       return uint32ToBcd((uint16_t)_temperatureXcBaseMultiplier / cBaseMultiplier);
     }
@@ -1878,6 +1916,14 @@ void setVolume(const uint8_t volumeLevel)
   {
     _toneVolume = cToneVolumeMaximum - volumeLevel;
   }
+}
+
+
+uint32_t getCRC(uint32_t *inputData, uint32_t numElements)
+{
+  crc_reset();
+
+  return crc_calculate_block(inputData, numElements);
 }
 
 
@@ -2028,6 +2074,7 @@ bool i2cTransfer(const uint8_t addr, const uint8_t *bufferTx, size_t numberTx, u
       return i2cReceive(addr, bufferRx, numberRx, true);
     }
   }
+  return false;   // catchall
 }
 
 
@@ -2616,6 +2663,9 @@ void dmaIsr()
         _spiState = SpiState::SpiIdle;
 
         break;
+
+      default:
+        break;
     }
   }
 
@@ -2750,7 +2800,7 @@ void systickIsr()
 
 void tim2Isr()
 {
-	if (TIM2_SR & TIM_SR_UIF)
+	if ((TIM2_SR & TIM_SR_UIF) && (cTargetHardwareVersion >= 4))
 	{
     // clear the event flag
 		TIM2_SR &= ~TIM_SR_UIF;

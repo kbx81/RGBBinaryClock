@@ -21,19 +21,20 @@
 
 void View::enter()
 {
-    // do nothing by default
+  // do nothing by default
 }
 
 
-void View::keyHandler(kbxBinaryClock::Keys::Key key)
+bool View::keyHandler(kbxBinaryClock::Keys::Key key)
 {
-    // do nothing by default
+  // do nothing by default
+  return key;
 }
 
 
 void View::loop()
 {
-    // do nothing by default
+  // do nothing by default
 }
 
 

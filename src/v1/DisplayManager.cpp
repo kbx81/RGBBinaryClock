@@ -19,21 +19,18 @@
 
 // As hardware version 4+ uses the TLC5951 drivers, "master" dimming is
 // implemented at the hardware level by leveraging the global brightness control
-// (BC) and dot control (DC) (at low levels) mechanisms. This makes crossfading
-// at low intensity levels more smooth and also reduces the workload on the CPU.
+// (BC) and dot control (DC) mechanisms. This makes crossfading at (very) low
+// intensity levels smoother and also reduces the workload on the CPU.
 //
 // That said, the display workflow might be the most confusing aspect of this
 // codebase. The following flow diagram should help clarify how it works:
 //
-// writeDisplay() ->
-//   _unadjustedDisplay ->
-//     _adjustedDisplay via _refreshAdjustedDisplay() (pre-V4 hardware) ->
-//       _updateLedBuffer() / _updateLed() ->
-//         _displayDesiredAndSpare[] crossfade buffers ->
-//           refresh() which updates LED intensities based on crossfade(s) ->
-//             _setDisplayPwmTriad() ->
-//               _displayBufferOut ->
-//                 DMA to SPI to LED drivers
+// writeDisplay()/writeStatusLed() ->
+//   _loadCrossfaders() ->
+//     refresh() updates crossfades when _refreshLedIntensitiesNow is set via tick() ->
+//       _setDisplayPwmTriad() ->
+//         _displayBufferOut (TCL59xx PWM data buffer) ->
+//           DMA to SPI to TLC59xx shift registers & latches
 
 #include "Display.h"
 #include "DisplayManager.h"
@@ -48,17 +45,15 @@ namespace kbxBinaryClock {
 namespace DisplayManager
 {
 
-// 40-step table for 1/4-step BC via setMasterIntensity(), BC values
-//
-static const uint8_t cSubBCStepBCTable[41] = {
-  0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10 };
+// value of TLC5951 Iref resistors in ohms; update this if yours are different
+//  this is not relevant for pre-v4 boards with TLC5947 ICs
+static const uint16_t cIrefOhms = 2700;
 
-// 40-step table for 1/4-step BC via setMasterIntensity(), DC values
+// TLC5951 IolcMax (current through LEDs) * 1000000 (for precision, yay)
 //
-static const uint8_t cSubBCStepDCTable[41] = {
-  0, 32, 64, 95, 127, 50, 75, 95, 127, 95, 106, 116, 127, 103, 111, 119, 127, 108, 114, 121, 127, 111, 116, 122, 127, 114, 118, 122, 127, 115, 119, 123, 127, 116, 120, 123, 127, 117, 121, 124, 127 };
+static const uint32_t cIolcMax = ((1.2 * 40) * 1000000) / cIrefOhms;
 
-// length of delays used for doubleBlink confirmation
+// length of delays used for doubleBlink confirmation; passed to Hardware::delay()
 //
 static const uint8_t cDoubleBlinkDuration = 50;
 
@@ -66,21 +61,13 @@ static const uint8_t cDoubleBlinkDuration = 50;
 //
 static const uint16_t cForceDisplayRefreshInterval = 1000;
 
-// offset in gamma table to trim off some zeros
-//
-static const uint8_t cGammaLookupOffset = 68;
-
 // maximum value for BC in TLC5951s
 //
-static const uint16_t cMaxBcValue = 285;
+static const uint16_t cMaxBcValue = 255;
 
 // maximum value for DC in TLC5951s
 //
 static const uint8_t cMaxDcValue = 127;
-
-// maximum value for gamma-corrected BC in TLC5951s
-//
-static const uint16_t cMaxCorrectedBcValue = 1220 - cGammaLookupOffset;
 
 // number of TLC59xx devices we're controlling/are linked together
 //
@@ -117,11 +104,19 @@ static uint16_t _forceDisplayRefreshCounter = 0;
 
 // master display intensity times 100
 //   10000 = 100%
-static uint16_t _intensityPercentage = RgbLed::cLed100Percent;
+static uint16_t _intensityPercentage = 0;
 
-// true if it's time to refresh the display
+// set by tick() to true so refresh() will refresh the RgbCrossfaders
 //
 volatile static bool _refreshLedIntensitiesNow = false;
+
+// counter for the display refresh interval
+//
+static uint8_t _driverRefreshCounter = 0;
+
+// TLC59xx refresh interval; slows down refreshing of the drivers to reduce
+//  flicker on boards with TLC5947 ICs. not useful for the TLC5951s.
+static uint8_t _driverRefreshInterval = 0;
 
 
 // Modifies a triad of PWM channels in the buffer corresponding to a single RGB LED (pixel)
@@ -151,16 +146,11 @@ void _setDisplayPwmTriad(const uint8_t ledNumber, const RgbLed &ledValue)
 
 void initialize()
 {
-  // Initialize the display drivers' global brightness levels
+  // Initialize the display drivers' global brightness and dot control levels
   setMasterIntensity(RgbLed::cLed100Percent);
 
   if (Hardware::cTargetHardwareVersion >= 4)
   {
-    // Initialize the display drivers' dot correction values
-    for (uint8_t i = 0; i < Display::cLedCount; i++)
-    {
-      setDotCorrectionValue(i, 0x7f);
-    }
     // Initialize the display drivers' dot correction ranges
     setDotCorrectionRange(true);
     // Write the BC, DC, FC, and UD to the drivers
@@ -198,6 +188,7 @@ void refresh()
       _crossfader[i].tick();
 
       activeLed = _crossfader[i].getActive();
+      // we always have to "soft" adjust the status LED, hence the ||
       if ((Hardware::cTargetHardwareVersion <= 3) || (i == Display::cPixelCount))
       {
         activeLed.adjustIntensity(_intensityPercentage);
@@ -207,44 +198,60 @@ void refresh()
     }
 
     _refreshLedIntensitiesNow = false;  // all done...until the next tick...
+
+    _driverRefreshCounter++;
   }
 
-  // for v4+ hardware, check if DC, BC, FC, & UD need refreshing and do it if so
-  if ((Hardware::cTargetHardwareVersion >= 4)
-      && (_displayBufferOut.dcBcFcUdHwRefreshRequired(false) == true))
+  if (_driverRefreshCounter >= _driverRefreshInterval)
   {
-    if ((_lastRefreshWasGs == true) &&
-        (Hardware::spiTransfer(Hardware::SpiPeripheral::LedDriversOther, (uint8_t*)_displayBufferIn.getDcBcFcUdBufferPtrForWrite(), (uint8_t*)_displayBufferOut.getDcBcFcUdBufferPtrForWrite(), TLC59xx::cTLC5951ShiftRegSize * cPwmNumberOfDevices, false) == true))
+    // for v4+ hardware, check if DC, BC, FC, & UD need refreshing and do it if so
+    if ((Hardware::cTargetHardwareVersion >= 4)
+        && (_displayBufferOut.dcBcFcUdHwRefreshRequired(false) == true))
     {
-      _displayBufferOut.dcBcFcUdHwRefreshRequired(true);
+      if ((_lastRefreshWasGs == true) &&
+          (Hardware::spiTransfer(Hardware::SpiPeripheral::LedDriversOther, (uint8_t*)_displayBufferIn.getDcBcFcUdBufferPtrForWrite(), (uint8_t*)_displayBufferOut.getDcBcFcUdBufferPtrForWrite(), TLC59xx::cTLC5951ShiftRegSize * cPwmNumberOfDevices, false) == true))
+      {
+        _displayBufferOut.dcBcFcUdHwRefreshRequired(true);
 
+        _lastRefreshWasGs = false;
+      }
+    }
+    else
+    {
       _lastRefreshWasGs = false;
     }
-  }
-  else
-  {
-    _lastRefreshWasGs = false;
-  }
 
-  // check if GS data needs refreshing and do it if so
-  if (_displayBufferOut.gsHwRefreshRequired(false) == true)
-  {
-    if ((_lastRefreshWasGs == false) &&
-        (Hardware::spiTransfer(Hardware::SpiPeripheral::LedDriversGs, (uint8_t*)_displayBufferIn.getPwmBufferPtrForWrite(), (uint8_t*)_displayBufferOut.getPwmBufferPtrForWrite(), TLC59xx::cTLC5951PwmChannelsPerDevice * cPwmNumberOfDevices, true) == true))
+    // check if GS data needs refreshing and do it if so
+    if (_displayBufferOut.gsHwRefreshRequired(false) == true)
     {
-      _displayBufferOut.gsHwRefreshRequired(true);
+      if ((_lastRefreshWasGs == false) &&
+          (Hardware::spiTransfer(Hardware::SpiPeripheral::LedDriversGs, (uint8_t*)_displayBufferIn.getPwmBufferPtrForWrite(), (uint8_t*)_displayBufferOut.getPwmBufferPtrForWrite(), TLC59xx::cTLC5951PwmChannelsPerDevice * cPwmNumberOfDevices, true) == true))
+      {
+        _displayBufferOut.gsHwRefreshRequired(true);
 
+        _lastRefreshWasGs = true;
+      }
+    }
+    else
+    {
       _lastRefreshWasGs = true;
     }
-  }
-  else
-  {
-    _lastRefreshWasGs = true;
-  }
-  // don't forget about the lovely status LED!
-  if ((_autoRefreshStatusLed == true) && (_displayBlank == false))
-  {
-    Hardware::setStatusLed(_statusLed);
+
+    // reset _driverRefreshCounter as appropriate
+    if (Hardware::cTargetHardwareVersion <= 3)
+    {
+      if (_displayBufferOut.gsHwRefreshRequired(false) == false)
+      {
+        _driverRefreshCounter = 0;
+      }
+    }
+    else
+    {
+      if ((_displayBufferOut.dcBcFcUdHwRefreshRequired(false) == false) && (_displayBufferOut.gsHwRefreshRequired(false) == false))
+      {
+        _driverRefreshCounter = 0;
+      }
+    }
   }
 }
 
@@ -252,6 +259,18 @@ void refresh()
 void tick()
 {
   _refreshLedIntensitiesNow = true;
+  // refresh the status LED here to play nicely with strobing via DMX-512
+  if (_autoRefreshStatusLed == true)
+  {
+    if (_displayBlank == false)
+    {
+      Hardware::setStatusLed(_statusLed);
+    }
+    else
+    {
+      Hardware::setStatusLed(RgbLed());
+    }
+  }
 }
 
 
@@ -269,53 +288,61 @@ uint16_t getMasterIntensity()
 
 void setMasterIntensity(const uint16_t intensity)
 {
-  // this is a bit deceiving as it makes v4+ seem more complicated with respect
-  //  to "master" dimming. yes, we spend a few more cycles computing BC and DC
-  //  values for the TLC5951s, but it's significantly fewer cycles than doing a
-  //  brightness adjustment operation for every single LED (all 75 of them) with
-  //  every display refresh. hardware dimming ultimately saves a lot of cycles.
   uint16_t safeIntensity = RgbLed::cLed100Percent;
 
   if (Hardware::cTargetHardwareVersion >= 4)
   {
-    // v4+ math for TLC5951 BC
-    uint32_t _top = cMaxCorrectedBcValue * intensity;
-    uint16_t adjustedIntensity = (_top / RgbLed::cLed100Percent) + cGammaLookupOffset;
+    // this is a bit deceiving as it makes v4+ seem more complex with respect to
+    //  "master" dimming. we'll spend a few more cycles here computing BC and DC
+    //  values for the TLC5951s, but it's significantly fewer cycles than doing
+    //  a brightness adjustment operation for every single LED (all 75 of them)
+    //  with every display refresh. hardware dimming ultimately saves a
+    //  significant number of cycles.
+    uint32_t bcValue = cMaxBcValue,
+             dcValue = cMaxDcValue,
+             iOutDesired = cIolcMax;
     uint8_t i = 0;
-    RgbLed led(adjustedIntensity, adjustedIntensity, adjustedIntensity, 0);
 
-    led.gammaCorrect12bit();
-
-    uint16_t bcValue = led.getRed();
-    uint8_t  dcValue = cMaxDcValue;
-
-    // ensure values are good & safe
-    if (intensity <= RgbLed::cLed100Percent)
+    // ensure the passed intensity value is appropriate & safe
+    if (intensity < RgbLed::cLed100Percent)
     {
       safeIntensity = intensity;
     }
-    else
-    {
-      bcValue = cMaxBcValue;
-    }
+
     // if the new intensity is different, let's update some stuff
     if (_intensityPercentage != safeIntensity)
     {
       // first, save it so we can check it next time we're called
       _intensityPercentage = safeIntensity;
-      // if bcValue is less than the size of the lookup table, use the table
-      if (bcValue < 41)
+
+      // gamma correct it -- the big & slow but correct way (requires <math.h>)
+      // if (safeIntensity < RgbLed::cLed100Percent)
+      // {
+      //   safeIntensity = (pow((double)safeIntensity / (double)RgbLed::cLed100Percent, gamma) * RgbLed::cLed100Percent) + 0.5;
+      // }
+
+      // gamma correct it -- the quick, dirty, and lower-resolution way
+      safeIntensity = (safeIntensity * Display::cLedMaxIntensity) / RgbLed::cLed100Percent;
+      RgbLed gamma(safeIntensity, safeIntensity, safeIntensity);
+      gamma.gammaCorrect12bit();        // this is just to use the lookup table
+      safeIntensity = gamma.getRed();   // ...or any other color as set above
+
+      // the formulas below were derived directly from the TLC5951 reference manual.
+      // use _intensityPercentage as a percentage of cIolcMax and compute BC & DC from that
+      iOutDesired = (safeIntensity * cIolcMax) / RgbLed::cLed100Percent;
+      // compute value for BC; always add one so it exceeds what we need...
+      bcValue = ((iOutDesired * cMaxBcValue) / cIolcMax) + 1;
+      if (bcValue > cMaxBcValue)  // was it too big?
       {
-        dcValue = cSubBCStepDCTable[bcValue];
-        bcValue = cSubBCStepBCTable[bcValue];
+        // set bcValue to the max; dcValue remains as initialized. full brightness!
+        bcValue = cMaxBcValue;
       }
       else
       {
-        // ...otherwise, just use the computed value - 30...why? the lookup table
-        //  covers 41 values, but the BC range covered is 0 to 10, so 41 - 10 == 31
-        //  and we throw out the zero value, leaving us with 30.
-        bcValue -= 30;
+        // compute the DC value to scale down from what we calculated above.
+        dcValue = (iOutDesired * cMaxBcValue * cMaxDcValue) / (bcValue * cIolcMax);
       }
+
       // now we just write these lovely values into the TLC59xx buffers
       for (i = 0; i < cPwmNumberOfDevices; i++)
       {
@@ -323,7 +350,7 @@ void setMasterIntensity(const uint16_t intensity)
         _displayBufferOut.setBcGreen(i, bcValue);
         _displayBufferOut.setBcBlue(i, bcValue);
       }
-      // update the display drivers' dot correction values
+      // ...update the display drivers' dot correction values, too
       for (i = 0; i < Display::cLedCount; i++)
       {
         setDotCorrectionValue(i, dcValue);
@@ -378,6 +405,18 @@ void setDisplayBlanking(const bool blank)
       Hardware::setDisplayHardwareBlanking(false);
     }
   }
+}
+
+
+uint8_t getDisplayRefreshInterval()
+{
+  return _driverRefreshInterval;
+}
+
+
+void setDisplayRefreshInterval(const uint8_t interval)
+{
+  _driverRefreshInterval = interval;
 }
 
 
@@ -441,6 +480,12 @@ void writeDisplay(const Display &display, const RgbLed &statusLed)
 {
   _loadCrossfaders(display);
 
+  _crossfader[Display::cPixelCount].startNewFadeIfDifferent(statusLed);
+}
+
+
+void writeStatusLed(const RgbLed &statusLed)
+{
   _crossfader[Display::cPixelCount].startNewFadeIfDifferent(statusLed);
 }
 

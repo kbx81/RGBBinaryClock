@@ -65,7 +65,7 @@ static uint8_t mcp9808Register[cNumberOfRegisters * cRegisterSizeInBytes];
 
 // Read and Write buffers
 //
-static uint8_t readBuffer[cNumberOfRegisters * cRegisterSizeInBytes];
+// static uint8_t readBuffer[cNumberOfRegisters * cRegisterSizeInBytes];
 // static uint16_t writeBuffer[2];
 
 

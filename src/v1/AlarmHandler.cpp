@@ -297,22 +297,25 @@ void activateMomentaryAlarm()
 
 void clearAlarm()
 {
-  DateTime current = Hardware::getDateTime();
-
-  for (uint8_t i = 0; (i < 8) && (_activeAlarms != 0); i++)
+  if ((_activeAlarms != 0) || (_extLatchingAlarmActive == true) || (_extLatchingAlarmActive == true))
   {
-    if (_activeAlarms & (1 << i))
+    DateTime current = Hardware::getDateTime();
+
+    for (uint8_t i = 0; (i < 8) && (_activeAlarms != 0); i++)
     {
-      _ackTime[i] = current;
+      if (_activeAlarms & (1 << i))
+      {
+        _ackTime[i] = current;
+      }
     }
+    _activeAlarms = 0;
+    _extLatchingAlarmActive = false;
+    _extMomentaryAlarmActive = false;
+    _beepCounter = 0;
+    // restore the display in case the alarm changed anything
+    Application::setIntensityAutoAdjust(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
+    DisplayManager::setDisplayBlanking(false);
   }
-  _activeAlarms = 0;
-  _extLatchingAlarmActive = false;
-  _extMomentaryAlarmActive = false;
-  _beepCounter = 0;
-  // restore the display in case the alarm changed anything
-  Application::setIntensityAutoAdjust(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
-  DisplayManager::setDisplayBlanking(false);
 }
 
 

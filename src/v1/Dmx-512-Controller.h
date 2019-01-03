@@ -30,7 +30,7 @@ namespace Dmx512Controller {
 //
 void initialize();
 
-// Returns true if a DM-512 signal is being received
+// Controls main application and views based on DMX-512 input; sets strobe delay
 //
 void controller();
 

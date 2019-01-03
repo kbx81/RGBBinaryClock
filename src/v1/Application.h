@@ -21,6 +21,7 @@
 
 #include <cstdint>
 
+#include "Display.h"
 #include "Settings.h"
 #include "View.h"
 
@@ -60,6 +61,7 @@ namespace Application {
     OperatingModeSetTempCalibration,  ///< Set temperature calibration
     OperatingModeSetBeeperVolume,     ///< Set Beeper Volume
     OperatingModeSetTimerResetValue,  ///< Set timer/counter reset value
+    OperatingModeSetDisplayRefreshInterval, ///< Set display refresh interval
     OperatingModeSetDMX512Address,    ///< Set DMX-512 address mode
     OperatingModeSlot1Time,           ///< Set slot 1 time mode
     OperatingModeSlot2Time,           ///< Set slot 2 time mode
@@ -89,15 +91,15 @@ namespace Application {
   ///
   enum ViewEnum : uint8_t
   {
-      MainMenuViewEnum,
-      TimeDateTempViewEnum,
-      TimerCounterViewEnum,
-      Dmx512ViewEnum,
-      SetTimeDateViewEnum,
-      SetBitsViewEnum,
-      SetValueViewEnum,
-      SetColorsViewEnum,
-      TestDisplayEnum
+      MainMenuViewEnum = 0,
+      TimeDateTempViewEnum = 1,
+      TimerCounterViewEnum = 2,
+      Dmx512ViewEnum = 3,
+      SetTimeDateViewEnum = 4,
+      SetBitsViewEnum = 5,
+      SetValueViewEnum = 6,
+      SetColorsViewEnum = 7,
+      TestDisplayEnum = 8
   };
 
   /// @brief Enums for views
@@ -118,6 +120,21 @@ namespace Application {
     Fall
   };
 
+
+  /// @brief Common colors used throughout
+  ///
+  static const RgbLed
+    red(Display::cLedMaxIntensity, 0, 0),
+    orange(Display::cLedMaxIntensity, Display::cLedMaxIntensity / 4, 0),
+    yellow(Display::cLedMaxIntensity, Display::cLedMaxIntensity, 0),
+    green(0, Display::cLedMaxIntensity, 0),
+    cyan(0, Display::cLedMaxIntensity, Display::cLedMaxIntensity),
+    blue(0, 0, Display::cLedMaxIntensity),
+    violet(Display::cLedMaxIntensity / 8, 0, Display::cLedMaxIntensity),
+    magenta(Display::cLedMaxIntensity, 0, Display::cLedMaxIntensity),
+    white(Display::cLedMaxIntensity, Display::cLedMaxIntensity, Display::cLedMaxIntensity),
+    gray(Display::cLedMaxIntensity / 8, Display::cLedMaxIntensity / 8, Display::cLedMaxIntensity / 8),
+    darkGray(Display::cLedMaxIntensity / 24, Display::cLedMaxIntensity / 24, Display::cLedMaxIntensity / 24);
 
   /// @brief Initialize the application
   ///
@@ -144,6 +161,10 @@ namespace Application {
   ///
   void setViewMode(ViewMode mode);
 
+  /// @brief Get view's related setting
+  ///
+  uint8_t getOperatingModeRelatedSetting(OperatingMode mode);
+
   /// @brief Get external control status
   ///
   ExternalControl getExternalControlState();
@@ -153,18 +174,22 @@ namespace Application {
   Settings getSettings();
   Settings* getSettingsPtr();
 
-  /// @brief Set new application settings
+  /// @brief Refreshes hardware from current application settings
+  ///
+  void refreshSettings();
+
+  /// @brief Set new application settings, also calls refreshSettings()
   ///
   void setSettings(Settings settings);
 
   /// @brief Handles DST date/time computation; maintains clock's DST state machine.
   ///  Intended for tracking DST clock adjustments, not for arbitrary use!
   ///  To reset state machine, call with year != year provided when last called.
-  ///  Returns true if DST is active based on passed DateTime object
+  /// @return true if DST is active based on passed DateTime object
   bool isDst(const DateTime &currentTime);
 
   /// @brief Returns state of automatic display intensity adjustments
-  /// @returns True if automatic intensity adjustment is enabled
+  /// @return True if automatic intensity adjustment is enabled
   bool getIntensityAutoAdjust();
 
   /// @brief Enables/disables automagic adjusting of the display intensity based

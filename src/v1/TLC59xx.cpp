@@ -44,21 +44,24 @@ const uint8_t TLC59xx::cTLC5951LsdBaseIndex = 3;
 
 
 TLC59xx::TLC59xx(const DeviceType type, const uint16_t numberOfDevices, const bool shareCommonRegister, const ReversingMode reversingMode)
+  : _numberOfDevices(numberOfDevices),
+    _reversingMode(reversingMode),
+    _dataOffset(0),
+    _gsHwRefreshRequired(true),
+    _dcBcFcUdHwRefreshRequired(true),
+    _dcBcFcUdShiftRegSize(cTLC5951ShiftRegSize),
+    _pwmChannelsPerDevice(cTLC5951PwmChannelsPerDevice),
+    _pPwmBuffer(nullptr),
+    _pDcBcFcUdBuffer(nullptr)
 {
   uint16_t bufferSize = numberOfDevices;
-
-  _numberOfDevices = numberOfDevices;
-  _reversingMode = reversingMode;
-  _dataOffset = 0;
-  _gsHwRefreshRequired = true;
-  _dcBcFcUdHwRefreshRequired = true;
 
   switch (type)
   {
     case DeviceType::DeviceTLC5951:
       if (shareCommonRegister == true)
       {
-        _DcBcFcUdShiftRegSize = cTLC5951ShiftRegSize;
+        // _dcBcFcUdShiftRegSize = cTLC5951ShiftRegSize; // initialized above
         bufferSize = cTLC5951ShiftRegSize * numberOfDevices;
         // we need 21 bytes for DC and six bytes for BC, FC, and UD, but we also
         //  need to fill out the remaining bits in the common shift register in
@@ -68,20 +71,19 @@ TLC59xx::TLC59xx(const DeviceType type, const uint16_t numberOfDevices, const bo
       }
       else
       {
-        _DcBcFcUdShiftRegSize = cTLC5951DcBcFcUdShiftRegSize;
+        _dcBcFcUdShiftRegSize = cTLC5951DcBcFcUdShiftRegSize;
         bufferSize = cTLC5951DcBcFcUdShiftRegSize * numberOfDevices;
       }
 
-      _pwmChannelsPerDevice = cTLC5951PwmChannelsPerDevice;
+      // _pwmChannelsPerDevice = cTLC5951PwmChannelsPerDevice; // initialized above
       _pDcBcFcUdBuffer = (uint8_t*)malloc(bufferSize);
       memset(_pDcBcFcUdBuffer, 0, bufferSize);
       break;
 
     default:
-      // _DcBcFcUdShiftRegSize is not used in this case, but initialize it anyway...
-      _DcBcFcUdShiftRegSize = cTLC5947ShiftRegSize;
+      // _dcBcFcUdShiftRegSize is not used in this case, but initialize it anyway...
+      _dcBcFcUdShiftRegSize = cTLC5947ShiftRegSize;
       _pwmChannelsPerDevice = cTLC5947PwmChannelsPerDevice;
-      _pDcBcFcUdBuffer = nullptr;
   }
 
   bufferSize = cPwmBytesPerChannel * _pwmChannelsPerDevice * numberOfDevices;
@@ -139,8 +141,8 @@ uint8_t TLC59xx::getDcChannel(const uint16_t channel)
 
   if (_pDcBcFcUdBuffer != nullptr)
   {
-    scratch = _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951DcBaseIndex + _dataOffset + firstByte] << 8 |
-              _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951DcBaseIndex + _dataOffset + firstByte + 1];
+    scratch = _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951DcBaseIndex + _dataOffset + firstByte] << 8 |
+              _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951DcBaseIndex + _dataOffset + firstByte + 1];
     scratch = scratch >> (9 - firstBit);
 
     scratch &= 0x7f;    // keep only seven bits
@@ -162,8 +164,8 @@ void TLC59xx::setDcChannel(const uint16_t channel, const uint8_t value)
              scratch = 0,
              shiftedValue = value << 9;
 
-    scratch = _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951DcBaseIndex + _dataOffset + firstByte] << 8 |
-              _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951DcBaseIndex + _dataOffset + firstByte + 1];
+    scratch = _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951DcBaseIndex + _dataOffset + firstByte] << 8 |
+              _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951DcBaseIndex + _dataOffset + firstByte + 1];
     bitMask = ~(bitMask >> firstBit);
     shiftedValue = shiftedValue >> firstBit;
 
@@ -172,12 +174,12 @@ void TLC59xx::setDcChannel(const uint16_t channel, const uint8_t value)
 
     if (firstByte < 20)
     {
-      _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951DcBaseIndex + _dataOffset + firstByte] = scratch >> 8;
-      _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951DcBaseIndex + _dataOffset + firstByte + 1] = scratch;
+      _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951DcBaseIndex + _dataOffset + firstByte] = scratch >> 8;
+      _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951DcBaseIndex + _dataOffset + firstByte + 1] = scratch;
     }
     else
     {
-      _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951DcBaseIndex + _dataOffset + firstByte] = scratch >> 8;
+      _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951DcBaseIndex + _dataOffset + firstByte] = scratch >> 8;
     }
 
     _dcBcFcUdHwRefreshRequired = true;
@@ -213,7 +215,7 @@ uint8_t TLC59xx::getBcRed(const uint8_t deviceNumber)
 {
   if ((deviceNumber < _numberOfDevices) && (_pDcBcFcUdBuffer != nullptr))
   {
-    return _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951BcBaseIndex + _dataOffset + 2];
+    return _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951BcBaseIndex + _dataOffset + 2];
   }
   else
   {
@@ -226,7 +228,7 @@ uint8_t TLC59xx::getBcGreen(const uint8_t deviceNumber)
 {
   if ((deviceNumber < _numberOfDevices) && (_pDcBcFcUdBuffer != nullptr))
   {
-    return _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951BcBaseIndex + _dataOffset + 1];
+    return _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951BcBaseIndex + _dataOffset + 1];
   }
   else
   {
@@ -239,7 +241,7 @@ uint8_t TLC59xx::getBcBlue(const uint8_t deviceNumber)
 {
   if ((deviceNumber < _numberOfDevices) && (_pDcBcFcUdBuffer != nullptr))
   {
-    return _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951BcBaseIndex + _dataOffset];
+    return _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951BcBaseIndex + _dataOffset];
   }
   else
   {
@@ -252,7 +254,7 @@ void TLC59xx::setBcRed(const uint8_t deviceNumber, const uint8_t value)
 {
   if ((deviceNumber < _numberOfDevices) && (_pDcBcFcUdBuffer != nullptr))
   {
-    _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951BcBaseIndex + _dataOffset + 2] = value;
+    _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951BcBaseIndex + _dataOffset + 2] = value;
 
     _dcBcFcUdHwRefreshRequired = true;
   }
@@ -263,7 +265,7 @@ void TLC59xx::setBcGreen(const uint8_t deviceNumber, const uint8_t value)
 {
   if ((deviceNumber < _numberOfDevices) && (_pDcBcFcUdBuffer != nullptr))
   {
-    _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951BcBaseIndex + _dataOffset + 1] = value;
+    _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951BcBaseIndex + _dataOffset + 1] = value;
 
     _dcBcFcUdHwRefreshRequired = true;
   }
@@ -274,7 +276,7 @@ void TLC59xx::setBcBlue(const uint8_t deviceNumber, const uint8_t value)
 {
   if ((deviceNumber < _numberOfDevices) && (_pDcBcFcUdBuffer != nullptr))
   {
-    _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951BcBaseIndex + _dataOffset] = value;
+    _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951BcBaseIndex + _dataOffset] = value;
 
     _dcBcFcUdHwRefreshRequired = true;
   }
@@ -285,9 +287,9 @@ void TLC59xx::setBcTriad(const uint16_t deviceNumber, const uint8_t red, const u
 {
   if ((deviceNumber < _numberOfDevices) && (_pDcBcFcUdBuffer != nullptr))
   {
-    _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951BcBaseIndex + _dataOffset + 2] = red;
-    _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951BcBaseIndex + _dataOffset + 1] = green;
-    _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951BcBaseIndex + _dataOffset] = blue;
+    _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951BcBaseIndex + _dataOffset + 2] = red;
+    _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951BcBaseIndex + _dataOffset + 1] = green;
+    _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951BcBaseIndex + _dataOffset] = blue;
 
     _dcBcFcUdHwRefreshRequired = true;
   }
@@ -297,7 +299,7 @@ void TLC59xx::setBcTriad(const uint16_t deviceNumber, const uint8_t red, const u
 TLC59xx::tDcAdjRange TLC59xx::getDcRangeRed(const uint8_t deviceNumber)
 {
   if ((_pDcBcFcUdBuffer != nullptr) &&
-      ((_pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] & (1 << TLC5951FcRegisterBits::TLC5951DcRangeRed)) == true))
+      ((_pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] & (1 << TLC5951FcRegisterBits::TLC5951DcRangeRed)) == true))
   {
     return tDcAdjRange::DcRange33to100;
   }
@@ -311,7 +313,7 @@ TLC59xx::tDcAdjRange TLC59xx::getDcRangeRed(const uint8_t deviceNumber)
 TLC59xx::tDcAdjRange TLC59xx::getDcRangeGreen(const uint8_t deviceNumber)
 {
   if ((_pDcBcFcUdBuffer != nullptr) &&
-      ((_pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] & (1 << TLC5951FcRegisterBits::TLC5951DcRangeGreen)) == true))
+      ((_pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] & (1 << TLC5951FcRegisterBits::TLC5951DcRangeGreen)) == true))
   {
     return tDcAdjRange::DcRange33to100;
   }
@@ -325,7 +327,7 @@ TLC59xx::tDcAdjRange TLC59xx::getDcRangeGreen(const uint8_t deviceNumber)
 TLC59xx::tDcAdjRange TLC59xx::getDcRangeBlue(const uint8_t deviceNumber)
 {
   if ((_pDcBcFcUdBuffer != nullptr) &&
-      ((_pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] & (1 << TLC5951FcRegisterBits::TLC5951DcRangeBlue)) == true))
+      ((_pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] & (1 << TLC5951FcRegisterBits::TLC5951DcRangeBlue)) == true))
   {
     return tDcAdjRange::DcRange33to100;
   }
@@ -342,11 +344,11 @@ void TLC59xx::setDcRangeRed(const uint8_t deviceNumber, const DcAdjRange range)
   {
     if (range == DcAdjRange::DcRange33to100)
     {
-      _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] |= (1 << TLC5951FcRegisterBits::TLC5951DcRangeRed);
+      _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] |= (1 << TLC5951FcRegisterBits::TLC5951DcRangeRed);
     }
     else
     {
-      _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] &= ~(1 << TLC5951FcRegisterBits::TLC5951DcRangeRed);
+      _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] &= ~(1 << TLC5951FcRegisterBits::TLC5951DcRangeRed);
     }
 
     _dcBcFcUdHwRefreshRequired = true;
@@ -359,11 +361,11 @@ void TLC59xx::setDcRangeGreen(const uint8_t deviceNumber, const DcAdjRange range
   {
     if (range == DcAdjRange::DcRange33to100)
     {
-      _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] |= (1 << TLC5951FcRegisterBits::TLC5951DcRangeGreen);
+      _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] |= (1 << TLC5951FcRegisterBits::TLC5951DcRangeGreen);
     }
     else
     {
-      _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] &= ~(1 << TLC5951FcRegisterBits::TLC5951DcRangeGreen);
+      _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] &= ~(1 << TLC5951FcRegisterBits::TLC5951DcRangeGreen);
     }
 
     _dcBcFcUdHwRefreshRequired = true;
@@ -377,11 +379,11 @@ void TLC59xx::setDcRangeBlue(const uint8_t deviceNumber, const DcAdjRange range)
   {
     if (range == DcAdjRange::DcRange33to100)
     {
-      _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] |= (1 << TLC5951FcRegisterBits::TLC5951DcRangeBlue);
+      _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] |= (1 << TLC5951FcRegisterBits::TLC5951DcRangeBlue);
     }
     else
     {
-      _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] &= ~(1 << TLC5951FcRegisterBits::TLC5951DcRangeBlue);
+      _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] &= ~(1 << TLC5951FcRegisterBits::TLC5951DcRangeBlue);
     }
 
     _dcBcFcUdHwRefreshRequired = true;
@@ -393,7 +395,7 @@ bool TLC59xx::autoRepeatIsEnabled(const uint8_t deviceNumber)
 {
   if (_pDcBcFcUdBuffer != nullptr)
   {
-    return _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] & (1 << TLC5951FcRegisterBits::TLC5951DispRepMode);
+    return _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] & (1 << TLC5951FcRegisterBits::TLC5951DispRepMode);
   }
   return false;
 }
@@ -405,11 +407,11 @@ void TLC59xx::setAutoRepeatMode(const uint8_t deviceNumber, const bool autoRepea
   {
     if (autoRepeatEnabled == true)
     {
-      _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] |= (1 << TLC5951FcRegisterBits::TLC5951DispRepMode);
+      _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] |= (1 << TLC5951FcRegisterBits::TLC5951DispRepMode);
     }
     else
     {
-      _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] &= ~(1 << TLC5951FcRegisterBits::TLC5951DispRepMode);
+      _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] &= ~(1 << TLC5951FcRegisterBits::TLC5951DispRepMode);
     }
 
     _dcBcFcUdHwRefreshRequired = true;
@@ -421,7 +423,7 @@ bool TLC59xx::timingResetModeIsEnabled(const uint8_t deviceNumber)
 {
   if ((_pDcBcFcUdBuffer != nullptr) && (deviceNumber < _numberOfDevices))
   {
-    return _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] & (1 << TLC5951FcRegisterBits::TLC5951TimingResetMode);
+    return _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] & (1 << TLC5951FcRegisterBits::TLC5951TimingResetMode);
   }
   return false;
 }
@@ -433,11 +435,11 @@ void TLC59xx::setTimingResetMode(const uint8_t deviceNumber, const bool autoRese
   {
     if (autoResetEnabled == true)
     {
-      _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] |= (1 << TLC5951FcRegisterBits::TLC5951TimingResetMode);
+      _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] |= (1 << TLC5951FcRegisterBits::TLC5951TimingResetMode);
     }
     else
     {
-      _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] &= ~(1 << TLC5951FcRegisterBits::TLC5951TimingResetMode);
+      _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] &= ~(1 << TLC5951FcRegisterBits::TLC5951TimingResetMode);
     }
 
     _dcBcFcUdHwRefreshRequired = true;
@@ -449,11 +451,11 @@ TLC59xx::tGreyscaleResolution TLC59xx::getPwmResolution(const uint8_t deviceNumb
 {
   if ((_pDcBcFcUdBuffer != nullptr) && (deviceNumber < _numberOfDevices))
   {
-    if ((_pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] & (1 << TLC5951FcRegisterBits::TLC5951GsResolutionBitmaskHigh)) == false)
+    if ((_pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] & (1 << TLC5951FcRegisterBits::TLC5951GsResolutionBitmaskHigh)) == false)
     {
       return tGreyscaleResolution::Gs12BitMode;
     }
-    else if ((_pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] & (1 << TLC5951FcRegisterBits::TLC5951GsResolutionBitmaskLow)) == false)
+    else if ((_pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] & (1 << TLC5951FcRegisterBits::TLC5951GsResolutionBitmaskLow)) == false)
     {
       return tGreyscaleResolution::Gs10BitMode;
     }
@@ -470,12 +472,12 @@ void TLC59xx::setPwmResolution(const uint8_t deviceNumber, const GreyscaleResolu
 {
   if ((_pDcBcFcUdBuffer != nullptr) && (deviceNumber < _numberOfDevices))
   {
-    uint8_t functionReg = _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset];
+    uint8_t functionReg = _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset];
 
     functionReg &= ~(3 << TLC5951FcRegisterBits::TLC5951GsResolutionBitmaskLow);
     functionReg |= (resolution << TLC5951FcRegisterBits::TLC5951GsResolutionBitmaskLow);
 
-    _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] = functionReg;
+    _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951FcBaseIndex + _dataOffset] = functionReg;
 
     _dcBcFcUdHwRefreshRequired = true;
   }
@@ -488,8 +490,8 @@ uint16_t TLC59xx::getUserData(const uint8_t deviceNumber)
 
   if ((_pDcBcFcUdBuffer != nullptr) && (deviceNumber < _numberOfDevices))
   {
-    word = (_pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951UdBaseIndex + _dataOffset] << 8) |
-            _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951UdBaseIndex + _dataOffset + 1];
+    word = (_pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951UdBaseIndex + _dataOffset] << 8) |
+            _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951UdBaseIndex + _dataOffset + 1];
   }
   return word;
 }
@@ -499,8 +501,8 @@ void TLC59xx::setUserData(const uint8_t deviceNumber, const uint16_t data)
 {
   if ((_pDcBcFcUdBuffer != nullptr) && (deviceNumber < _numberOfDevices))
   {
-    _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951UdBaseIndex + _dataOffset] = (data >> 8);
-    _pDcBcFcUdBuffer[(deviceNumber * _DcBcFcUdShiftRegSize) + cTLC5951UdBaseIndex + _dataOffset + 1] = data;
+    _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951UdBaseIndex + _dataOffset] = (data >> 8);
+    _pDcBcFcUdBuffer[(deviceNumber * _dcBcFcUdShiftRegSize) + cTLC5951UdBaseIndex + _dataOffset + 1] = data;
 
     _dcBcFcUdHwRefreshRequired = true;
   }

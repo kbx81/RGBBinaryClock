@@ -62,7 +62,7 @@ namespace Hardware {
   bool     tick();
 
   /// @brief Generates a tone of frequency for duration milliseconds
-  ///  Returns true if tone was activated
+  /// @return true if tone was activated
   bool     tone(const uint16_t frequency, const uint16_t duration);
 
   /// @brief Returns true if an external alarm input pin is active (they are active low)
@@ -137,6 +137,10 @@ namespace Hardware {
   ///  Valid range is 0 (muted/minimum) to 7 (maximum/default)
   void     setVolume(const uint8_t volumeLevel);
 
+  /// @brief Returns a CRC for the given data; expects 32-bit words
+  ///
+  uint32_t getCRC(uint32_t *inputData, uint32_t numElements);
+
   /// @brief Erases the FLASH area used for app data
   ///
   uint32_t eraseFlash(uint32_t startAddress);
@@ -146,7 +150,7 @@ namespace Hardware {
   void     readFlash(uint32_t startAddress, uint16_t numElements, uint8_t *outputData);
 
   /// @brief Writes the FLASH area used for app data
-  ///  Returns 0xff if startAddress is out of range, flash_get_status_flags() if
+  /// @return 0xff if startAddress is out of range, flash_get_status_flags() if
   ///  erase request failed, 0x40 if erase verification failed,
   ///  (0x80 | flash_get_status_flags()) if programming failure
   uint32_t writeFlash(uint32_t startAddress, uint8_t *inputData, uint16_t numElements);
@@ -169,15 +173,15 @@ namespace Hardware {
   bool     i2cIsBusy();
 
   /// @brief Reads data from the serial port with DMA
-  ///  Returns false if failure (the USART was busy)
+  /// @return false if failure (the USART was busy)
   bool     readSerial(const uint32_t usart, const uint32_t length, char* data);
 
   /// @brief Writes data to the serial port with DMA
-  ///  Returns false if failure (the USART was busy)
+  /// @return false if failure (the USART was busy)
   bool     writeSerial(const uint32_t usart, const uint32_t length, const char* data);
 
   /// @brief Transfers data in/out through the SPI via DMA
-  ///  Returns false if failure (the SPI was busy)
+  /// @return false if failure (the SPI was busy)
   bool     spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *bufferOut, const uint16_t length, const bool use16BitXfers);
 
   /// @brief Permits checking the status of the SPI; returns true if busy
@@ -197,6 +201,7 @@ namespace Hardware {
   void     delay(const uint32_t length);
 
   /// @brief Converts to/from int/BCD
+  /// @return encoded value
   ///
   uint32_t bcdToUint32(uint32_t bcdValue);
   uint32_t uint32ToBcd(uint32_t uint32Value); // beware of values > 99999999

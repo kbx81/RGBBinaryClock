@@ -48,7 +48,7 @@ class View {
 
     /// Called before loop for any pressed key
     ///
-    virtual void keyHandler(kbxBinaryClock::Keys::Key key);
+    virtual bool keyHandler(kbxBinaryClock::Keys::Key key);
 
     /// The loop which is called periodically while the view is active
     ///

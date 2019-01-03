@@ -32,11 +32,17 @@ namespace kbxBinaryClock {
 const uint8_t TestDisplayView::cMaxColor = 2;
 
 
+TestDisplayView::TestDisplayView()
+  : _displayedColor(0),
+    _intensity(0),
+    _mode(Application::OperatingMode::OperatingModeTestDisplay)
+{
+}
+
+
 void TestDisplayView::enter()
 {
   _mode = Application::getOperatingMode();
-
-  _pSettings = Application::getSettingsPtr();
 
   DisplayManager::setStatusLedAutoRefreshing(true);
 
@@ -53,8 +59,10 @@ void TestDisplayView::enter()
 }
 
 
-void TestDisplayView::keyHandler(Keys::Key key)
+bool TestDisplayView::keyHandler(Keys::Key key)
 {
+  bool tick = true;
+
   if (key == Keys::Key::A)
   {
     _intensity = 0;
@@ -98,6 +106,8 @@ void TestDisplayView::keyHandler(Keys::Key key)
 
     Application::setOperatingMode(Application::OperatingMode::OperatingModeMainMenu);
   }
+
+  return tick;
 }
 
 

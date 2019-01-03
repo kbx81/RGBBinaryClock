@@ -33,8 +33,9 @@ class SetValueView : public View {
 // The view which displays the UI for setting times and dates
 //
 public: // Implement the SetValue class
+  SetValueView();
   virtual void enter() override;
-  virtual void keyHandler(Keys::Key key) override;
+  virtual bool keyHandler(Keys::Key key) override;
   virtual void loop() override;
 
 private:

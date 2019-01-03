@@ -45,17 +45,18 @@ namespace DisplayManager
   void tick();
 
   /// @brief Enables/Disables control of the status LED by refresh() (above)
-  /// @param New state for status LED auto-refreshing
+  /// @param autoRefreshEnabled New state for status LED auto-refreshing
   ///
   void setStatusLedAutoRefreshing(const bool autoRefreshEnabled);
 
   /// @brief Returns the current "master" intensities of the display
+  /// @return Current master intensity
   ///
   uint16_t getMasterIntensity();
 
   /// @brief Sets the "master" intensity of the display, where 10000 = 100%.
   ///   Values are gamma-corrected.
-  /// @param New master intensity for display. Display is updated at next refresh()
+  /// @param intensity New master intensity for display. Display is updated at next refresh()
   void setMasterIntensity(const uint16_t intensity);
 
   /// @brief Get the state of display blanking
@@ -64,18 +65,28 @@ namespace DisplayManager
   bool getDisplayBlanking();
 
   /// @brief Blank the display
-  /// @param display is blank (off) if true
+  /// @param blank Display is blank (off) if true
   ///
   void setDisplayBlanking(const bool blank);
 
+  /// @brief Gets the interval used for refreshing the LED driver registers
+  /// @return interval at which refresh occurs; based on systick
+  ///
+  uint8_t getDisplayRefreshInterval();
+
+  /// @brief Set the interval for refreshing the LED driver registers
+  /// @param interval Interval at which refresh occurs; based on systick
+  ///
+  void setDisplayRefreshInterval(const uint8_t interval);
+
   /// @brief Set the dot correction range used by the LED drivers
-  /// @param drivers will use the upper (33% to 100%) range if true
+  /// @param useUpperRange Drivers will use the upper (33% to 100%) range if true
   ///
   void setDotCorrectionRange(const bool useUpperRange);
 
   /// @brief Set the dot correction value for a single LED
-  /// @param LED number to adjust
-  /// @param adjustment level for given LED (7 bits)
+  /// @param ledNumber LED number to adjust
+  /// @param value Adjustment level for given LED (7 bits)
   ///
   void setDotCorrectionValue(const uint8_t ledNumber, const uint8_t value);
 
@@ -85,11 +96,16 @@ namespace DisplayManager
 
   /// @brief Writes the passed display into the display buffer. LEDs will fade to the
   ///  intensities in the new display at the specified rates.
-  /// @param display to be written
-  /// @param status LED state
+  /// @param display Display to be written
+  /// @param statusLed Status LED state
   ///
   void writeDisplay(const Display &display);
   void writeDisplay(const Display &display, const RgbLed &statusLed);
+
+  /// @brief Sets the status LED's state
+  /// @param statusLed New status LED state
+  ///
+  void writeStatusLed(const RgbLed &statusLed);
 
 
 }
