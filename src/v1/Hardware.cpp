@@ -691,8 +691,8 @@ void _i2cRecover()
 // Configure RTC and ensure it's running
 // Status LED behavior (for v2+):
 //  Cyan: Normal startup
-//  Red/Cyan blink: Oscillator was stopped, reinitialization occured
-//  Red/Yellow blink: Oscillator did not start within the expected time
+//  Red/Cyan blink: Oscillator was stopped, reinitialization occured (clock will need to be updated by user)
+//  Red/Yellow blink: Oscillator did not start within the expected time (clock may not function)
 //
 void _rtcSetup()
 {
@@ -756,18 +756,10 @@ void _rtcSetup()
         rcc_osc_bypass_enable(RCC_LSE);
       }
 
-      if (cTargetHardwareVersion >= 2)
-      {
-        rcc_osc_on(RCC_LSE);
-        rcc_wait_for_osc_ready(RCC_LSE);
+      rcc_osc_on(RCC_LSE);
+      rcc_wait_for_osc_ready(RCC_LSE);
 
-        rcc_set_rtc_clock_source(RCC_LSE);
-      }
-      else
-      {
-        rcc_set_rtc_clock_source(RCC_HSE);
-        sync = 1953;
-      }
+      rcc_set_rtc_clock_source(RCC_LSE);
 
     	rcc_enable_rtc_clock();
 

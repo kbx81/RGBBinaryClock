@@ -123,7 +123,10 @@ bool SetTimeDateView::keyHandler(Keys::Key key)
 
   if (key == Keys::Key::B)
   {
-    tick = false;
+    if (--_selectedByte < 0)
+    {
+      _selectedByte = 2;
+    }
   }
 
   if (key == Keys::Key::C)

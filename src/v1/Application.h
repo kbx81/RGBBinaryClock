@@ -141,6 +141,7 @@ namespace Application {
   void initialize();
 
   /// @brief Get a mode's display number
+  /// @param mode Desired mode to get the display number for
   ///
   uint8_t getModeDisplayNumber(OperatingMode mode);
   uint8_t getModeDisplayNumber(uint8_t mode);
@@ -150,6 +151,7 @@ namespace Application {
   OperatingMode getOperatingMode();
 
   /// @brief Set new application mode
+  /// @param mode New application mode
   ///
   void setOperatingMode(OperatingMode mode);
 
@@ -158,10 +160,12 @@ namespace Application {
   ViewMode getViewMode();
 
   /// @brief Set new view mode
+  /// @param mode New view mode
   ///
   void setViewMode(ViewMode mode);
 
   /// @brief Get view's related setting
+  /// @param mode Desired mode to get the related setting for
   ///
   uint8_t getOperatingModeRelatedSetting(OperatingMode mode);
 
@@ -179,12 +183,14 @@ namespace Application {
   void refreshSettings();
 
   /// @brief Set new application settings, also calls refreshSettings()
+  /// @param settings New settings to apply to the applications and hardware
   ///
   void setSettings(Settings settings);
 
   /// @brief Handles DST date/time computation; maintains clock's DST state machine.
   ///  Intended for tracking DST clock adjustments, not for arbitrary use!
   ///  To reset state machine, call with year != year provided when last called.
+  /// @param currentTime DateTime object to compute DST state for
   /// @return true if DST is active based on passed DateTime object
   bool isDst(const DateTime &currentTime);
 
@@ -194,7 +200,18 @@ namespace Application {
 
   /// @brief Enables/disables automagic adjusting of the display intensity based
   ///  on ambient light seen by the phototransistor
-  void setIntensityAutoAdjust(const bool enable);
+  /// @param enable Enables automatic adjustments if true
+  /// @param quickAdjust Perform an immediate update of the intensity
+  void setIntensityAutoAdjust(const bool enable, const bool quickAdjust = false);
+
+  /// @brief Returns the application's current display intensity
+  /// @return current display intensity percentage application is using (see RgbLed)
+  uint16_t getIntensity();
+
+  /// @brief Set the application's display intensity
+  /// @param intensity New display intensity percentage application should use (see RgbLed)
+  ///
+  void setIntensity(const uint16_t intensity);
 
   /// @brief Refreshs master display intensity. Call at fixed intervals.
   ///

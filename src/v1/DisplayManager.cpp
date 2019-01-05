@@ -290,6 +290,12 @@ void setMasterIntensity(const uint16_t intensity)
 {
   uint16_t safeIntensity = RgbLed::cLed100Percent;
 
+  // ensure the passed intensity value is appropriate & safe
+  if (intensity < RgbLed::cLed100Percent)
+  {
+    safeIntensity = intensity;
+  }
+
   if (Hardware::cTargetHardwareVersion >= 4)
   {
     // this is a bit deceiving as it makes v4+ seem more complex with respect to
@@ -302,12 +308,6 @@ void setMasterIntensity(const uint16_t intensity)
              dcValue = cMaxDcValue,
              iOutDesired = cIolcMax;
     uint8_t i = 0;
-
-    // ensure the passed intensity value is appropriate & safe
-    if (intensity < RgbLed::cLed100Percent)
-    {
-      safeIntensity = intensity;
-    }
 
     // if the new intensity is different, let's update some stuff
     if (_intensityPercentage != safeIntensity)
@@ -330,17 +330,26 @@ void setMasterIntensity(const uint16_t intensity)
       // the formulas below were derived directly from the TLC5951 reference manual.
       // use _intensityPercentage as a percentage of cIolcMax and compute BC & DC from that
       iOutDesired = (safeIntensity * cIolcMax) / RgbLed::cLed100Percent;
-      // compute value for BC; always add one so it exceeds what we need...
-      bcValue = ((iOutDesired * cMaxBcValue) / cIolcMax) + 1;
-      if (bcValue > cMaxBcValue)  // was it too big?
+
+      if (iOutDesired > 0)
       {
-        // set bcValue to the max; dcValue remains as initialized. full brightness!
-        bcValue = cMaxBcValue;
+        // compute value for BC; always add one so it exceeds what we need...
+        bcValue = ((iOutDesired * cMaxBcValue) / cIolcMax) + 1;
+        if (bcValue > cMaxBcValue)  // was it too big?
+        {
+          // set bcValue to the max; dcValue remains as initialized. full brightness!
+          bcValue = cMaxBcValue;
+        }
+        else
+        {
+          // compute the DC value to scale down from what we calculated above.
+          dcValue = (iOutDesired * cMaxBcValue * cMaxDcValue) / (bcValue * cIolcMax);
+        }
       }
-      else
+      else  // it was zero so we want "off"
       {
-        // compute the DC value to scale down from what we calculated above.
-        dcValue = (iOutDesired * cMaxBcValue * cMaxDcValue) / (bcValue * cIolcMax);
+        bcValue = 0;
+        dcValue = 0;
       }
 
       // now we just write these lovely values into the TLC59xx buffers
@@ -359,15 +368,10 @@ void setMasterIntensity(const uint16_t intensity)
   }
   else
   {
-    // ensure values are good & safe
-    if (intensity <= RgbLed::cLed100Percent)
-    {
-      safeIntensity = intensity;
-    }
     // if the new intensity is different, let's update some stuff
     if (_intensityPercentage != safeIntensity)
     {
-      // first, save it so we can check it next time we're called
+      // save it...we'll need it later for sure
       _intensityPercentage = safeIntensity;
     }
   }

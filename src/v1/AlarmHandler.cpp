@@ -45,14 +45,14 @@ const uint8_t cMomentaryAlarmInputNumber = 1;
 // Alarm tone durations and frequencies
 //
 const uint16_t cHourlyAlarmToneDuration = 75;
-// const uint16_t cHourlyAlarmToneFrequencies[] = {NOTE_D6, NOTE_A6};
-const uint16_t cHourlyAlarmToneFrequencies[] = {NOTE_E6, NOTE_E7};
+// const uint16_t cHourlyAlarmToneFrequencies[] = { NOTE_D6, NOTE_A6 };
+const uint16_t cHourlyAlarmToneFrequencies[] = { NOTE_E6, NOTE_E7 };
 // Be creative and create your own melody!
 //   *** Array lengths MUST MATCH ***
-// const uint16_t cAlarmToneDurations[]   = {75, 75, 75, 75, 75, 75, 75, 700};
-// const uint16_t cAlarmToneFrequencies[] = {NOTE_D7, NOTE_REST, NOTE_D7, NOTE_REST, NOTE_D7, NOTE_REST, NOTE_D7, NOTE_REST};
-const uint16_t cAlarmToneDurations[]   = {150, 300, 50, 300, 150, 150, 150, 150, 150, 700};
-const uint16_t cAlarmToneFrequencies[] = {NOTE_C7, NOTE_G6, NOTE_REST, NOTE_G6, NOTE_A6, NOTE_G6, NOTE_REST, NOTE_B6, NOTE_C7, NOTE_REST};
+// const uint16_t cAlarmToneDurations[]   = { 75, 75, 75, 75, 75, 75, 75, 700 };
+// const uint16_t cAlarmToneFrequencies[] = { NOTE_D7, NOTE_REST, NOTE_D7, NOTE_REST, NOTE_D7, NOTE_REST, NOTE_D7, NOTE_REST };
+const uint16_t cAlarmToneDurations[]   = { 150, 300, 50, 300, 150, 150, 150, 150, 150, 700 };
+const uint16_t cAlarmToneFrequencies[] = { NOTE_C7, NOTE_G6, NOTE_REST, NOTE_G6, NOTE_A6, NOTE_G6, NOTE_REST, NOTE_B6, NOTE_C7, NOTE_REST };
 
 // Number of alarms available
 //
@@ -94,10 +94,6 @@ uint8_t _lastHourlyBeepHour = 25;
 //
 DateTime _ackTime[cAlarmCount];
 
-// The application's current settings
-//
-Settings _settings;
-
 
 void initialize()
 {
@@ -121,12 +117,13 @@ void loop()
 {
   uint8_t i;
   DateTime slot, current = Hardware::getDateTime();
+  Settings *pSettings = Application::getSettingsPtr();
 
   // first, if the clock is set, check if any alarm boundaries have been crossed, triggering an alarm
   if (Hardware::rtcIsSet())
   {
     // if the minutes and seconds are both zero, it's the top of the hour
-    if ((_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::HourlyChime) == true) &&
+    if ((pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::HourlyChime) == true) &&
         (current.second(false) == 0) && (current.minute(false) == 0))
     {
       _hourlyAlarmActive = true;
@@ -135,10 +132,10 @@ void loop()
     for (i = static_cast<uint8_t>(Settings::Slot::Slot1); i <= static_cast<uint8_t>(Settings::Slot::Slot8); i++)
     {
       // first check if the alarm is enabled
-      if ((_settings.getSetting(Settings::Setting::BeepStates, i) == true) || (_settings.getSetting(Settings::Setting::BlinkStates, i) == true))
+      if ((pSettings->getSetting(Settings::Setting::BeepStates, i) == true) || (pSettings->getSetting(Settings::Setting::BlinkStates, i) == true))
       {
         // get the current slot's time
-        slot = _settings.getTime(i);
+        slot = pSettings->getTime(i);
 
         // if the current time is after the alarm slot's time...
         if (current.secondsSinceMidnight(false) >= slot.secondsSinceMidnight(false))
@@ -164,8 +161,8 @@ void loop()
     _extMomentaryAlarmActive = _previousExtMomentaryAlarmPinState;
     if ((_extMomentaryAlarmActive == false) && (_activeAlarms == 0) && (_extLatchingAlarmActive == false))
     {
-      Application::setIntensityAutoAdjust(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
-      DisplayManager::setDisplayBlanking(false);
+      // restore the display, etc. in case the alarm(s) changed anything
+      Application::refreshSettings();
     }
   }
   if (Hardware::alarmInput(cLatchingAlarmInputNumber) == true)
@@ -181,8 +178,8 @@ void loop()
     {
       for (i = static_cast<uint8_t>(Settings::Slot::Slot1); i <= static_cast<uint8_t>(Settings::Slot::Slot8) + cExtAlarmCount; i++)
       {
-        // first check if the alarm is enabled for beeping
-        if (_settings.getSetting(Settings::Setting::BeepStates, i) == true)
+        // first, check if the alarm is enabled for beeping
+        if (pSettings->getSetting(Settings::Setting::BeepStates, i) == true)
         {
           // cancel this since some other, more important alarm is active
           _hourlyAlarmActive = false;
@@ -198,12 +195,12 @@ void loop()
           }
         }
 
-        // first check if the alarm is enabled for blinking
-        if (_settings.getSetting(Settings::Setting::BlinkStates, i) == true)
+        // next, check if the alarm is enabled for blinking
+        if (pSettings->getSetting(Settings::Setting::BlinkStates, i) == true)
         {
           // make the display bright!
           Application::setIntensityAutoAdjust(false);
-          DisplayManager::setMasterIntensity(RgbLed::cLed100Percent);
+          Application::setIntensity(RgbLed::cLed100Percent);
           // blink based on seconds, or...
           // DisplayManager::setDisplayBlanking(current.second(false) & 1);
           // blink based on sub-seconds register for faster blinking
@@ -213,7 +210,7 @@ void loop()
     }
     else if (_hourlyAlarmActive == true)
     {
-      uint8_t tone = 0, hour = current.hour(false, _settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour));
+      uint8_t tone = 0, hour = current.hour(false, pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour));
 
       if (hour == _lastHourlyBeepHour)
       {
@@ -300,6 +297,7 @@ void clearAlarm()
   if ((_activeAlarms != 0) || (_extLatchingAlarmActive == true) || (_extLatchingAlarmActive == true))
   {
     DateTime current = Hardware::getDateTime();
+    // Settings *pSettings = Application::getSettingsPtr();
 
     for (uint8_t i = 0; (i < 8) && (_activeAlarms != 0); i++)
     {
@@ -312,9 +310,8 @@ void clearAlarm()
     _extLatchingAlarmActive = false;
     _extMomentaryAlarmActive = false;
     _beepCounter = 0;
-    // restore the display in case the alarm changed anything
-    Application::setIntensityAutoAdjust(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
-    DisplayManager::setDisplayBlanking(false);
+    // restore the display, etc. in case the alarm(s) changed anything
+    Application::refreshSettings();
   }
 }
 
@@ -322,12 +319,9 @@ void clearAlarm()
 void releaseMomentaryAlarm()
 {
   _extMomentaryAlarmActive = false;
-}
 
-
-void setSettings(Settings settings)
-{
-  _settings = settings;
+  // restore the display, etc. in case the alarm(s) changed anything
+  Application::refreshSettings();
 }
 
 

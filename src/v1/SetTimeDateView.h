@@ -55,7 +55,7 @@ private:
 
   // the selected byte
   //
-  uint8_t _selectedByte;
+  int8_t _selectedByte;
 
   // the main application's mode
   //

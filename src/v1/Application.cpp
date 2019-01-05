@@ -323,9 +323,6 @@ Settings* getSettingsPtr()
 
 void refreshSettings()
 {
-  // Update alarms
-  AlarmHandler::setSettings(_settings);
-
   // Update hardware things
   Hardware::setFlickerReduction(_settings.getRawSetting(Settings::Setting::FlickerReduction));
   Hardware::setVolume(_settings.getRawSetting(Settings::Setting::BeeperVolume));
@@ -333,9 +330,10 @@ void refreshSettings()
   Hardware::setTemperatureCalibration((int8_t)(-(_settings.getRawSetting(Settings::Setting::TemperatureCalibration))));
 
   DisplayManager::setDisplayRefreshInterval(_settings.getRawSetting(Settings::Setting::DisplayRefreshInterval));
+  DisplayManager::setDisplayBlanking(false);
 
   _minimumIntensity = _settings.getRawSetting(Settings::Setting::MinimumIntensity) * cMinimumIntensityMultiplier;
-  setIntensityAutoAdjust(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity));
+  setIntensityAutoAdjust(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::AutoAdjustIntensity), true);
 }
 
 
@@ -417,33 +415,9 @@ void _refreshDst()
 }
 
 
-bool getIntensityAutoAdjust()
-{
-  return _autoAdjustIntensities;
-}
-
-
-void setIntensityAutoAdjust(const bool enable)
-{
-  if (_autoAdjustIntensities != enable)
-  {
-    _autoAdjustIntensities = enable;
-
-    if (enable == true)
-    {
-      DisplayManager::setMasterIntensity(_intensityPercentage);
-    }
-    else
-    {
-      DisplayManager::setMasterIntensity(10000);
-    }
-  }
-}
-
-
 // Updates the "master" intensity for the display based on lightLevel()
 //
-void _updateIntensityPercentage()
+void _updateIntensityPercentage(const bool quick = false)
 {
   // determine the new value for _intensityPercentage
   uint16_t currentPercentage = (Hardware::lightLevel() * RgbLed::cLed100Percent) / Display::cLedMaxIntensity;
@@ -454,13 +428,59 @@ void _updateIntensityPercentage()
     currentPercentage = _minimumIntensity;
   }
 
-  if (currentPercentage > _intensityPercentage)
+  if (quick == true)
   {
-   _intensityPercentage++;
+    _intensityPercentage = currentPercentage;
   }
-  else if (currentPercentage < _intensityPercentage)
+  else
   {
-   _intensityPercentage--;
+    if (currentPercentage > _intensityPercentage)
+    {
+     _intensityPercentage++;
+    }
+    else if (currentPercentage < _intensityPercentage)
+    {
+     _intensityPercentage--;
+    }
+  }
+}
+
+
+bool getIntensityAutoAdjust()
+{
+  return _autoAdjustIntensities;
+}
+
+
+void setIntensityAutoAdjust(const bool enable, const bool quickAdjust)
+{
+  if (_autoAdjustIntensities != enable)
+  {
+    _autoAdjustIntensities = enable;
+
+    if ((enable == true) && (quickAdjust == true))
+    {
+      _updateIntensityPercentage(quickAdjust);
+    }
+  }
+}
+
+
+uint16_t getIntensity()
+{
+  return _intensityPercentage;
+}
+
+
+void setIntensity(const uint16_t intensity)
+{
+  if (intensity < RgbLed::cLed100Percent)
+  {
+    _intensityPercentage = intensity;
+  }
+  else
+  {
+    _intensityPercentage = RgbLed::cLed100Percent;
   }
 }
 
@@ -472,7 +492,10 @@ void tick()
     _idleCounter++;
   }
 
-  _updateIntensityPercentage();
+  if (_autoAdjustIntensities == true)
+  {
+    _updateIntensityPercentage();
+  }
 }
 
 
@@ -490,8 +513,8 @@ void loop()
     {
       _refreshDst();
     }
-    // We may auto-adjust the display intensity only if DMX-512 is NOT active
-    if ((_autoAdjustIntensities == true) && (_externalControlMode != ExternalControl::Dmx512ExtControlEnum))
+    // We control the master display intensity only if DMX-512 is NOT active
+    if (_externalControlMode != ExternalControl::Dmx512ExtControlEnum)
     {
       DisplayManager::setMasterIntensity(_intensityPercentage);
     }

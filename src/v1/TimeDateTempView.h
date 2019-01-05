@@ -48,7 +48,13 @@ public: // Implement the TimeDateTempView class
   virtual void loop() override;
 
 private:
+  // number of seconds in a day
+  //
   static const uint32_t cSecondsInADay;
+
+  // amount by which we increment/decrement the intensity when manually adjusting
+  //
+  static const uint8_t cIntensityAdjustmentIncrement;
 
   // tracks the last time the display was switched
   //

@@ -63,11 +63,6 @@ namespace AlarmHandler {
   /// @brief Deactivates the momentary alarm
   ///
   void releaseMomentaryAlarm();
-
-  /// @brief Set new alarm settings
-  /// @param settings new settings object with updated alarm settings
-  ///
-  void setSettings(Settings settings);
 }
 
 }

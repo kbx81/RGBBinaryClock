@@ -28,9 +28,9 @@
 namespace kbxBinaryClock {
 
 
-// number of seconds in a day
-//
 const uint32_t TimeDateTempView::cSecondsInADay = 60 * 60 * 24;
+
+const uint8_t TimeDateTempView::cIntensityAdjustmentIncrement = 100;
 
 
 TimeDateTempView::TimeDateTempView()
@@ -61,12 +61,18 @@ bool TimeDateTempView::keyHandler(Keys::Key key)
   FixedDisplayItem currentDisplayItem = static_cast<FixedDisplayItem>(Application::getViewMode());
   bool tick = false;
 
-  _lastSwitchTime = _currentTime.secondsSinceMidnight(false);
-
-  if ((key == Keys::Key::A) && (currentDisplayItem != FixedDisplayItem::Time))
+  if (key == Keys::Key::A)
   {
-    Application::setViewMode(static_cast<ViewMode>(FixedDisplayItem::Time));
-    tick = true;
+    if (currentDisplayItem != FixedDisplayItem::Time)
+    {
+      Application::setViewMode(static_cast<ViewMode>(FixedDisplayItem::Time));
+      tick = true;
+    }
+    else if (currentDisplayItem != FixedDisplayItem::TimeSeconds)
+    {
+      Application::setViewMode(static_cast<ViewMode>(FixedDisplayItem::TimeSeconds));
+      tick = true;
+    }
   }
 
   if ((key == Keys::Key::B) && (currentDisplayItem != FixedDisplayItem::Date))
@@ -81,16 +87,43 @@ bool TimeDateTempView::keyHandler(Keys::Key key)
     tick = true;
   }
 
-  if ((key == Keys::Key::D) && (currentDisplayItem != FixedDisplayItem::TimeSeconds))
+  if ((key == Keys::Key::D) && (Application::getIntensityAutoAdjust() == false))
   {
-    Application::setViewMode(static_cast<ViewMode>(FixedDisplayItem::TimeSeconds));
-    tick = true;
+    const int16_t intensity = Application::getIntensity() - cIntensityAdjustmentIncrement;
+    if (intensity > 0)
+    {
+      Application::setIntensity(intensity);
+      tick = true;
+    }
+    else
+    {
+      Application::setIntensity(0);
+    }
+  }
+
+  if ((key == Keys::Key::U) && (Application::getIntensityAutoAdjust() == false))
+  {
+    const int16_t intensity = Application::getIntensity() + cIntensityAdjustmentIncrement;
+    if (intensity <= RgbLed::cLed100Percent)
+    {
+      Application::setIntensity(intensity);
+      tick = true;
+    }
+    else
+    {
+      Application::setIntensity(RgbLed::cLed100Percent);
+    }
   }
 
   if (key == Keys::Key::E)
   {
     Application::setOperatingMode(Application::OperatingMode::OperatingModeMainMenu);
     tick = true;
+  }
+
+  if (tick == true)
+  {
+    _lastSwitchTime = _currentTime.secondsSinceMidnight(false);
   }
 
   return tick;
