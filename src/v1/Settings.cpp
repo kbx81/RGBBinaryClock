@@ -30,13 +30,14 @@ namespace kbxBinaryClock {
 
   // conatins a mask for bitfields and a maximum value for other types of data
   const uint16_t Settings::cSettingData[] = { 0x07ff,   // SystemOptions
-                                              0x03ff,   // BeepStates
-                                              0x03ff,   // BlinkStates
+                                              0x07ff,   // BeepStates
+                                              0x07ff,   // BlinkStates
                                               0x00ff,   // ColorStates
                                               300,      // TimeDisplayDuration
                                               300,      // DateDisplayDuration
                                               300,      // TemperatureDisplayDuration
                                               1000,     // FadeRate
+                                              2,        // DateFormat
                                               12,       // DstBeginMonth
                                               4,        // DstBeginDowOrdinal
                                               12,       // DstEndMonth
@@ -68,13 +69,14 @@ namespace kbxBinaryClock {
     }
 
     _setting[static_cast<uint8_t>(SystemOptions)] = 0x2c1;
-    _setting[static_cast<uint8_t>(BeepStates)] = 0x300;
-    _setting[static_cast<uint8_t>(BlinkStates)] = 0x000;
+    _setting[static_cast<uint8_t>(BeepStates)] = 0x700;
+    _setting[static_cast<uint8_t>(BlinkStates)] = 0x700;
     _setting[static_cast<uint8_t>(ColorStates)] = 0xff;
     _setting[static_cast<uint8_t>(TimeDisplayDuration)] = 24;
     _setting[static_cast<uint8_t>(DateDisplayDuration)] = 3;
     _setting[static_cast<uint8_t>(TemperatureDisplayDuration)] = 3;
     _setting[static_cast<uint8_t>(FadeDuration)] = 100;
+    _setting[static_cast<uint8_t>(DateFormat)] = 0;
     _setting[static_cast<uint8_t>(DstBeginMonth)] = 3;
     _setting[static_cast<uint8_t>(DstBeginDowOrdinal)] = 2;
     _setting[static_cast<uint8_t>(DstEndMonth)] = 11;

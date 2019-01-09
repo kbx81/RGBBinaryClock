@@ -132,19 +132,26 @@ bool TimeDateTempView::keyHandler(Keys::Key key)
 
 void TimeDateTempView::loop()
 {
+  Application::ExternalControl externalControlState = Application::getExternalControlState();
   Display  bcDisp;
   FixedDisplayItem nextDisplayItem, currentDisplayItem = static_cast<FixedDisplayItem>(Application::getViewMode());
   RgbLed   statusLed;
   Settings *pSettings = Application::getSettingsPtr();
   Settings::Slot colorSlot = Settings::Slot::SlotDmx;
-  uint32_t changeDisplayTime = 0, itemDisplayDuration = 0, pixelOffBitMask = 0;
+  uint32_t changeDisplayTime = 0, itemDisplayDuration = 0, pixelOffBitMask = 0,
+           secondsSinceMidnight = _currentTime.secondsSinceMidnight(false);
+  bool displayBcd = pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD),
+       display12Hour = pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour),
+       displayFahrenheit = pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayFahrenheit);
+  uint8_t year  = _currentTime.yearShort(displayBcd),
+          month = _currentTime.month(displayBcd),
+          day   = _currentTime.day(displayBcd);
 
   // update these only as needed -- keeps temperature from bouncing incessantly
   if (_currentTime != Hardware::getDateTime())
   {
     _currentTime = Hardware::getDateTime();
-    _currentTemperature = Hardware::temperature(pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayFahrenheit),
-                            pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD));
+    _currentTemperature = Hardware::temperature(displayFahrenheit, displayBcd);
   }
   // determine the display duration of the current display item as well as the next item to display
   if (_mode == Application::OperatingMode::OperatingModeToggleDisplay)
@@ -169,16 +176,15 @@ void TimeDateTempView::loop()
     changeDisplayTime = _lastSwitchTime + itemDisplayDuration;
 
     // rotate the display if it's time to do so
-    if ((_currentTime.secondsSinceMidnight(false) >= changeDisplayTime) ||
-        (_currentTime.secondsSinceMidnight(false) + cSecondsInADay == changeDisplayTime))
+    if ((secondsSinceMidnight >= changeDisplayTime) || (secondsSinceMidnight + cSecondsInADay == changeDisplayTime))
     {
       Application::setViewMode(static_cast<ViewMode>(nextDisplayItem));
-      _lastSwitchTime = _currentTime.secondsSinceMidnight(false);
+      _lastSwitchTime = secondsSinceMidnight;
     }
   }
 
   // determine display colors
-  if ((Application::getExternalControlState() != Application::ExternalControl::Dmx512ExtControlEnum)
+  if ((externalControlState != Application::ExternalControl::Dmx512ExtControlEnum)
       || (Hardware::rtcIsSet() == false))
   {
     switch (currentDisplayItem)
@@ -197,13 +203,13 @@ void TimeDateTempView::loop()
     }
   }
   // set display colors and fade durations
-  bcDisp.setDisplayColor0(pSettings->getColor(Settings::Color::Color0, colorSlot, Application::getExternalControlState() != Application::ExternalControl::Dmx512ExtControlEnum));
-  bcDisp.setDisplayColor1(pSettings->getColor(Settings::Color::Color1, colorSlot, Application::getExternalControlState() != Application::ExternalControl::Dmx512ExtControlEnum));
+  bcDisp.setDisplayColor0(pSettings->getColor(Settings::Color::Color0, colorSlot, externalControlState != Application::ExternalControl::Dmx512ExtControlEnum));
+  bcDisp.setDisplayColor1(pSettings->getColor(Settings::Color::Color1, colorSlot, externalControlState != Application::ExternalControl::Dmx512ExtControlEnum));
   // set status LED to appropriate color if enabled as AM/PM indicator
   if (pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::StatusLedAsAmPm) == true)
   {
     // this will set the color and (more importantly) fade duration correctly
-    statusLed = pSettings->getColor(static_cast<Settings::Color>(_currentTime.isPM()), colorSlot, Application::getExternalControlState() != Application::ExternalControl::Dmx512ExtControlEnum);
+    statusLed = pSettings->getColor(static_cast<Settings::Color>(_currentTime.isPM()), colorSlot, externalControlState != Application::ExternalControl::Dmx512ExtControlEnum);
     // turn it off if we're not displaying the time (a bit silly but it works)
     if ((currentDisplayItem != FixedDisplayItem::Time) && (currentDisplayItem != FixedDisplayItem::TimeSeconds))
     {
@@ -217,9 +223,19 @@ void TimeDateTempView::loop()
     switch (currentDisplayItem)
     {
       case FixedDisplayItem::Date:
-      bcDisp.setDisplayFromBytes(_currentTime.yearShort(pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)),
-                                 _currentTime.month(pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)),
-                                 _currentTime.day(pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)));
+      switch (pSettings->getRawSetting(Settings::DateFormat))
+      {
+        case 2:
+        bcDisp.setDisplayFromBytes(month, day, year);
+        break;
+
+        case 1:
+        bcDisp.setDisplayFromBytes(day, month, year);
+        break;
+
+        default:
+        bcDisp.setDisplayFromBytes(year, month, day);
+      }
       break;
 
       case FixedDisplayItem::Temperature:
@@ -228,14 +244,11 @@ void TimeDateTempView::loop()
       break;
 
       case FixedDisplayItem::TimeSeconds:
-      bcDisp.setDisplayFromBitmap(_currentTime.secondsSinceMidnight(pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)));
+      bcDisp.setDisplayFromBitmap(_currentTime.secondsSinceMidnight(displayBcd));
       break;
 
       default:
-      bcDisp.setDisplayFromBytes(_currentTime.hour(pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD),
-                                   pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour)),
-                                 _currentTime.minute(pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)),
-                                 _currentTime.second(pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD)));
+      bcDisp.setDisplayFromBytes(_currentTime.hour(displayBcd, display12Hour), _currentTime.minute(displayBcd), _currentTime.second(displayBcd));
     }
   }
   else
@@ -249,7 +262,7 @@ void TimeDateTempView::loop()
 
   if (pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::MSBsOff) == true)
   {
-    bcDisp.setMsbPixelsOff(pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD), 0xfefefe);
+    bcDisp.setMsbPixelsOff(displayBcd, 0xfefefe);
   }
   bcDisp.setPixelsOff(pixelOffBitMask);
 

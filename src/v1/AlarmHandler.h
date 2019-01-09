@@ -48,21 +48,13 @@ namespace AlarmHandler {
   ///
   bool isAlarmActive();
 
-  /// @brief Activates the latching alarm
-  ///
-  void activateLatchingAlarm();
-
-  /// @brief Activates the momentary alarm
-  ///
-  void activateMomentaryAlarm();
-
   /// @brief Clears any active alarms
   ///
   void clearAlarm();
 
-  /// @brief Deactivates the momentary alarm
+  /// @brief Activates the latching alarm
   ///
-  void releaseMomentaryAlarm();
+  void activateTimerCounterAlarm();
 }
 
 }

@@ -47,9 +47,7 @@ void TestDisplayView::enter()
   DisplayManager::setStatusLedAutoRefreshing(true);
 
   // make the display bright so we can see the colors we're working with
-  Application::setIntensityAutoAdjust(false);
-  // set the display intensity
-  DisplayManager::setMasterIntensity(_intensity);
+  Application::setIntensity(_intensity);
   // Initialize the display drivers' dot control to the lowest level
   for (uint8_t i = 0; i < Display::cLedCount; i++)
   {
@@ -67,14 +65,14 @@ bool TestDisplayView::keyHandler(Keys::Key key)
   {
     _intensity = 0;
     // set the new display intensity
-    DisplayManager::setMasterIntensity(_intensity);
+    Application::setIntensity(_intensity);
   }
 
   if (key == Keys::Key::B)
   {
     _intensity = 10000;
     // set the new display intensity
-    DisplayManager::setMasterIntensity(_intensity);
+    Application::setIntensity(_intensity);
   }
 
   if (key == Keys::Key::C)
@@ -88,13 +86,13 @@ bool TestDisplayView::keyHandler(Keys::Key key)
   if (key == Keys::Key::D)
   {
     // set the new display intensity
-    DisplayManager::setMasterIntensity(--_intensity);
+    Application::setIntensity(--_intensity);
   }
 
   if (key == Keys::Key::U)
   {
     // set the new display intensity
-    DisplayManager::setMasterIntensity(++_intensity);
+    Application::setIntensity(++_intensity);
   }
 
   if (key == Keys::Key::E)
@@ -115,7 +113,7 @@ void TestDisplayView::loop()
 {
   const uint32_t displayBitMask = 0;
   const uint16_t testIntensity = 512;
-  uint16_t red = 0, green = 0, blue = 0, rate = 0;
+  uint16_t red = 0, green = 0, blue = 0;
 
   switch (_displayedColor)
   {
@@ -132,7 +130,7 @@ void TestDisplayView::loop()
   }
 
   // now we can create a new display object with the right colors and bitmask
-  RgbLed  testColor(red, green, blue, rate);
+  RgbLed  testColor(red, green, blue);
   Display bcDisp(testColor, testColor, displayBitMask);
 
   DisplayManager::writeDisplay(bcDisp);

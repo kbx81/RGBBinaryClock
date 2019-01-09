@@ -116,28 +116,42 @@ bool TimerCounterView::keyHandler(Keys::Key key)
 
 void TimerCounterView::loop()
 {
-  DateTime  currentTime;
+  Application::ExternalControl externalControlState = Application::getExternalControlState();
+  DateTime  currentTime = Hardware::getDateTime();
   Display   bcDisp;
+  RgbLed    led[2];
   Settings *pSettings = Application::getSettingsPtr();
+  Settings::Slot colorSlot = Settings::Slot::SlotDmx;
   TimerMode currentTimerMode = static_cast<TimerMode>(Application::getViewMode());
-
-  currentTime = Hardware::getDateTime();
+  uint32_t  secondsSinceMidnight = currentTime.secondsSinceMidnight(false);
+  uint16_t  timerResetValue = pSettings->getRawSetting(Settings::Setting::TimerResetValue);
+  bool      displayBcd = pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD),
+            setFadeDuration = false;
 
   // determine display colors
-  if (Application::getExternalControlState() == Application::ExternalControl::Dmx512ExtControlEnum)
+  if (externalControlState != Application::ExternalControl::Dmx512ExtControlEnum)
   {
-    bcDisp.setDisplayColor0(pSettings->getColor(Settings::Color::Color0, Settings::Slot::SlotDmx));
-    bcDisp.setDisplayColor1(pSettings->getColor(Settings::Color::Color1, Settings::Slot::SlotDmx));
+    colorSlot = Settings::Slot::SlotTimer;
+    setFadeDuration = true;
   }
-  else
+
+  led[0] = pSettings->getColor(Settings::Color::Color0, colorSlot, setFadeDuration);
+  led[1] = pSettings->getColor(Settings::Color::Color1, colorSlot, setFadeDuration);
+
+  if ((currentTimerMode != TimerMode::TimerRunUp) && (currentTimerMode != TimerMode::TimerRunDown)
+   && (externalControlState != Application::ExternalControl::Dmx512ExtControlEnum))
   {
-    bcDisp.setDisplayColor0(pSettings->getColor(Settings::Color::Color0, Settings::Slot::SlotTimer, true));
-    bcDisp.setDisplayColor1(pSettings->getColor(Settings::Color::Color1, Settings::Slot::SlotTimer, true));
+    led[0].setDuration(0);
+    led[1].setDuration(0);
   }
+
+  bcDisp.setDisplayColor0(led[0]);
+  bcDisp.setDisplayColor1(led[1]);
+
   // now determine the bitmask for the display
-  if ((currentTimerMode != TimerMode::TimerStop) && (_lastTime != currentTime.secondsSinceMidnight(false)))
+  if ((currentTimerMode != TimerMode::TimerStop) && (_lastTime != secondsSinceMidnight))
   {
-    _lastTime = currentTime.secondsSinceMidnight(false);
+    _lastTime = secondsSinceMidnight;
 
     switch (currentTimerMode)
     {
@@ -156,7 +170,7 @@ void TimerCounterView::loop()
       }
       else
       {
-        _timerValue = pSettings->getRawSetting(Settings::Setting::TimerResetValue);
+        _timerValue = timerResetValue;
       }
       AlarmHandler::clearAlarm();   // in case of external control (DMX-512)
       Application::setViewMode(static_cast<ViewMode>(TimerMode::TimerStop));
@@ -170,13 +184,13 @@ void TimerCounterView::loop()
   // alarm handling
   if (_countUp == true)
   {
-    if ((_timerValue == pSettings->getRawSetting(Settings::Setting::TimerResetValue)) && (_alarmReady == true))
+    if ((_timerValue == timerResetValue) && (_alarmReady == true))
     {
-      AlarmHandler::activateLatchingAlarm();
+      AlarmHandler::activateTimerCounterAlarm();
       _alarmReady = false;
       Application::setViewMode(static_cast<ViewMode>(TimerMode::TimerStop));
     }
-    else if ((_timerValue != pSettings->getRawSetting(Settings::Setting::TimerResetValue)) && (_alarmReady == false))
+    else if ((_timerValue != timerResetValue) && (_alarmReady == false))
     {
       _alarmReady = true;
     }
@@ -185,7 +199,7 @@ void TimerCounterView::loop()
   {
     if ((_timerValue == 0) && (_alarmReady == true))
     {
-      AlarmHandler::activateLatchingAlarm();
+      AlarmHandler::activateTimerCounterAlarm();
       _alarmReady = false;
       Application::setViewMode(static_cast<ViewMode>(TimerMode::TimerStop));
     }
@@ -195,8 +209,7 @@ void TimerCounterView::loop()
     }
   }
 
-  if ((pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD) == true) &&
-      (_timerValue > cMaxBcdValue))
+  if ((displayBcd == true) && (_timerValue > cMaxBcdValue))
   {
     // we'll use what the timer value is closer to to determine what it
     //  should be reset to
@@ -211,7 +224,7 @@ void TimerCounterView::loop()
   }
 
   // display timer in BCD if settings say so
-  if (pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD) == true)
+  if (displayBcd == true)
   {
     bcDisp.setDisplayFromBitmap(Hardware::uint32ToBcd(_timerValue));
   }
@@ -222,7 +235,7 @@ void TimerCounterView::loop()
 
   if (pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::MSBsOff) == true)
   {
-    bcDisp.setMsbPixelsOff(pSettings->getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD));
+    bcDisp.setMsbPixelsOff(displayBcd);
   }
 
   DisplayManager::writeDisplay(bcDisp);

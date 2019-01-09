@@ -100,7 +100,8 @@ static viewDescriptor const cViewDescriptor[] = {
     { 32, ViewEnum::SetValueViewEnum,     Settings::Setting::CurrentDrive },
     { 33, ViewEnum::SetValueViewEnum,     Settings::Setting::TemperatureCalibration },
     { 34, ViewEnum::SetValueViewEnum,     Settings::Setting::BeeperVolume },
-    { 35, ViewEnum::SetValueViewEnum,     Settings::Setting::DisplayRefreshInterval },
+    { 35, ViewEnum::SetValueViewEnum,     Settings::Setting::DateFormat },
+    { 36, ViewEnum::SetValueViewEnum,     Settings::Setting::DisplayRefreshInterval },
     { 39, ViewEnum::SetValueViewEnum,     Settings::Setting::DmxAddress },
     { 40, ViewEnum::SetTimeDateViewEnum,  Settings::Slot::Slot1 },
     { 41, ViewEnum::SetTimeDateViewEnum,  Settings::Slot::Slot2 },
@@ -474,6 +475,8 @@ uint16_t getIntensity()
 
 void setIntensity(const uint16_t intensity)
 {
+  _autoAdjustIntensities = false;
+
   if (intensity < RgbLed::cLed100Percent)
   {
     _intensityPercentage = intensity;
@@ -527,8 +530,9 @@ void loop()
       auto key = Keys::getKeyPress();
       // Reset the counter since there has been button/key activity
       _idleCounter = 0;
-      // If an alarm is active, send keypresses there
-      if (AlarmHandler::isAlarmActive())
+      // If an alarm is active and external control is not, send keypresses there
+      if ((AlarmHandler::isAlarmActive())
+       && (_externalControlMode == Application::ExternalControl::NoActiveExtControlEnum))
       {
         AlarmHandler::keyHandler(key);
       }
@@ -547,8 +551,12 @@ void loop()
     }
     // Execute the loop block of the current view
     _currentView->loop();
-    // Process any necessary alarms
-    AlarmHandler::loop();
+    // We do not signal alarms if some external control is active
+    if (_externalControlMode == Application::ExternalControl::NoActiveExtControlEnum)
+    {
+      // Process any necessary alarms
+      AlarmHandler::loop();
+    }
 
     // If the idle counter has maxed out, kick back to the appropriate display mode
     if (_idleCounter >= cMaximumIdleCount)

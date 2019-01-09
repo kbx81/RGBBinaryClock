@@ -60,6 +60,7 @@ namespace Application {
     OperatingModeSetCurrentDrive,     ///< Set drive current for LEDs
     OperatingModeSetTempCalibration,  ///< Set temperature calibration
     OperatingModeSetBeeperVolume,     ///< Set Beeper Volume
+    OperatingModeSetDateFormat,       ///< Set Date Format
     OperatingModeSetTimerResetValue,  ///< Set timer/counter reset value
     OperatingModeSetDisplayRefreshInterval, ///< Set display refresh interval
     OperatingModeSetDMX512Address,    ///< Set DMX-512 address mode
@@ -208,7 +209,7 @@ namespace Application {
   /// @return current display intensity percentage application is using (see RgbLed)
   uint16_t getIntensity();
 
-  /// @brief Set the application's display intensity
+  /// @brief Set the application's display intensity and disables automagic adjusting of the display intensity
   /// @param intensity New display intensity percentage application should use (see RgbLed)
   ///
   void setIntensity(const uint16_t intensity);

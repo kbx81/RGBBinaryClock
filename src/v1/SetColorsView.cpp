@@ -63,7 +63,7 @@ void SetColorsView::enter()
   _setValues[Color::Blue1] = color1.getBlue();
 
   // make the display bright so we can see the colors we're working with
-  Application::setIntensityAutoAdjust(false);
+  Application::setIntensity(RgbLed::cLed100Percent);
 }
 
 
@@ -76,7 +76,7 @@ bool SetColorsView::keyHandler(Keys::Key key)
   if (key == Keys::Key::A)
   {
     Application::setSettings(_settings);
-    Application::setIntensityAutoAdjust(false);   // keep this disabled for now
+    Application::setIntensity(RgbLed::cLed100Percent);  // ensure this didn't change
 
     DisplayManager::doubleBlink();
   }
