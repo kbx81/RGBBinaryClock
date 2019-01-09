@@ -105,7 +105,7 @@ Installing an external temperature sensor is a great solution to this problem.
  to them or to other ICs on the board.
 
 #### RS-485 transceiver:
-**U9** (hardware v2.x and v3.x)
+**U9** (hardware v2.x and v3.x)\
 **U6** (hardware v4.x)
 
 This part will enable the the second USART in the STM32 MCU to be used to
@@ -118,7 +118,7 @@ This part will enable the the second USART in the STM32 MCU to be used to
  something.
 
 #### Buzzer/beeper components:
-**BZ1, D1, Q1, R1** (hardware v2.x and v3.x)
+**BZ1, D1, Q1, R1** (hardware v2.x and v3.x)\
 **BZ1, D2, Q2, R19** (hardware v4.x)
 
 If you don't want your clock to be able to make any noise at all, it is safe to
@@ -126,9 +126,9 @@ If you don't want your clock to be able to make any noise at all, it is safe to
 
 #### Current drive control components:
 **Q6 through Q11, R21 through R24, R26 through R29, R31 through R34,
- R36 and R37** (hardware v2.x);
+ R36 and R37** (hardware v2.x)\
 **Q6 through Q11, R20 through R23, R25 through R28, R30 through R33,
- R35 and R36** (hardware v3.x)
+ R35 and R36** (hardware v3.x)\
 (Not applicable to hardware v4.x)
 
 These parts enable some software control over the constant-current mechanism in
@@ -139,7 +139,7 @@ These parts enable some software control over the constant-current mechanism in
  level changes.
 
 #### Status LED components:
-**LED25, LED26, Q2 through Q4, R2 through R7** (hardware v2.x and v3.x)
+**LED25, LED26, Q2 through Q4, R2 through R7** (hardware v2.x and v3.x)\
 **LED25, LED26, Q3 through Q5, R20 through R22, R25 through R27** (hardware v4.x)
 
 The status LED is not typically used during normal operation, however it can be
@@ -170,8 +170,8 @@ If the DS323x **is** installed, `SB1` may be bridged so as to connect the
  drive capacitors) should **not** be installed.
 
 #### Phototransistor series resistors:
- **Q5, RV1, R9 and R10** (hardware v2.x);
- **Q5, RV1, R8 and R9** (hardware v3.x)
+ **Q5, RV1, R9 and R10** (hardware v2.x)\
+ **Q5, RV1, R8 and R9** (hardware v3.x)\
  **Q1, RV1, R4 and R5** (hardware v4.x)
 
 The phototransistor enables the application to determine the amount of ambient
@@ -189,14 +189,152 @@ The phototransistor enables the application to determine the amount of ambient
 If installing a status LED, install only LED25 **or** LED26. Do not install
  both.
 
-## After building...
+### Solder Bridge Jumpers
 
-You'll need to flash the firmware onto the STM32 MCU. Hardware version 4.x of
- the clock also has a USB interface that may be used for this purpose, in
+#### 32.768 kHz Oscillator jumper
+**SB1**
+
+This jumper determines if the 32.768 kHz oscillator or the DS323x's 32.768 kHz
+ output pin is connected to the STM32's OSC32_IN pin. If a DS323x is **not**
+ installed on the board, it must be bridged so that the crystal's pin is
+ connected to the OSC32_IN pin. Otherwise, it's best to bridge it to the
+ DS323x's 32.768 kHz output pin. It can be determined with a close look at the
+ PCB which position is which.
+
+#### Reset Supervisor jumper
+**SB2** (hardware v2.x and v3.x)\
+**SB4** (hardware v4.x)
+
+This jumper determines if the DS323x's reset supervisor output pin is connected
+ to the STM32's NRST (not-reset) pin. This should be connected if the DS323x is
+ installed, however it sometimes causes issues with flashing the MCU. If you
+ installed a DS323x and are having difficulty flashing the MCU, try
+ disconnecting this jumper until the flashing process is complete. Don't forget
+ to reconnect it, though!
+
+#### USART 1/USB VBUS jumpers
+**SB2, SB3** (hardware v4.x)
+
+These jumpers are on version 4+ boards and allow some configuration of which
+ USART1 pin on the MCU is connected to the six-pin serial header. Because the
+ processor expects USB VBUS on PA9, if you plan to use the USB port, SB2 should
+ be bridged and SB3 should be bridged to put PB6 on the on the six-pin header.
+ If you do not want/need to use the USB port and wish to flash the MCU via the
+ six-pin header, SB2 must be left **open** and SB3 should be bridged to put PA9
+ on the six-pin header.
+
+#### RS-485 Terminator jumper
+**SB5** (hardware v4.x)
+
+Bridge this jumper to connect the terminating resistor across the RS-485
+ transceiver's input/output pins. This is useful if the board is at the end of
+ a RS-485 link.
+
+## Before powering it on for the first time...
+
+WAIT! you didn't plug it in yet, did you? Let's do some pre-flight checks to get
+ ready to bring up your board!
+
+It's important that we go over the board with a DMM (or at least a continuity
+ tester) and check for any nasty shorts. Solder bridges and poor part placement
+ are the typical causes of this and it's not uncommon to have them, particularly
+ with so many surface-mount parts. We don't want our brand-new clock to let out
+ the magic smoke before we even get to use it, do we? :)
+
+Generally, it will suffice to check a few key areas for shorts. Since these are
+ surface-mount ICs, it's not uncommon to have solder bridges between some of the
+ pins after you've soldered it all together. Don't worry, we can get away
+ without checking _all_ of them, but we _do_ need to check a few. Let's make a
+ list so we can check them off:
+* **Check for shorts between the output of the LDO and ground.** Put one of your
+ DMM probes on the power connector's ground pin and the other on the LDO's
+ heatsink (the top fin soldered to the board -- this is its 3.3-volt output). If
+ you see they're shorted, you'll have to go hunting for the short. Start by
+ checking the power pins around the STM32 processor. All of its Vcc and ground
+ pins are right next to each other so this is the best place to look first.
+* **Check for shorts between the LED cathode pins and ground.** Again, put one
+ of your DMM probes on the power connector's ground pin and drag the other probe
+ across each of the pins of the LEDs (this also serves as a chance to check for
+ a short directly across the power input -- touch any of the anode pins to do
+ so). If there's a short, touch-up the pins on the TLC59xx drivers. It might
+ even be necessary to lift the driver IC completely off of the board (you have a
+ hot air soldering station, right?). Due to the exposed/thermal pad on the
+ bottom of the TLC59xx LED drivers, it's possible to have a solder bridge
+ between one of the LED pins and ground. If this happens, the affected LED(s)
+ will pop/fry/smoke/burn out immediately upon applying power to the board.
+* **Check for shorts between the TLC59xx IREF pin and ground.** These pins are
+ also adjacent and, if IREF is shorted to ground, too much current will flow
+ through the LEDs (they'll be super bright and burn out quickly). This situation
+ also increases the power dissipation of the TLC59xx drivers so they'll heat up
+ unnecessarily. This also affects the power draw on the LDO so it'll get
+ unnecessarily hot, too!
+* **Check that the solder bridge "jumpers" are set correctly.** You didn't
+ forget to bridge these as appropriate, did you? :) See the "Jumpers" section
+ above for information on how they should be set.
+
+Once you've confirmed everything above looks good, it should be reasonably safe
+ to proceed to the next step -- flashing the firmware onto the STM32 processor!
+ After we do this, we'll be able to more effectively identify any other
+ soldering-related issues that could be affecting the clock's operation.
+
+After you power on your board for the first time--and if nothing blows
+ up--you'll need to flash the firmware onto the STM32 MCU. Hardware version 4.x
+ of the clock also has a USB interface that may be used for this purpose, in
  addition to the SWD connection (P1/P2) or the serial interface on J2/J4. Either
  way, you'll need an appropriate adapter to do so. You can find the source,
  compiled binary files and flashing instructions in the `src` folder one level
- up in the repo's hierarchy.
+ up in the repo's hierarchy. With the right tools in hand, this can be done in a
+ couple of minutes.
+
+If you're having trouble flashing the MCU, please see the next section.
+
+## Troubleshooting
+
+What's that? You couldn't flash the MCU? Or maybe it isn't working perfectly
+ after you flashed the MCU? Uh oh...
+
+As I've built...a few...of these to date, here is a list of common issues I've
+ stumbled across as well as some notes on how to fix them.
+
+If you're having trouble flashing the MCU, check these items first:
+* If a DS323x is installed, is the reset supervisor jumper bridged? If so, this
+ may be holding the STM32 in a reset state too long and your programmer is
+ giving up. Open this jumper and try again.
+* If there is no DS323x installed and/or the jumper is already open, check the
+ data lines  between the port you're using (six-pin serial, USB, or SWD) and the
+ processor. Perhaps there is another nasty solder bridge somewhere that's
+ shorting one or more of the lines to Vcc, ground, or another adjacent pin. If
+ you're using the USB interface on a version 4+ board, take a close look at D1
+ and the physical USB port itself, as well.
+
+If you flashed the MCU and it's now doing...something...but it doesn't seem
+ right, here are some more common symptoms and how to fix them:
+
+* **Status LED blinks white/gray but the main display is blank or flickers
+ erratically.** This is indicative of some soldering problem on the SPI1 pins
+ of the MCU or on one or more of the TLC59xx drivers. Take a close look at these
+ pins and rework them as necessary.
+* **One or more of the touch keys don't work.** Check the 1K resistors that sit
+ between the touch keys and the MCU as well as the 47 nF sense capacitors.
+ Again, also check the relevant pins on the MCU itself for shorts to adjacent
+ pins.
+* **It keeps making a ticking sound.** There's a problem with one or more of the
+ touch keys -- see the item above.
+* **The status LED alternates red and yellow.** You did not install a DS323x (or
+ maybe you did and it's not working) and the STM32's RTC/LSE oscillator did not
+ start within the expected amount of time. Check that `SB1` is bridged correctly
+ and that the 32.768 kHz crystal and its bypass capacitors are installed and
+ soldered correctly.
+* **One or more of the LEDs are weird/mismatched colors.** This indicates that
+ one or more of the LED pins on the TLC59xx drivers aren't soldered well. It
+ could also mean that you have (a) bad LED(s) (maybe you overheated them or
+ heated them for too long while soldering). Rework the relevant pins on the
+ TLC59xx ICs and (hopefully) your LEDs will look normal afterwards. If not, you
+ may want to try swapping out the affected LED(s).
+* **One or more blocks of LEDs is brighter than the other block(s) of LEDs
+ and/or one or more of the TLC59xx drivers is HOT along with the LDO.** Check
+ the IREF pin on the (hot) driver below the block of LEDs that appears to be
+ brighter than the others. It's probably shorted to ground.
 
 ## Known Issues and Noteworthy Items
 
