@@ -206,8 +206,8 @@ This is the view that--you guessed it--displays the time, date, and temperature.
  (toggle/rotate display). This is the view in which your RGB Binary Clock will
  spend the vast majority of its time. In this view, the touch keys are used as
  follows:
-* `U` increases the display intensity
-* `D` decreases the display intensity
+* `U` increases the display intensity (if automatic adjustments are disabled)
+* `D` decreases the display intensity (if automatic adjustments are disabled)
 * `C` displays the temperature
 * `B` displays the date
 * `A` toggles display of time (hours, minutes, seconds) and seconds-since-midnight
@@ -426,7 +426,8 @@ This mode is where we configure a number of options that govern the clock's
 * LED 6: Display Fahrenheit - temperature is shown in degrees Fahrenheit if set,
  Celsius otherwise.
 * LED 7: Fade Across Slots - if set, display colors will gradually change as
- time progresses from one configured time to the next. More on this below.
+ time progresses from one configured time slot to the next. If disabled, colors
+ will abruptly change when a time slot configured for color change is reached.
 * LED 8: Automatic Intensity Adjustment - if set, the display brightness will
  automatically adjust based on the ambient light level. If clear, manual
  adjustment is enabled when the time, date, or temperature is displayed.
@@ -574,14 +575,12 @@ These modes allow setting of the time for each of the eight time slots. See the
 View: Set Colors View
 
 These modes allow setting of the color pairs associated with each of the eight
- time slots, the date, the temperature, the main menu view, and the
- configuration/settings (Set Time/Date, Set Bits, and Set Value) views. See the
- "Time Slots" section above for more information.
+ time slots, the date, the temperature, the timer/counter, the main menu view,
+ and the configuration/settings (Set Time/Date, Set Bits, and Set Value) views.
+ See the "Time Slots" section above for more information.
 
 
 
-
-
- Footnote: Yes, I said **year**, **month**, **day**, the way the date is
+ **Footnote:** Yes, I said **year**, **month**, **day**, the way the date is
   _supposed_ to be written/displayed. ;) If you don't like it, there is a setting
   that can be modified to change it. You're welcome. :p
