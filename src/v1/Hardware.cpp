@@ -461,22 +461,8 @@ void _dmaIntEnable()
 //
 void _dmaSetup()
 {
-  if (cTargetHardwareVersion <= 2)
-  {
-    // I2C, USART1 and USART2 TX and RX remap bits set in SYSCFG_CFGR1 since
-    //  SPI1 ties up the I2C1 & USART1 default DMA channels
-    SYSCFG_CFGR1 |= (SYSCFG_CFGR1_USART1_RX_DMA_RMP |
-                     SYSCFG_CFGR1_USART1_TX_DMA_RMP |
-                     SYSCFG_CFGR1_I2C1_DMA_RMP);
-  }
-  else
-  {
-    // USART1 and USART2 TX and RX remap bits set in SYSCFG_CFGR1 since
-    //  SPI1 ties up the USART's default DMA channels
-    SYSCFG_CFGR1 |= (SYSCFG_CFGR1_USART1_RX_DMA_RMP |
-                     SYSCFG_CFGR1_USART1_TX_DMA_RMP |
-                     SYSCFG_CFGR1_USART2_DMA_RMP);
-  }
+  // Remap DMA channels as necessary
+  SYSCFG_CFGR1 |= cDmaChannelRemaps;
 
   // Reset DMA channels
   dma_channel_reset(DMA1, DMA_CHANNEL1);
@@ -488,38 +474,16 @@ void _dmaSetup()
   dma_channel_reset(DMA1, DMA_CHANNEL7);
 
   // Set up ADC DMA -- it has higher priority to avoid overrun
-  dma_set_peripheral_address(DMA1, DMA_CHANNEL1, (uint32_t)&ADC1_DR);
-  dma_set_memory_address(DMA1, DMA_CHANNEL1, (uint32_t)_bufferADC);
-  dma_set_number_of_data(DMA1, DMA_CHANNEL1, cAdcChannelCount);
-  dma_set_read_from_peripheral(DMA1, DMA_CHANNEL1);
-  dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL1);
-  dma_set_peripheral_size(DMA1, DMA_CHANNEL1, DMA_CCR_PSIZE_16BIT);
-  dma_set_memory_size(DMA1, DMA_CHANNEL1, DMA_CCR_MSIZE_16BIT);
-  dma_set_priority(DMA1, DMA_CHANNEL1, DMA_CCR_PL_VERY_HIGH);
-  dma_enable_circular_mode(DMA1, DMA_CHANNEL1);
-  dma_enable_channel(DMA1, DMA_CHANNEL1);
-
-  // Set up rx dma, note it has higher priority to avoid overrun
-  // dma_set_peripheral_address(DMA1, DMA_CHANNEL2, (uint32_t)&SPI1_DR);
-  // dma_set_memory_address(DMA1, DMA_CHANNEL2, (uint32_t)_bufferIn);
-  // dma_set_number_of_data(DMA1, DMA_CHANNEL2, cPwmChannelsPerDevice * cPwmNumberOfDevices);
-  // dma_set_read_from_peripheral(DMA1, DMA_CHANNEL2);
-  // dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL2);
-  // dma_set_peripheral_size(DMA1, DMA_CHANNEL2, DMA_CCR_PSIZE_16BIT);
-  // dma_set_memory_size(DMA1, DMA_CHANNEL2, DMA_CCR_MSIZE_16BIT);
-  // dma_set_priority(DMA1, DMA_CHANNEL2, DMA_CCR_PL_VERY_HIGH);
-  // dma_enable_circular_mode(DMA1, DMA_CHANNEL2);
-
-  // Set up tx dma
-  // dma_set_peripheral_address(DMA1, DMA_CHANNEL3, (uint32_t)&SPI1_DR);
-  // dma_set_memory_address(DMA1, DMA_CHANNEL3, (uint32_t)_bufferOut);
-  // dma_set_number_of_data(DMA1, DMA_CHANNEL3, cPwmChannelsPerDevice * cPwmNumberOfDevices);
-  // dma_set_read_from_memory(DMA1, DMA_CHANNEL3);
-  // dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL3);
-  // dma_set_peripheral_size(DMA1, DMA_CHANNEL3, DMA_CCR_PSIZE_16BIT);
-  // dma_set_memory_size(DMA1, DMA_CHANNEL3, DMA_CCR_MSIZE_16BIT);
-  // dma_set_priority(DMA1, DMA_CHANNEL3, DMA_CCR_PL_HIGH);
-  // dma_enable_circular_mode(DMA1, DMA_CHANNEL3);
+  dma_set_peripheral_address(DMA1, cAdcDmaChannel, (uint32_t)&ADC1_DR);
+  dma_set_memory_address(DMA1, cAdcDmaChannel, (uint32_t)_bufferADC);
+  dma_set_number_of_data(DMA1, cAdcDmaChannel, cAdcChannelCount);
+  dma_set_read_from_peripheral(DMA1, cAdcDmaChannel);
+  dma_enable_memory_increment_mode(DMA1, cAdcDmaChannel);
+  dma_set_peripheral_size(DMA1, cAdcDmaChannel, DMA_CCR_PSIZE_16BIT);
+  dma_set_memory_size(DMA1, cAdcDmaChannel, DMA_CCR_MSIZE_16BIT);
+  dma_set_priority(DMA1, cAdcDmaChannel, DMA_CCR_PL_VERY_HIGH);
+  dma_enable_circular_mode(DMA1, cAdcDmaChannel);
+  dma_enable_channel(DMA1, cAdcDmaChannel);
 
 	_dmaIntEnable();
 }
@@ -676,8 +640,8 @@ void _i2cRecover()
   _i2cState = I2cState::I2cBusy;
 
   // Stop/cancel any on-going or pending DMA
-  dma_channel_reset(DMA1, DMA_CHANNEL6);
-  dma_channel_reset(DMA1, DMA_CHANNEL7);
+  dma_channel_reset(DMA1, cI2c1TxDmaChannel);
+  dma_channel_reset(DMA1, cI2c1RxDmaChannel);
 
   // Disable the I2C before all this
 	i2c_peripheral_disable(I2C1);
@@ -2094,23 +2058,23 @@ bool i2cReceive(const uint8_t addr, uint8_t *bufferRx, const size_t numberRx, co
     i2c_set_bytes_to_transfer(I2C1, numberRx);
 
     // Reset DMA channel
-    dma_channel_reset(DMA1, DMA_CHANNEL7);
+    dma_channel_reset(DMA1, cI2c1RxDmaChannel);
 
     // Set up rx dma, note it has higher priority to avoid overrun
-    dma_set_peripheral_address(DMA1, DMA_CHANNEL7, (uint32_t)&I2C1_RXDR);
-    dma_set_memory_address(DMA1, DMA_CHANNEL7, (uint32_t)bufferRx);
-    dma_set_number_of_data(DMA1, DMA_CHANNEL7, numberRx);
-    dma_set_read_from_peripheral(DMA1, DMA_CHANNEL7);
-    dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL7);
-    dma_set_peripheral_size(DMA1, DMA_CHANNEL7, DMA_CCR_PSIZE_8BIT);
-    dma_set_memory_size(DMA1, DMA_CHANNEL7, DMA_CCR_MSIZE_8BIT);
-    dma_set_priority(DMA1, DMA_CHANNEL7, DMA_CCR_PL_VERY_HIGH);
+    dma_set_peripheral_address(DMA1, cI2c1RxDmaChannel, (uint32_t)&I2C1_RXDR);
+    dma_set_memory_address(DMA1, cI2c1RxDmaChannel, (uint32_t)bufferRx);
+    dma_set_number_of_data(DMA1, cI2c1RxDmaChannel, numberRx);
+    dma_set_read_from_peripheral(DMA1, cI2c1RxDmaChannel);
+    dma_enable_memory_increment_mode(DMA1, cI2c1RxDmaChannel);
+    dma_set_peripheral_size(DMA1, cI2c1RxDmaChannel, DMA_CCR_PSIZE_8BIT);
+    dma_set_memory_size(DMA1, cI2c1RxDmaChannel, DMA_CCR_MSIZE_8BIT);
+    dma_set_priority(DMA1, cI2c1RxDmaChannel, DMA_CCR_PL_VERY_HIGH);
 
     // Enable dma transfer complete interrupt
-  	dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL7);
+  	dma_enable_transfer_complete_interrupt(DMA1, cI2c1RxDmaChannel);
 
   	// Activate dma channel
-  	dma_enable_channel(DMA1, DMA_CHANNEL7);
+  	dma_enable_channel(DMA1, cI2c1RxDmaChannel);
 
     i2c_send_start(I2C1);
 
@@ -2160,23 +2124,23 @@ bool i2cTransmit(const uint8_t addr, const uint8_t *bufferTx, const size_t numbe
     i2c_set_bytes_to_transfer(I2C1, numberTx);
 
     // Reset DMA channel
-    dma_channel_reset(DMA1, DMA_CHANNEL6);
+    dma_channel_reset(DMA1, cI2c1TxDmaChannel);
 
     // Set up tx dma
-    dma_set_peripheral_address(DMA1, DMA_CHANNEL6, (uint32_t)&I2C1_TXDR);
-    dma_set_memory_address(DMA1, DMA_CHANNEL6, (uint32_t)bufferTx);
-    dma_set_number_of_data(DMA1, DMA_CHANNEL6, numberTx);
-    dma_set_read_from_memory(DMA1, DMA_CHANNEL6);
-    dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL6);
-    dma_set_peripheral_size(DMA1, DMA_CHANNEL6, DMA_CCR_PSIZE_8BIT);
-    dma_set_memory_size(DMA1, DMA_CHANNEL6, DMA_CCR_MSIZE_8BIT);
-    dma_set_priority(DMA1, DMA_CHANNEL6, DMA_CCR_PL_HIGH);
+    dma_set_peripheral_address(DMA1, cI2c1TxDmaChannel, (uint32_t)&I2C1_TXDR);
+    dma_set_memory_address(DMA1, cI2c1TxDmaChannel, (uint32_t)bufferTx);
+    dma_set_number_of_data(DMA1, cI2c1TxDmaChannel, numberTx);
+    dma_set_read_from_memory(DMA1, cI2c1TxDmaChannel);
+    dma_enable_memory_increment_mode(DMA1, cI2c1TxDmaChannel);
+    dma_set_peripheral_size(DMA1, cI2c1TxDmaChannel, DMA_CCR_PSIZE_8BIT);
+    dma_set_memory_size(DMA1, cI2c1TxDmaChannel, DMA_CCR_MSIZE_8BIT);
+    dma_set_priority(DMA1, cI2c1TxDmaChannel, DMA_CCR_PL_HIGH);
 
     // Enable dma transfer complete interrupt
-  	dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL6);
+  	dma_enable_transfer_complete_interrupt(DMA1, cI2c1TxDmaChannel);
 
   	// Activate dma channel
-  	dma_enable_channel(DMA1, DMA_CHANNEL6);
+  	dma_enable_channel(DMA1, cI2c1TxDmaChannel);
 
     if (autoEndXfer == true)
     {
@@ -2220,22 +2184,22 @@ bool readSerial(const uint32_t usart, const uint32_t length, char* data)
     case USART2:
     if ((DMA1_ISR & DMA_ISR_TCIF6) || !(USART2_CR3 & USART_CR3_DMAR))
     {
-      dma_channel_reset(DMA1, DMA_CHANNEL6);
+      dma_channel_reset(DMA1, cUsart2RxDmaChannel);
       // Set up rx dma, note it has higher priority to avoid overrun
-      dma_set_peripheral_address(DMA1, DMA_CHANNEL6, (uint32_t)&USART2_RDR);
-      dma_set_memory_address(DMA1, DMA_CHANNEL6, (uint32_t)data);
-      dma_set_number_of_data(DMA1, DMA_CHANNEL6, length);
-      dma_set_read_from_peripheral(DMA1, DMA_CHANNEL6);
-      dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL6);
-      dma_set_peripheral_size(DMA1, DMA_CHANNEL6, DMA_CCR_PSIZE_8BIT);
-      dma_set_memory_size(DMA1, DMA_CHANNEL6, DMA_CCR_MSIZE_8BIT);
-      dma_set_priority(DMA1, DMA_CHANNEL6, DMA_CCR_PL_VERY_HIGH);
+      dma_set_peripheral_address(DMA1, cUsart2RxDmaChannel, (uint32_t)&USART2_RDR);
+      dma_set_memory_address(DMA1, cUsart2RxDmaChannel, (uint32_t)data);
+      dma_set_number_of_data(DMA1, cUsart2RxDmaChannel, length);
+      dma_set_read_from_peripheral(DMA1, cUsart2RxDmaChannel);
+      dma_enable_memory_increment_mode(DMA1, cUsart2RxDmaChannel);
+      dma_set_peripheral_size(DMA1, cUsart2RxDmaChannel, DMA_CCR_PSIZE_8BIT);
+      dma_set_memory_size(DMA1, cUsart2RxDmaChannel, DMA_CCR_MSIZE_8BIT);
+      dma_set_priority(DMA1, cUsart2RxDmaChannel, DMA_CCR_PL_VERY_HIGH);
 
       // Enable dma transfer complete interrupt
-    	dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL6);
+    	dma_enable_transfer_complete_interrupt(DMA1, cUsart2RxDmaChannel);
 
     	// Activate dma channel
-    	dma_enable_channel(DMA1, DMA_CHANNEL6);
+    	dma_enable_channel(DMA1, cUsart2RxDmaChannel);
 
       usart_enable_rx_dma(USART2);
     }
@@ -2248,22 +2212,22 @@ bool readSerial(const uint32_t usart, const uint32_t length, char* data)
     default:
     if ((DMA1_ISR & DMA_ISR_TCIF5) || !(USART1_CR3 & USART_CR3_DMAR))
     {
-      dma_channel_reset(DMA1, DMA_CHANNEL5);
+      dma_channel_reset(DMA1, cUsart1RxDmaChannel);
       // Set up rx dma, note it has higher priority to avoid overrun
-      dma_set_peripheral_address(DMA1, DMA_CHANNEL5, (uint32_t)&USART1_RDR);
-      dma_set_memory_address(DMA1, DMA_CHANNEL5, (uint32_t)data);
-      dma_set_number_of_data(DMA1, DMA_CHANNEL5, length);
-      dma_set_read_from_peripheral(DMA1, DMA_CHANNEL5);
-      dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL5);
-      dma_set_peripheral_size(DMA1, DMA_CHANNEL5, DMA_CCR_PSIZE_8BIT);
-      dma_set_memory_size(DMA1, DMA_CHANNEL5, DMA_CCR_MSIZE_8BIT);
-      dma_set_priority(DMA1, DMA_CHANNEL5, DMA_CCR_PL_VERY_HIGH);
+      dma_set_peripheral_address(DMA1, cUsart1RxDmaChannel, (uint32_t)&USART1_RDR);
+      dma_set_memory_address(DMA1, cUsart1RxDmaChannel, (uint32_t)data);
+      dma_set_number_of_data(DMA1, cUsart1RxDmaChannel, length);
+      dma_set_read_from_peripheral(DMA1, cUsart1RxDmaChannel);
+      dma_enable_memory_increment_mode(DMA1, cUsart1RxDmaChannel);
+      dma_set_peripheral_size(DMA1, cUsart1RxDmaChannel, DMA_CCR_PSIZE_8BIT);
+      dma_set_memory_size(DMA1, cUsart1RxDmaChannel, DMA_CCR_MSIZE_8BIT);
+      dma_set_priority(DMA1, cUsart1RxDmaChannel, DMA_CCR_PL_VERY_HIGH);
 
       // Enable dma transfer complete interrupt
-    	dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL5);
+    	dma_enable_transfer_complete_interrupt(DMA1, cUsart1RxDmaChannel);
 
     	// Activate dma channel
-    	dma_enable_channel(DMA1, DMA_CHANNEL5);
+    	dma_enable_channel(DMA1, cUsart1RxDmaChannel);
 
       usart_enable_rx_dma(USART1);
     }
@@ -2284,22 +2248,22 @@ bool writeSerial(const uint32_t usart, const uint32_t length, const char* data)
     case USART2:
     if (USART2_ISR & USART_ISR_TC)
     {
-      dma_channel_reset(DMA1, DMA_CHANNEL7);
+      dma_channel_reset(DMA1, cUsart2TxDmaChannel);
       // Set up tx dma
-      dma_set_peripheral_address(DMA1, DMA_CHANNEL7, (uint32_t)&USART1_TDR);
-      dma_set_memory_address(DMA1, DMA_CHANNEL7, (uint32_t)data);
-      dma_set_number_of_data(DMA1, DMA_CHANNEL7, length);
-      dma_set_read_from_memory(DMA1, DMA_CHANNEL7);
-      dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL7);
-      dma_set_peripheral_size(DMA1, DMA_CHANNEL7, DMA_CCR_PSIZE_8BIT);
-      dma_set_memory_size(DMA1, DMA_CHANNEL7, DMA_CCR_MSIZE_8BIT);
-      dma_set_priority(DMA1, DMA_CHANNEL7, DMA_CCR_PL_HIGH);
+      dma_set_peripheral_address(DMA1, cUsart2TxDmaChannel, (uint32_t)&USART1_TDR);
+      dma_set_memory_address(DMA1, cUsart2TxDmaChannel, (uint32_t)data);
+      dma_set_number_of_data(DMA1, cUsart2TxDmaChannel, length);
+      dma_set_read_from_memory(DMA1, cUsart2TxDmaChannel);
+      dma_enable_memory_increment_mode(DMA1, cUsart2TxDmaChannel);
+      dma_set_peripheral_size(DMA1, cUsart2TxDmaChannel, DMA_CCR_PSIZE_8BIT);
+      dma_set_memory_size(DMA1, cUsart2TxDmaChannel, DMA_CCR_MSIZE_8BIT);
+      dma_set_priority(DMA1, cUsart2TxDmaChannel, DMA_CCR_PL_HIGH);
 
       // Enable dma transfer complete interrupt
-    	dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL7);
+    	dma_enable_transfer_complete_interrupt(DMA1, cUsart2TxDmaChannel);
 
     	// Activate dma channel
-    	dma_enable_channel(DMA1, DMA_CHANNEL7);
+    	dma_enable_channel(DMA1, cUsart2TxDmaChannel);
 
       usart_enable_tx_dma(USART2);
     }
@@ -2312,24 +2276,24 @@ bool writeSerial(const uint32_t usart, const uint32_t length, const char* data)
     default:
     if (USART1_ISR & USART_ISR_TC)
     {
-      dma_channel_reset(DMA1, DMA_CHANNEL4);
+      dma_channel_reset(DMA1, cUsart1TxDmaChannel);
       // Set up tx dma
-      dma_set_peripheral_address(DMA1, DMA_CHANNEL4, (uint32_t)&USART1_TDR);
-      dma_set_memory_address(DMA1, DMA_CHANNEL4, (uint32_t)data);
-      dma_set_number_of_data(DMA1, DMA_CHANNEL4, length);
-      dma_set_read_from_memory(DMA1, DMA_CHANNEL4);
-      dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL4);
-      dma_set_peripheral_size(DMA1, DMA_CHANNEL4, DMA_CCR_PSIZE_8BIT);
-      dma_set_memory_size(DMA1, DMA_CHANNEL4, DMA_CCR_MSIZE_8BIT);
-      dma_set_priority(DMA1, DMA_CHANNEL4, DMA_CCR_PL_HIGH);
+      dma_set_peripheral_address(DMA1, cUsart1TxDmaChannel, (uint32_t)&USART1_TDR);
+      dma_set_memory_address(DMA1, cUsart1TxDmaChannel, (uint32_t)data);
+      dma_set_number_of_data(DMA1, cUsart1TxDmaChannel, length);
+      dma_set_read_from_memory(DMA1, cUsart1TxDmaChannel);
+      dma_enable_memory_increment_mode(DMA1, cUsart1TxDmaChannel);
+      dma_set_peripheral_size(DMA1, cUsart1TxDmaChannel, DMA_CCR_PSIZE_8BIT);
+      dma_set_memory_size(DMA1, cUsart1TxDmaChannel, DMA_CCR_MSIZE_8BIT);
+      dma_set_priority(DMA1, cUsart1TxDmaChannel, DMA_CCR_PL_HIGH);
 
       // Enable dma transfer complete interrupt
-    	dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL4);
+    	dma_enable_transfer_complete_interrupt(DMA1, cUsart1TxDmaChannel);
 
       USART1_ICR |= USART_ICR_TCCF;
 
     	// Activate dma channel
-    	dma_enable_channel(DMA1, DMA_CHANNEL4);
+    	dma_enable_channel(DMA1, cUsart1TxDmaChannel);
 
       usart_enable_tx_dma(USART1);
     }
@@ -2378,36 +2342,36 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
   _spiSelectPeripheral(peripheral);
 
   // Reset DMA channels
-  dma_channel_reset(DMA1, DMA_CHANNEL2);
-  dma_channel_reset(DMA1, DMA_CHANNEL3);
+  dma_channel_reset(DMA1, cSpi1RxDmaChannel);
+  dma_channel_reset(DMA1, cSpi1TxDmaChannel);
 
   // Set up rx dma, note it has higher priority to avoid overrun
-  dma_set_peripheral_address(DMA1, DMA_CHANNEL2, (uint32_t)&SPI1_DR);
-  dma_set_memory_address(DMA1, DMA_CHANNEL2, (uint32_t)bufferIn);
-  dma_set_number_of_data(DMA1, DMA_CHANNEL2, length);
-  dma_set_read_from_peripheral(DMA1, DMA_CHANNEL2);
-  dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL2);
-  dma_set_peripheral_size(DMA1, DMA_CHANNEL2, pSize);
-  dma_set_memory_size(DMA1, DMA_CHANNEL2, mSize);
-  dma_set_priority(DMA1, DMA_CHANNEL2, DMA_CCR_PL_VERY_HIGH);
+  dma_set_peripheral_address(DMA1, cSpi1RxDmaChannel, (uint32_t)&SPI1_DR);
+  dma_set_memory_address(DMA1, cSpi1RxDmaChannel, (uint32_t)bufferIn);
+  dma_set_number_of_data(DMA1, cSpi1RxDmaChannel, length);
+  dma_set_read_from_peripheral(DMA1, cSpi1RxDmaChannel);
+  dma_enable_memory_increment_mode(DMA1, cSpi1RxDmaChannel);
+  dma_set_peripheral_size(DMA1, cSpi1RxDmaChannel, pSize);
+  dma_set_memory_size(DMA1, cSpi1RxDmaChannel, mSize);
+  dma_set_priority(DMA1, cSpi1RxDmaChannel, DMA_CCR_PL_VERY_HIGH);
 
   // Set up tx dma
-  dma_set_peripheral_address(DMA1, DMA_CHANNEL3, (uint32_t)&SPI1_DR);
-  dma_set_memory_address(DMA1, DMA_CHANNEL3, (uint32_t)bufferOut);
-  dma_set_number_of_data(DMA1, DMA_CHANNEL3, length);
-  dma_set_read_from_memory(DMA1, DMA_CHANNEL3);
-  dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL3);
-  dma_set_peripheral_size(DMA1, DMA_CHANNEL3, pSize);
-  dma_set_memory_size(DMA1, DMA_CHANNEL3, mSize);
-  dma_set_priority(DMA1, DMA_CHANNEL3, DMA_CCR_PL_HIGH);
+  dma_set_peripheral_address(DMA1, cSpi1TxDmaChannel, (uint32_t)&SPI1_DR);
+  dma_set_memory_address(DMA1, cSpi1TxDmaChannel, (uint32_t)bufferOut);
+  dma_set_number_of_data(DMA1, cSpi1TxDmaChannel, length);
+  dma_set_read_from_memory(DMA1, cSpi1TxDmaChannel);
+  dma_enable_memory_increment_mode(DMA1, cSpi1TxDmaChannel);
+  dma_set_peripheral_size(DMA1, cSpi1TxDmaChannel, pSize);
+  dma_set_memory_size(DMA1, cSpi1TxDmaChannel, mSize);
+  dma_set_priority(DMA1, cSpi1TxDmaChannel, DMA_CCR_PL_HIGH);
 
 	// Enable dma transfer complete interrupts
-	dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL2);
-	dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL3);
+	dma_enable_transfer_complete_interrupt(DMA1, cSpi1RxDmaChannel);
+	dma_enable_transfer_complete_interrupt(DMA1, cSpi1TxDmaChannel);
 
 	// Activate dma channels
-	dma_enable_channel(DMA1, DMA_CHANNEL2);
-	dma_enable_channel(DMA1, DMA_CHANNEL3);
+	dma_enable_channel(DMA1, cSpi1RxDmaChannel);
+	dma_enable_channel(DMA1, cSpi1TxDmaChannel);
 
   switch (peripheral)
   {
@@ -2665,13 +2629,15 @@ void dmaIsr()
 	{
 		DMA1_IFCR |= DMA_IFCR_CTCIF4;
 
-		dma_disable_transfer_complete_interrupt(DMA1, DMA_CHANNEL4);
+    dma_disable_transfer_complete_interrupt(DMA1, DMA_CHANNEL4);
 
-    if (cTargetHardwareVersion >= 3)
+    // this is terrible. we should track which peripheral was active and disable it accordingly...
+    if (cUsart1TxDmaChannel == DMA_CHANNEL4)
     {
       usart_disable_tx_dma(USART1);
     }
-    else
+    // this is terrible. we should track which peripheral was active and disable it accordingly...
+    if (cUsart2TxDmaChannel == DMA_CHANNEL4)
     {
       usart_disable_tx_dma(USART2);
     }
@@ -2685,11 +2651,13 @@ void dmaIsr()
 
 		dma_disable_transfer_complete_interrupt(DMA1, DMA_CHANNEL5);
 
-    if (cTargetHardwareVersion >= 3)
+    // this is terrible. we should track which peripheral was active and disable it accordingly...
+    if (cUsart1RxDmaChannel == DMA_CHANNEL5)
     {
       usart_disable_rx_dma(USART1);
     }
-    else
+    // this is terrible. we should track which peripheral was active and disable it accordingly...
+    if (cUsart2RxDmaChannel == DMA_CHANNEL5)
     {
       usart_disable_rx_dma(USART2);
 
@@ -2704,14 +2672,15 @@ void dmaIsr()
 		DMA1_IFCR |= DMA_IFCR_CTCIF6;
 
 		dma_disable_transfer_complete_interrupt(DMA1, DMA_CHANNEL6);
-
-    if (cTargetHardwareVersion >= 3)
+    // this is terrible. we should track which peripheral was active and disable it accordingly...
+    if (cUsart2RxDmaChannel == DMA_CHANNEL6)
     {
       usart_disable_rx_dma(USART2);
 
       Dmx512Rx::rxCompleteIsr();
     }
-    else
+    // this is terrible. we should track which peripheral was active and disable it accordingly...
+    if (cI2c1TxDmaChannel == DMA_CHANNEL6)
     {
       i2c_disable_txdma(I2C1);
 
@@ -2731,12 +2700,13 @@ void dmaIsr()
 		DMA1_IFCR |= DMA_IFCR_CTCIF7;
 
 		dma_disable_transfer_complete_interrupt(DMA1, DMA_CHANNEL7);
-
-    if (cTargetHardwareVersion >= 3)
+    // this is terrible. we should track which peripheral was active and disable it accordingly...
+    if (cUsart2TxDmaChannel == DMA_CHANNEL7)
     {
       usart_disable_tx_dma(USART2);
     }
-    else
+    // this is terrible. we should track which peripheral was active and disable it accordingly...
+    if (cI2c1RxDmaChannel == DMA_CHANNEL7)
     {
       i2c_disable_rxdma(I2C1);
 

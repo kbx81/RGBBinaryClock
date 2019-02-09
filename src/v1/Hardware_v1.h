@@ -19,8 +19,11 @@
 #pragma once
 
 #include <cstdint>
+#include <libopencm3/stm32/dma.h>
 #include <libopencm3/stm32/gpio.h>
+#include <libopencm3/stm32/syscfg.h>
 #include <libopencm3/stm32/timer.h>
+#include <libopencm3/stm32/tsc.h>
 
 
 namespace kbxBinaryClock {
@@ -112,6 +115,23 @@ namespace Hardware {
   //
   static const auto cDriverGsckPort = GPIOA;
   static const auto cDriverGsckPin  = GPIO4;
+
+  // DMA channel assignments and remapping via SYSCFG_CFGR1
+  //
+  static const auto cAdcDmaChannel = DMA_CHANNEL1;
+  static const auto cSpi1RxDmaChannel = DMA_CHANNEL2;
+  static const auto cSpi1TxDmaChannel = DMA_CHANNEL3;
+  static const auto cI2c1RxDmaChannel = DMA_CHANNEL7;
+  static const auto cI2c1TxDmaChannel = DMA_CHANNEL6;
+  static const auto cUsart1RxDmaChannel = DMA_CHANNEL5;
+  static const auto cUsart1TxDmaChannel = DMA_CHANNEL4;
+  static const auto cUsart2RxDmaChannel = DMA_CHANNEL5;
+  static const auto cUsart2TxDmaChannel = DMA_CHANNEL4;
+  // I2C and USART1 TX and RX remap bits set in SYSCFG_CFGR1 since
+  //  SPI1 ties up the I2C1 & USART1 default DMA channels
+  static const auto cDmaChannelRemaps = SYSCFG_CFGR1_USART1_RX_DMA_RMP |
+                                        SYSCFG_CFGR1_USART1_TX_DMA_RMP |
+                                        SYSCFG_CFGR1_I2C1_DMA_RMP;
 
   // number of TSC channels we're using
   //
