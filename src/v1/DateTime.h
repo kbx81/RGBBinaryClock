@@ -115,22 +115,22 @@ public:
   /// Get the year.
   /// Value from 2000-9999.
   ///
-  uint16_t year(const bool bcd) const;
+  uint16_t year(const bool bcd = false) const;
 
   /// Get the year (two-digit).
   /// Value from 00-99.
   ///
-  uint8_t yearShort(const bool bcd) const;
+  uint8_t yearShort(const bool bcd = false) const;
 
   /// Get the month.
   /// Value from 1=January to 12=December.
   ///
-  uint8_t month(const bool bcd) const;
+  uint8_t month(const bool bcd = false) const;
 
   /// Get the day.
   /// Value from 1 to 31.
   ///
-  uint8_t day(const bool bcd) const;
+  uint8_t day(const bool bcd = false) const;
 
   /// Get the day of the week.
   /// Value from 0=Sunday, 1=Monday to 6=Saturday.
@@ -145,17 +145,17 @@ public:
   /// Get the hour.
   /// If format == true, value from 1 to 12, else value 0 to 23
   ///
-  uint8_t hour(const bool bcd, const bool format12Hour) const;
+  uint8_t hour(const bool bcd = false, const bool format12Hour = false) const;
 
   /// Get the minute.
   /// Value from 0-59.
   ///
-  uint8_t minute(const bool bcd) const;
+  uint8_t minute(const bool bcd = false) const;
 
   /// Get the second.
   /// Value from 0-59.
   ///
-  uint8_t second(const bool bcd) const;
+  uint8_t second(const bool bcd = false) const;
 
   /// Returns true if _hour > 12
   ///
@@ -177,7 +177,7 @@ public:
 
   /// Returns the number of seconds since midnight.
   ///
-  uint32_t secondsSinceMidnight(const bool bcd);
+  uint32_t secondsSinceMidnight(const bool bcd = false);
 
   /// Get the number of seconds to the other date/time.
   /// This is a slow operation. It works only correctly with differences

@@ -32,12 +32,21 @@ namespace kbxBinaryClock {
 class SetTimeDateView : public View {
 
 public:
-// Percentage of configured LED color intensities used for lowlight
-//
-static const uint16_t cLowlightPercentage;
+  /// @brief The selected item on the display
+  ///
+  enum SelectedItem : int8_t
+  {
+    SecondDay = 0,
+    MinuteMonth = 1,
+    HourYear = 2
+  };
 
-// The view which displays the UI for setting times and dates
-//
+  /// @brief Percentage of configured LED color intensities used for lowlight
+  ///
+  static const uint16_t cLowlightPercentage;
+
+/// @brief The view which displays the UI for setting times and dates
+///
 public: // Implement the SetTimeDateView class
   SetTimeDateView();
   virtual void enter() override;
@@ -45,24 +54,20 @@ public: // Implement the SetTimeDateView class
   virtual void loop() override;
 
 private:
-  // values the user will set
-  //
-  uint8_t _setValues[3];
+  /// @brief the selected byte
+  ///
+  int8_t _selectedItem;
 
-  // maximum allowed values for each field
-  //
-  uint8_t _maxValues[3];
+  /// @brief the DateTime object we'll adjust
+  ///
+  DateTime _workingDateTime;
 
-  // the selected byte
-  //
-  int8_t _selectedByte;
-
-  // the main application's mode
-  //
+  /// @brief the main application's mode
+  ///
   Application::OperatingMode _mode;
 
-  // Settings to be used by the view
-  //
+  /// @brief Settings to be used by the view
+  ///
   Settings _settings;
 
 };

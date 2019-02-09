@@ -32,7 +32,8 @@ const uint16_t SetTimeDateView::cLowlightPercentage = 2500;
 
 
 SetTimeDateView::SetTimeDateView()
-  : _selectedByte(0),
+  : _selectedItem(0),
+    _workingDateTime(),
     _mode(Application::OperatingMode::OperatingModeSetClock),
     _settings(Settings())
 {
@@ -41,8 +42,6 @@ SetTimeDateView::SetTimeDateView()
 
 void SetTimeDateView::enter()
 {
-  DateTime setDateTime;
-
   _mode = Application::getOperatingMode();
 
   _settings = Application::getSettings();
@@ -51,55 +50,38 @@ void SetTimeDateView::enter()
   {
     case Application::OperatingMode::OperatingModeSetClock:
     case Application::OperatingMode::OperatingModeSetDate:
-    setDateTime = Hardware::getDateTime();
+    _workingDateTime = Hardware::getDateTime();
     break;
 
     default:
-    // Subtract the first in the OperatingModeSlotxTime series from the
-    //   current mode to get the slot we're modifying
-    setDateTime = _settings.getTime(Application::getOperatingModeRelatedSetting(_mode));
+    _workingDateTime = _settings.getTime(Application::getOperatingModeRelatedSetting(_mode));
     break;
   }
 
-  if (_mode == Application::OperatingMode::OperatingModeSetDate)
-  {
-    _setValues[2] = setDateTime.yearShort(false);
-    _setValues[1] = setDateTime.month(false);
-    _setValues[0] = setDateTime.day(false);
-
-    _maxValues[2] = 99;
-    _maxValues[1] = 12;
-    _maxValues[0] = setDateTime.daysThisMonth();
-  }
-  else
-  {
-    _setValues[2] = setDateTime.hour(false, false);
-    _setValues[1] = setDateTime.minute(false);
-    _setValues[0] = setDateTime.second(false);
-
-    _maxValues[2] = 23;
-    _maxValues[1] = 59;
-    _maxValues[0] = 59;
-
-    DisplayManager::setStatusLedAutoRefreshing(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour));
-  }
+  DisplayManager::setStatusLedAutoRefreshing(_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour));
 }
 
 
 bool SetTimeDateView::keyHandler(Keys::Key key)
 {
-  bool tick = true;
+  bool    tick   = true;
+  int16_t year   = _workingDateTime.year();
+  int8_t  month  = _workingDateTime.month(),
+          day    = _workingDateTime.day(),
+          hour   = _workingDateTime.hour(),
+          minute = _workingDateTime.minute(),
+          second = _workingDateTime.second();
   DateTime setDateTime = Hardware::getDateTime();
 
   if (key == Keys::Key::A)
   {
     if (_mode == Application::OperatingMode::OperatingModeSetDate)
     {
-      setDateTime.setDate(2000 + _setValues[2], _setValues[1], _setValues[0]);
+      setDateTime.setDate(year, month, day);
     }
     else
     {
-      setDateTime.setTime(_setValues[2], _setValues[1], _setValues[0]);
+      setDateTime.setTime(hour, minute, second);
     }
 
     switch (_mode)
@@ -111,8 +93,6 @@ bool SetTimeDateView::keyHandler(Keys::Key key)
       break;
 
       default:
-      // Subtract the first in the OperatingModeSlotxTime series from the
-      //   current mode to get the slot we're modifying
       _settings.setTime(Application::getOperatingModeRelatedSetting(_mode), setDateTime);
       Application::setSettings(_settings);
       break;
@@ -123,67 +103,99 @@ bool SetTimeDateView::keyHandler(Keys::Key key)
 
   if (key == Keys::Key::B)
   {
-    if (--_selectedByte < 0)
+    if (--_selectedItem < 0)
     {
-      _selectedByte = 2;
+      _selectedItem = 2;
     }
   }
 
   if (key == Keys::Key::C)
   {
-    if (++_selectedByte > 2)
+    if (++_selectedItem > 2)
     {
-      _selectedByte = 0;
+      _selectedItem = 0;
     }
   }
 
   if (key == Keys::Key::D)
   {
+    // the setDate and setTime methods validate everything so we'll be lazy here
     if (_mode == Application::OperatingMode::OperatingModeSetDate)
     {
-      // any given value can't be less than one
-      if (--_setValues[_selectedByte] < 1)
+      switch (_selectedItem)
       {
-        _setValues[_selectedByte] = 1;
-        tick = false;
-      }
+        case HourYear:
+        --year;
+        break;
 
-      if (_selectedByte > 0)   // month or year is selected...
-      {
-        setDateTime.setDate(2000 + _setValues[2], _setValues[1], _setValues[0]);
-        _maxValues[0] = setDateTime.daysThisMonth();   // update max days in the month
-        if (_setValues[0] >= _maxValues[0])   // if selected day > max days...
-        {
-          _setValues[0] = _maxValues[0];  // ...fix it
-        }
+        case MinuteMonth:
+        --month;
+        break;
+
+        default:
+        --day;
       }
+      _workingDateTime.setDate(year, month, day);
     }
     else
     {
-      if (--_setValues[_selectedByte] > _maxValues[_selectedByte])
+      switch (_selectedItem)
       {
-        _setValues[_selectedByte] = 0;
-        tick = false;
+        case HourYear:
+        --hour;
+        break;
+
+        case MinuteMonth:
+        --minute;
+        break;
+
+        default:
+        --second;
+      }
+      // this 'if' is just to prevent rolling over from 0 to 59
+      if ((hour >= 0) && (minute >= 0) && (second >= 0))
+      {
+        _workingDateTime.setTime(hour, minute, second);
       }
     }
   }
 
   if (key == Keys::Key::U)
   {
-    if (++_setValues[_selectedByte] > _maxValues[_selectedByte])
+    // the setDate and setTime methods validate everything so we'll be lazy here
+    if (_mode == Application::OperatingMode::OperatingModeSetDate)
     {
-      _setValues[_selectedByte] = _maxValues[_selectedByte];
-      tick = false;
-    }
-
-    if ((_mode == Application::OperatingMode::OperatingModeSetDate) && (_selectedByte > 0))   // month or year is selected
-    {
-      setDateTime.setDate(2000 + _setValues[2], _setValues[1], _setValues[0]);
-      _maxValues[0] = setDateTime.daysThisMonth();   // update max days in the month
-      if (_setValues[0] > _maxValues[0])   // if selected day > max days...
+      switch (_selectedItem)
       {
-        _setValues[0] = _maxValues[0];  // ...fix it
+        case HourYear:
+        ++year;
+        break;
+
+        case MinuteMonth:
+        ++month;
+        break;
+
+        default:
+        ++day;
       }
+      _workingDateTime.setDate(year, month, day);
+    }
+    else
+    {
+      switch (_selectedItem)
+      {
+        case HourYear:
+        ++hour;
+        break;
+
+        case MinuteMonth:
+        ++minute;
+        break;
+
+        default:
+        ++second;
+      }
+      _workingDateTime.setTime(hour, minute, second);
     }
   }
 
@@ -203,72 +215,85 @@ void SetTimeDateView::loop()
          color0Lowlight = _settings.getColor(Settings::Color::Color0, Settings::Slot::SlotSet),
          color1Lowlight = _settings.getColor(Settings::Color::Color1, Settings::Slot::SlotSet),
          statusLed;
-  uint8_t  i, adjustedHour = _setValues[2],
-           workingByte = _setValues[_selectedByte];
-  uint32_t displayBitMask;
+  bool displayBcd = _settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD),
+       display12Hour = _settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour);
+  uint8_t year  = _workingDateTime.yearShort(displayBcd),
+          month = _workingDateTime.month(displayBcd),
+          day   = _workingDateTime.day(displayBcd),
+          highlightStart = _selectedItem;
 
   color0Lowlight.adjustIntensity(SetTimeDateView::cLowlightPercentage);
   color1Lowlight.adjustIntensity(SetTimeDateView::cLowlightPercentage);
 
-  // display AM/PM on the status LED if we're in 12-hour mode and adjust
-  //  the displayed hour to match what's expected
-  if ((_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::Display12Hour) == true) &&
-      (_mode != Application::OperatingMode::OperatingModeSetDate))
+  Display bcDisp(color0Lowlight, color1Lowlight, _workingDateTime.hour(displayBcd, display12Hour), _workingDateTime.minute(displayBcd), _workingDateTime.second(displayBcd));
+
+  if (_mode == Application::OperatingMode::OperatingModeSetDate)
   {
-    if (adjustedHour >= 12)
+    switch (_settings.getRawSetting(Settings::DateFormat))
     {
-      adjustedHour = adjustedHour - 12;
-      statusLed = _settings.getColor(Settings::Color::Color1, Settings::Slot::SlotSet);
+      case 2:
+      bcDisp.setDisplayFromBytes(month, day, year);
+      // determine what to highlight
+      switch (_selectedItem)
+      {
+        case HourYear:
+        highlightStart = 0;
+        break;
+
+        case MinuteMonth:
+        highlightStart = 2;
+        break;
+
+        default:
+        highlightStart = 1;
+      }
+      break;
+
+      case 1:
+      bcDisp.setDisplayFromBytes(day, month, year);
+      // determine what to highlight
+      switch (_selectedItem)
+      {
+        case HourYear:
+        highlightStart = 0;
+        break;
+
+        case MinuteMonth:
+        highlightStart = 1;
+        break;
+
+        default:
+        highlightStart = 2;
+      }
+      break;
+
+      default:
+      bcDisp.setDisplayFromBytes(year, month, day);
+      // no need to adjust highlightStart as _selectedItem directly corresponds to this arrangement
+    }
+  }
+  else if (display12Hour == true)
+  {
+    if (_workingDateTime.isPM() == true)
+    {
+      statusLed = color1Highlight;
     }
     else
     {
-      statusLed = _settings.getColor(Settings::Color::Color0, Settings::Slot::SlotSet);
+      statusLed = color0Highlight;
     }
-
-    if (adjustedHour == 0)
+    // highlight/lowlight as appropriate
+    if (_selectedItem != HourYear)
     {
-      adjustedHour = 12;
+      statusLed.adjustIntensity(SetTimeDateView::cLowlightPercentage);
     }
 
-    if (_selectedByte == 2)
-    {
-      workingByte = adjustedHour;
-    }
   }
 
-  if (_selectedByte != 2)
+  // create the highlight on the appropriate block of pixels
+  for (uint8_t i = highlightStart * 8; i < (highlightStart + 1) * 8; i++)
   {
-    statusLed.adjustIntensity(SetTimeDateView::cLowlightPercentage);
-  }
-
-  // display in BCD if settings say so
-  if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD) == true)
-  {
-    displayBitMask = (Hardware::uint32ToBcd(adjustedHour) << 16) |
-                      (Hardware::uint32ToBcd(_setValues[1]) << 8) |
-                       Hardware::uint32ToBcd(_setValues[0]);
-  }
-  else
-  {
-    displayBitMask = (adjustedHour << 16) | (_setValues[1] << 8) | _setValues[0];
-  }
-
-  // now we can create a new display object with the right colors and bitmask
-  Display bcDisp(color0Lowlight, color1Lowlight, displayBitMask);
-
-  // get the bitmap for the selected byte into displayBitMask
-  if (_settings.getSetting(Settings::Setting::SystemOptions, Settings::SystemOptionsBits::DisplayBCD) == true)
-  {
-    displayBitMask = Hardware::uint32ToBcd(workingByte);
-  }
-  else
-  {
-    displayBitMask = workingByte;
-  }
-  // create the highlight
-  for (i = _selectedByte * 8; i < (_selectedByte + 1) * 8; i++)
-  {
-    if ((displayBitMask >> (i - (_selectedByte * 8))) & 1)
+    if (bcDisp.getPixelState(i) == true)
     {
       bcDisp.setPixelFromRaw(i, color1Highlight);
     }

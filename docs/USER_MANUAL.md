@@ -459,8 +459,9 @@ By default, color changes are enabled for all eight time slots while the audible
 
 View: Set Value View
 
-As was described above, these three modes allow the adjustment of how long the
- time, date, and temperature will appear when the clock is operating in mode 2.
+As was described above, these three modes allow the adjustment of how long (in
+ seconds) the time, date, and temperature will appear when the clock is
+ operating in mode 2.
 
 #### Mode 23: Fade duration
 
@@ -469,14 +470,15 @@ View: Set Value View
 This mode allows the adjustment of the duration of the fading that occurs as
  bits on the display toggle from `0` to `1` or vice-versa. This effect is used
  in display modes 1, 2, and 3. The value set describes the fade duration in
- milliseconds.
+ milliseconds and the default is 100.
 
 #### Modes 24 through 29: Daylight Savings Time (DST) settings
 
 View: Set Value View
 
 These modes allow the configuration of exactly when clock adjustments occur due
- to DST beginning and ending.
+ to DST beginning and ending. The default values correspond with DST changes
+ that occur in the US.
 
 Mode 24 allows setting the month in which DST begins.\
 Mode 25 allows setting the day of week ordinal (first, second, third, fourth) in
@@ -504,7 +506,7 @@ This is a technique used on pre-version 4 clocks that use the TLC5947 LED
  setting, the hardware will strobe the drivers' BLANK pin as data is latched
  into the drivers, helping to mitigate flickering or pulsing of the display when
  frequent display refreshes are occurring. Combined with the setting defined in
- mode 35, this effect can be nearly eliminated. Note that this setting is not
+ mode 36, this effect can be nearly eliminated. Note that this setting is not
  used by version 4+ clocks as it is not necessary with the TLC5951 LED drivers.
 
 #### Mode 32: Current Drive
@@ -550,10 +552,11 @@ View: Set Value View
 This mode allows adjustment of the display hardware refresh interval. It
  determines the maximum frequency at which data may be latched into the TLC59xx
  drivers. On pre-version 4 hardware that uses the TLC5947 drivers, this setting,
- in conjunction with the setting defined in mode 30, helps reduce flicker or
+ in conjunction with the setting defined in mode 31, helps reduce flicker or
  pulsing during frequent display refreshes. This setting should be left at the
  default value of zero on version 4+ clocks as the TLC5951 drivers have a
- better, built-in mechanism that eliminates flicker and pulsing.
+ better, built-in mechanism that eliminates flicker and pulsing. For pre-v4
+ clocks, the recommended value for this setting is ten (10).
 
 #### Mode 39: DMX-512 Address
 
