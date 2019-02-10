@@ -143,7 +143,7 @@ void setDateTime(const DateTime &dateTime)
 
   // Based on the buffer we set up above, we'll start at the seconds register
   //  and write up from there -- what we read back is irrelevant/discarded
-  while (Hardware::spiTransfer(Hardware::SpiPeripheral::Rtc, spareBuffer + 4, ds3234Register, 8, false) == false);
+  while (Hardware::spiTransfer(Hardware::SpiPeripheral::Rtc, spareBuffer + 4, ds3234Register, 8, false) != Hardware::HwReqAck::HwReqAckOk);
 
   // again, we need to write the starting address first...
   spareBuffer[cAddressByte] = (cStatusRegister - 1) | cWriteBit;
@@ -151,7 +151,7 @@ void setDateTime(const DateTime &dateTime)
   spareBuffer[1] = 0x48;
 
   // Address the status register and write it to clear the OSF
-  while (Hardware::spiTransfer(Hardware::SpiPeripheral::Rtc, spareBuffer + 4, spareBuffer, 2, false) == false);
+  while (Hardware::spiTransfer(Hardware::SpiPeripheral::Rtc, spareBuffer + 4, spareBuffer, 2, false) != Hardware::HwReqAck::HwReqAckOk);
 }
 
 
@@ -164,26 +164,26 @@ bool isConnected()
   // We want to write the test byte as data
   spareBuffer[2] = cTestByte;
   // Set the SRAM Address regsiter
-  while (Hardware::spiTransfer(Hardware::SpiPeripheral::Rtc, ds3234Register, spareBuffer, 3, false) == false);
+  while (Hardware::spiTransfer(Hardware::SpiPeripheral::Rtc, ds3234Register, spareBuffer, 3, false) != Hardware::HwReqAck::HwReqAckOk);
 
   // Start writing at the SRAM Address register
   spareBuffer[cAddressByte] = (cSramAddressRegister - 1) | cWriteBit;
   // Set SRAM Address register to point to address zero
   spareBuffer[1] = cAddressByte;
   // Reset the SRAM Address regsiter
-  while (Hardware::spiTransfer(Hardware::SpiPeripheral::Rtc, ds3234Register, spareBuffer, 2, false) == false);
+  while (Hardware::spiTransfer(Hardware::SpiPeripheral::Rtc, ds3234Register, spareBuffer, 2, false) != Hardware::HwReqAck::HwReqAckOk);
 
   // This is the address we want to start reading from
   spareBuffer[cAddressByte] = cSramDataRegister - 1;
   // Try to read the byte back and check if it matches what we expect
-  while (Hardware::spiTransfer(Hardware::SpiPeripheral::Rtc, ds3234Register, spareBuffer, 2, false) == false);
+  while (Hardware::spiTransfer(Hardware::SpiPeripheral::Rtc, ds3234Register, spareBuffer, 2, false) != Hardware::HwReqAck::HwReqAckOk);
   while (Hardware::spiIsBusy());
 
   // If we read back the byte we wrote, the RTC is very likely connected
   if (ds3234Register[1] == cTestByte)
   {
     // Kick off a full register refresh
-    while (refresh() == false);
+    while (refresh() != Hardware::HwReqAck::HwReqAckOk);
 
     return true;
   }
@@ -224,7 +224,7 @@ uint16_t getTemperatureFractionalPart()
 }
 
 
-bool refresh()
+Hardware::HwReqAck refresh()
 {
   // This is the address we want to start reading from
   spareBuffer[cAddressByte] = cAddressByte;

@@ -545,6 +545,9 @@ This mode allows adjusting of the way the year, month, and day are arranged on
 * 1: Day, Month, Year
 * 2: Month, Day, Year
 
+Note that this setting affects how the date is displayed both when viewing the
+ date (mode 1 or 2) **and** when setting the date (in mode 6).
+
 #### Mode 36: Display Hardware Refresh Interval
 
 View: Set Value View

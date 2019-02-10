@@ -43,6 +43,14 @@ namespace Hardware {
     TempSensor
   };
 
+  /// @brief Hardware request return codes
+  ///
+  enum HwReqAck : uint8_t {
+    HwReqAckOk,
+    HwReqAckBusy,
+    HwReqAckError
+  };
+
 
   /// @brief Hardware version to build for
   ///
@@ -58,12 +66,12 @@ namespace Hardware {
   void     refresh();
 
   /// @brief Generates a tick sound if no tone is active
-  ///
-  bool     tick();
+  /// @return HwReqOk if tick was activated, HwReqBusy if tick was queued, else HwReqError
+  HwReqAck tick();
 
   /// @brief Generates a tone of frequency for duration milliseconds
-  /// @return true if tone was activated
-  bool     tone(const uint16_t frequency, const uint16_t duration);
+  /// @return HwReqOk if tone was activated, HwReqBusy if tone was queued, else HwReqError
+  HwReqAck tone(const uint16_t frequency, const uint16_t duration);
 
   /// @brief Returns true if an external alarm input pin is active (they are active low)
   ///
@@ -142,7 +150,8 @@ namespace Hardware {
   uint32_t getCRC(uint32_t *inputData, uint32_t numElements);
 
   /// @brief Erases the FLASH area used for app data
-  ///
+  /// @return 0xff if startAddress is out of range, flash_get_status_flags() if
+  ///  erase request failed, 0x40 if erase verification failed
   uint32_t eraseFlash(uint32_t startAddress);
 
   /// @brief Reads the FLASH area used for app data
@@ -157,12 +166,12 @@ namespace Hardware {
 
   /// @brief Reads and/or writes data to/from specified I2C interface via DMA
   ///
-  bool     i2cTransfer(const uint8_t addr, const uint8_t *bufferTx, size_t numberTx, uint8_t *bufferRx, size_t numberRx);
+  HwReqAck i2cTransfer(const uint8_t addr, const uint8_t *bufferTx, size_t numberTx, uint8_t *bufferRx, size_t numberRx);
 
   /// @brief Reads and/or writes data to/from the I2C1 interface via DMA
   ///
-  bool     i2cReceive(const uint8_t addr, uint8_t *bufferRx, const size_t numberRx, const bool autoEndXfer);
-  bool     i2cTransmit(const uint8_t addr, const uint8_t *bufferTx, const size_t numberTx, const bool autoEndXfer);
+  HwReqAck i2cReceive(const uint8_t addr, uint8_t *bufferRx, const size_t numberRx, const bool autoEndXfer);
+  HwReqAck i2cTransmit(const uint8_t addr, const uint8_t *bufferTx, const size_t numberTx, const bool autoEndXfer);
 
   /// @brief Aborts a transfer initiated by i2cTransfer()
   ///
@@ -174,15 +183,15 @@ namespace Hardware {
 
   /// @brief Reads data from the serial port with DMA
   /// @return false if failure (the USART was busy)
-  bool     readSerial(const uint32_t usart, const uint32_t length, char* data);
+  HwReqAck readSerial(const uint32_t usart, const uint32_t length, char* data);
 
   /// @brief Writes data to the serial port with DMA
   /// @return false if failure (the USART was busy)
-  bool     writeSerial(const uint32_t usart, const uint32_t length, const char* data);
+  HwReqAck writeSerial(const uint32_t usart, const uint32_t length, const char* data);
 
   /// @brief Transfers data in/out through the SPI via DMA
   /// @return false if failure (the SPI was busy)
-  bool     spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *bufferOut, const uint16_t length, const bool use16BitXfers);
+  HwReqAck spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *bufferOut, const uint16_t length, const bool use16BitXfers);
 
   /// @brief Permits checking the status of the SPI; returns true if busy
   ///

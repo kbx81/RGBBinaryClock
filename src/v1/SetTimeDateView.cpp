@@ -64,14 +64,15 @@ void SetTimeDateView::enter()
 
 bool SetTimeDateView::keyHandler(Keys::Key key)
 {
-  bool    tick   = true;
   int16_t year   = _workingDateTime.year();
   int8_t  month  = _workingDateTime.month(),
           day    = _workingDateTime.day(),
           hour   = _workingDateTime.hour(),
           minute = _workingDateTime.minute(),
           second = _workingDateTime.second();
-  DateTime setDateTime = Hardware::getDateTime();
+  bool    tick   = true;
+  DateTime setDateTime = Hardware::getDateTime(),
+           workingDateTime = _workingDateTime;
 
   if (key == Keys::Key::A)
   {
@@ -158,6 +159,11 @@ bool SetTimeDateView::keyHandler(Keys::Key key)
         _workingDateTime.setTime(hour, minute, second);
       }
     }
+    // should we tick?
+    if (workingDateTime == _workingDateTime)
+    {
+      tick = false;
+    }
   }
 
   if (key == Keys::Key::U)
@@ -196,6 +202,11 @@ bool SetTimeDateView::keyHandler(Keys::Key key)
         ++second;
       }
       _workingDateTime.setTime(hour, minute, second);
+    }
+    // should we tick?
+    if (workingDateTime == _workingDateTime)
+    {
+      tick = false;
     }
   }
 

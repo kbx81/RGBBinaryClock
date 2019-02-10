@@ -143,4 +143,4 @@ In this repository you'll find everything needed to put one together. It is
 Additional details regarding the hardware and software can be found in the
  `README.md` files located in each respective directory.
 
- _That's all for now...more information will be coming soon!_
+ **That's all for now...thanks for visiting!**

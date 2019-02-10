@@ -19,6 +19,7 @@
 #pragma once
 
 #include <cstdint>
+#include "Hardware.h"
 
 
 namespace kbxBinaryClock {
@@ -44,11 +45,11 @@ uint16_t getTemperatureFractionalPart();
 
 // Read all registers from the MCP9808
 //  Returns result of read from Hardware::i2c_transfer7()
-bool refresh();
+Hardware::HwReqAck refresh();
 
 // Read temperature registers from the MCP9808
 //  Returns result of read from Hardware::i2c_transfer7()
-bool refreshTemp();
+Hardware::HwReqAck refreshTemp();
 
 }
 

@@ -49,7 +49,7 @@ static uint8_t spareBuffer[cNumberOfRegisters];
 bool isConnected()
 {
   // Try to read the temperature registers
-  while (Hardware::spiTransfer(Hardware::SpiPeripheral::TempSensor, lm74Register, spareBuffer, 2, false) == false);
+  while (Hardware::spiTransfer(Hardware::SpiPeripheral::TempSensor, lm74Register, spareBuffer, 2, false) != Hardware::HwReqAck::HwReqAckOk);
   while (Hardware::spiIsBusy() == true);
 
   // If we read back some value that isn't all zeros or all ones, we'll take it
@@ -57,7 +57,7 @@ bool isConnected()
       (lm74Register[1] != 0) && (lm74Register[1] != 0xff))
   {
     // Kick off a full register refresh
-    while (refresh() == false);
+    while (refresh() != Hardware::HwReqAck::HwReqAckOk);
 
     return true;
   }
@@ -89,7 +89,7 @@ uint16_t getTemperatureFractionalPart()
 }
 
 
-bool refresh()
+Hardware::HwReqAck refresh()
 {
   // Try to read the temperature registers
   return Hardware::spiTransfer(Hardware::SpiPeripheral::TempSensor, lm74Register, spareBuffer, 2, false);

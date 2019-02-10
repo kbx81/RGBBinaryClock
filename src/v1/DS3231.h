@@ -20,6 +20,7 @@
 
 #include <cstdint>
 #include "DateTime.h"
+#include "Hardware.h"
 
 
 namespace kbxBinaryClock {
@@ -75,15 +76,15 @@ uint16_t getTemperatureFractionalPart();
 
 // Read all registers from the DS3231
 //  Returns result of read from Hardware::i2cTransfer()
-bool refresh();
+Hardware::HwReqAck refresh();
 
 // Read the time and temperature registers from the DS3231
 //  Returns result of read from Hardware::i2cTransfer()
-bool refreshTimeDateTemp();
+Hardware::HwReqAck refreshTimeDateTemp();
 
 // Read the time and date registers from the DS3231
 //  Returns result of read from Hardware::i2cTransfer()
-bool refreshTimeDate();
+Hardware::HwReqAck refreshTimeDate();
 
 }
 

@@ -1343,7 +1343,7 @@ void refresh()
     {
       if (cTargetHardwareVersion >= 3)
       {
-        _lastRefreshWasRTC = DS3234::refresh();
+        _lastRefreshWasRTC = (DS3234::refresh() == HwReqAck::HwReqAckOk);
 
         _currentDateTime = DS3234::getDateTime();
         // _rtcIsSet = DS3234::isValid();
@@ -1352,11 +1352,11 @@ void refresh()
       {
         if (_externalTemperatureSensor == TempSensorType::DS3231)
         {
-          _lastRefreshWasRTC = DS3231::refreshTimeDateTemp();
+          _lastRefreshWasRTC = (DS3231::refreshTimeDateTemp() == HwReqAck::HwReqAckOk);
         }
         else
         {
-          _lastRefreshWasRTC = DS3231::refreshTimeDate();
+          _lastRefreshWasRTC = (DS3231::refreshTimeDate() == HwReqAck::HwReqAckOk);
         }
         _currentDateTime = DS3231::getDateTime();
         // _rtcIsSet = DS3231::isValid();
@@ -1409,13 +1409,13 @@ void refresh()
           break;
 
         case TempSensorType::LM74:
-          _lastRefreshWasRTC = !LM74::refresh();
+          _lastRefreshWasRTC = !(LM74::refresh() == HwReqAck::HwReqAckOk);
           _temperatureXcBaseMultiplier =  LM74::getTemperatureWholePart() * cBaseMultiplier;
           _temperatureXcBaseMultiplier += ((LM74::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
           break;
 
         case TempSensorType::DS1722:
-          _lastRefreshWasRTC = !DS1722::refresh();
+          _lastRefreshWasRTC = !(DS1722::refresh() == HwReqAck::HwReqAckOk);
           _temperatureXcBaseMultiplier =  DS1722::getTemperatureWholePart() * cBaseMultiplier;
           _temperatureXcBaseMultiplier += ((DS1722::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
           break;
@@ -1439,13 +1439,13 @@ void refresh()
           break;
 
         case TempSensorType::LM75:
-          _lastRefreshWasRTC = !LM75::refreshTemp();
+          _lastRefreshWasRTC = !(LM75::refreshTemp() == HwReqAck::HwReqAckOk);
           _temperatureXcBaseMultiplier =  LM75::getTemperatureWholePart() * cBaseMultiplier;
           _temperatureXcBaseMultiplier += ((LM75::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
           break;
 
         case TempSensorType::MCP9808:
-          _lastRefreshWasRTC = !MCP9808::refreshTemp();
+          _lastRefreshWasRTC = !(MCP9808::refreshTemp() == HwReqAck::HwReqAckOk);
           _temperatureXcBaseMultiplier =  MCP9808::getTemperatureWholePart() * cBaseMultiplier;
           _temperatureXcBaseMultiplier += ((MCP9808::getTemperatureFractionalPart() >> 1) * cTempFracMultiplier);
           break;
@@ -1477,13 +1477,13 @@ void refresh()
 }
 
 
-bool tick()
+HwReqAck tick()
 {
   return tone(cToneFrequencyMinimum * 8, 2);
 }
 
 
-bool tone(const uint16_t frequency, const uint16_t duration)
+HwReqAck tone(const uint16_t frequency, const uint16_t duration)
 {
   if (cTargetHardwareVersion >= 2)
   {
@@ -1507,18 +1507,18 @@ bool tone(const uint16_t frequency, const uint16_t duration)
 
       _toneTimer = duration;
 
-      return true;
+      return HwReqAck::HwReqAckOk;
     }
     else if (_toneTimerNext == 0)
     {
       _toneTimerNext = duration;
       _toneFrequencyNext = frequency;
 
-      return true;
+      return HwReqAck::HwReqAckBusy;
     }
     else
     {
-      return false;
+      return HwReqAck::HwReqAckError;
     }
   }
   else
@@ -1536,18 +1536,18 @@ bool tone(const uint16_t frequency, const uint16_t duration)
 
       _toneTimer = duration;
 
-      return true;
+      return HwReqAck::HwReqAckOk;
     }
     else if (_toneTimerNext == 0)
     {
       _toneTimerNext = duration;
       _toneFrequencyNext = frequency;
 
-      return true;
+      return HwReqAck::HwReqAckBusy;
     }
     else
     {
-      return false;
+      return HwReqAck::HwReqAckError;
     }
   }
 }
@@ -2002,7 +2002,7 @@ uint32_t writeFlash(uint32_t startAddress, uint8_t *inputData, uint16_t numEleme
 }
 
 
-bool i2cTransfer(const uint8_t addr, const uint8_t *bufferTx, size_t numberTx, uint8_t *bufferRx, size_t numberRx)
+HwReqAck i2cTransfer(const uint8_t addr, const uint8_t *bufferTx, size_t numberTx, uint8_t *bufferRx, size_t numberRx)
 {
   // this could be arranged a little better but this way prevents the DMA
   //  complete interrupt from being called before the receive data is populated
@@ -2013,7 +2013,7 @@ bool i2cTransfer(const uint8_t addr, const uint8_t *bufferTx, size_t numberTx, u
       _i2cRecover();
     }
     // Let the caller know it was busy if so
-    return false;
+    return HwReqAck::HwReqAckBusy;
   }
   else
   {
@@ -2030,13 +2030,13 @@ bool i2cTransfer(const uint8_t addr, const uint8_t *bufferTx, size_t numberTx, u
       return i2cReceive(addr, bufferRx, numberRx, true);
     }
   }
-  return false;   // catchall
+  return HwReqAck::HwReqAckError;   // catchall
 }
 
 
 // Transfers the given buffers to/from the given peripheral through the SPI via DMA
 //
-bool i2cReceive(const uint8_t addr, uint8_t *bufferRx, const size_t numberRx, const bool autoEndXfer)
+HwReqAck i2cReceive(const uint8_t addr, uint8_t *bufferRx, const size_t numberRx, const bool autoEndXfer)
 {
   if (_i2cState != I2cState::I2cIdle)
   {
@@ -2045,7 +2045,7 @@ bool i2cReceive(const uint8_t addr, uint8_t *bufferRx, const size_t numberRx, co
       _i2cRecover();
     }
     // Let the caller know it was busy if so
-    return false;
+    return HwReqAck::HwReqAckBusy;
   }
 
   _i2cBusyFailCount = 0;
@@ -2095,13 +2095,13 @@ bool i2cReceive(const uint8_t addr, uint8_t *bufferRx, const size_t numberRx, co
   	i2c_enable_rxdma(I2C1);
   }
 
-  return true;
+  return HwReqAck::HwReqAckOk;
 }
 
 
 // Transfers the given buffers to/from the given peripheral through the SPI via DMA
 //
-bool i2cTransmit(const uint8_t addr, const uint8_t *bufferTx, const size_t numberTx, const bool autoEndXfer)
+HwReqAck i2cTransmit(const uint8_t addr, const uint8_t *bufferTx, const size_t numberTx, const bool autoEndXfer)
 {
   if (_i2cState != I2cState::I2cIdle)
   {
@@ -2110,7 +2110,7 @@ bool i2cTransmit(const uint8_t addr, const uint8_t *bufferTx, const size_t numbe
       _i2cRecover();
     }
     // Let the caller know it was busy if so
-    return false;
+    return HwReqAck::HwReqAckBusy;
   }
 
   _i2cBusyFailCount = 0;
@@ -2161,7 +2161,7 @@ bool i2cTransmit(const uint8_t addr, const uint8_t *bufferTx, const size_t numbe
   	i2c_enable_txdma(I2C1);
   }
 
-  return true;
+  return HwReqAck::HwReqAckOk;
 }
 
 
@@ -2177,7 +2177,7 @@ bool i2cIsBusy()
 }
 
 
-bool readSerial(const uint32_t usart, const uint32_t length, char* data)
+HwReqAck readSerial(const uint32_t usart, const uint32_t length, char* data)
 {
   switch (usart)
   {
@@ -2205,7 +2205,7 @@ bool readSerial(const uint32_t usart, const uint32_t length, char* data)
     }
     else
     {
-      return false;
+      return HwReqAck::HwReqAckBusy;
     }
     break;
 
@@ -2233,15 +2233,14 @@ bool readSerial(const uint32_t usart, const uint32_t length, char* data)
     }
     else
     {
-      return false;
+      return HwReqAck::HwReqAckBusy;
     }
-    // break;
   }
-  return true;
+  return HwReqAck::HwReqAckOk;
 }
 
 
-bool writeSerial(const uint32_t usart, const uint32_t length, const char* data)
+HwReqAck writeSerial(const uint32_t usart, const uint32_t length, const char* data)
 {
   switch (usart)
   {
@@ -2269,7 +2268,7 @@ bool writeSerial(const uint32_t usart, const uint32_t length, const char* data)
     }
     else
     {
-      return false;
+      return HwReqAck::HwReqAckBusy;
     }
     break;
 
@@ -2299,17 +2298,16 @@ bool writeSerial(const uint32_t usart, const uint32_t length, const char* data)
     }
     else
     {
-      return false;
+      return HwReqAck::HwReqAckBusy;
     }
-    // break;
   }
-  return true;
+  return HwReqAck::HwReqAckOk;
 }
 
 
 // Transfers the given buffers to/from the given peripheral through the SPI via DMA
 //
-bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *bufferOut, const uint16_t length, const bool use16BitXfers)
+HwReqAck spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *bufferOut, const uint16_t length, const bool use16BitXfers)
 {
   uint16_t mSize = DMA_CCR_MSIZE_8BIT, pSize = DMA_CCR_PSIZE_8BIT;
   volatile uint8_t temp_data __attribute__ ((unused));
@@ -2318,7 +2316,7 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
       (_ledDriverSrState == DriverShiftRegState::SrContainsGsData))
   {
     // Let the caller know it was busy if so
-    return false;
+    return HwReqAck::HwReqAckBusy;
   }
 
   _spiState = SpiState::SpiBusyPeripheral;
@@ -2424,7 +2422,7 @@ bool spiTransfer(const SpiPeripheral peripheral, uint8_t *bufferIn, uint8_t *buf
 	spi_enable_rx_dma(SPI1);
 	spi_enable_tx_dma(SPI1);
 
-  return true;
+  return HwReqAck::HwReqAckOk;
 }
 
 

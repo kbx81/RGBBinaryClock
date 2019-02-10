@@ -68,20 +68,20 @@ bool isConnected()
   // Set the config register to the value we want to use
   spareBuffer[1] = cConfigByte;
   // Write to the regsiter
-  while (Hardware::spiTransfer(Hardware::SpiPeripheral::TempSensor, ds1722Register, spareBuffer, 2, false) == false);
+  while (Hardware::spiTransfer(Hardware::SpiPeripheral::TempSensor, ds1722Register, spareBuffer, 2, false) != Hardware::HwReqAck::HwReqAckOk);
   while (Hardware::spiIsBusy() == true);
 
   // This is the address we want to start reading from
   spareBuffer[cAddressByte] = cConfigurationRegister - 1;
   // Try to read the byte (and other registers) back
-  while (Hardware::spiTransfer(Hardware::SpiPeripheral::TempSensor, ds1722Register, spareBuffer, 4, false) == false);
+  while (Hardware::spiTransfer(Hardware::SpiPeripheral::TempSensor, ds1722Register, spareBuffer, 4, false) != Hardware::HwReqAck::HwReqAckOk);
   while (Hardware::spiIsBusy() == true);
 
   // If we read back the byte we wrote, the IC is very likely connected
   if (ds1722Register[cConfigurationRegister] == cConfigByte)
   {
     // Kick off a full register refresh
-    while (refresh() == false);
+    while (refresh() != Hardware::HwReqAck::HwReqAckOk);
 
     return true;
   }
@@ -108,7 +108,7 @@ uint16_t getTemperatureFractionalPart()
 }
 
 
-bool refresh()
+Hardware::HwReqAck refresh()
 {
   // This is the address we want to start reading from
   spareBuffer[cAddressByte] = cConfigurationRegister - 1;

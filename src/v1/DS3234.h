@@ -20,6 +20,7 @@
 
 #include <cstdint>
 #include "DateTime.h"
+#include "Hardware.h"
 
 
 namespace kbxBinaryClock {
@@ -79,7 +80,7 @@ uint16_t getTemperatureFractionalPart();
 
 // Read all registers from the DS3234
 //  Returns result of read from Hardware::spiTransfer
-bool refresh();
+Hardware::HwReqAck refresh();
 
 }
 

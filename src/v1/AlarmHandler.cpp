@@ -211,7 +211,7 @@ void _executeAlarms()
         _beepCounter = 0;
       }
 
-      if (Hardware::tone(cAlarmToneFrequencies[_beepCounter], cAlarmToneDurations[_beepCounter]) == true)
+      if (Hardware::tone(cAlarmToneFrequencies[_beepCounter], cAlarmToneDurations[_beepCounter]) != Hardware::HwReqAck::HwReqAckError)
       {
         _beepCounter++;
       }
@@ -259,7 +259,7 @@ void _executeAlarms()
           if ((_beepCounter & 1) == 0)
           {
             // this makes a beep based on the LSb of the hour
-            if (Hardware::tone(cHourlyAlarmToneFrequencies[tone & 1], cHourlyAlarmToneDuration) == true)
+            if (Hardware::tone(cHourlyAlarmToneFrequencies[tone & 1], cHourlyAlarmToneDuration) != Hardware::HwReqAck::HwReqAckError)
             {
               // we end up here if Hardware accepted our beep, so we can move onto the next beep/bit
               _beepCounter++;
@@ -268,7 +268,7 @@ void _executeAlarms()
           else
           {
             // this produces a pause/rest
-            if (Hardware::tone(1, cHourlyAlarmToneDuration) == true)
+            if (Hardware::tone(1, cHourlyAlarmToneDuration) != Hardware::HwReqAck::HwReqAckError)
             {
               // we end up here if Hardware accepted our beep, so we can move onto the next beep/bit
               _beepCounter++;

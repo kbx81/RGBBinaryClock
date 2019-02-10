@@ -19,6 +19,7 @@
 #pragma once
 
 #include <cstdint>
+#include "Hardware.h"
 
 
 namespace kbxBinaryClock {
@@ -44,7 +45,7 @@ uint16_t getTemperatureFractionalPart();
 
 // Read all registers from the DS1722
 //  Returns result of read from Hardware::spiTransfer()
-bool refresh();
+Hardware::HwReqAck refresh();
 
 }
 

@@ -125,7 +125,7 @@ void setDateTime(const DateTime &dateTime)
 
   // Based on the buffer we set up above, we'll start at the seconds register
   //  and write up from there -- we won't read anything back
-  while (Hardware::i2cTransfer(cChipAddress, writeBuffer, 8, readBuffer, 0) == false);
+  while (Hardware::i2cTransfer(cChipAddress, writeBuffer, 8, readBuffer, 0) != Hardware::HwReqAck::HwReqAckOk);
   while (Hardware::i2cIsBusy() == true);
 
   // we need to write the starting address first...
@@ -134,7 +134,7 @@ void setDateTime(const DateTime &dateTime)
   writeBuffer[1] = (ds3231Register[cStatusRegister] &= ~(1 << 7));
 
   // Address the status register and write it to clear the OSF
-  while (Hardware::i2cTransfer(cChipAddress, writeBuffer, 2, readBuffer, 0) == false);
+  while (Hardware::i2cTransfer(cChipAddress, writeBuffer, 2, readBuffer, 0) != Hardware::HwReqAck::HwReqAckOk);
 }
 
 
@@ -142,7 +142,7 @@ bool isConnected()
 {
   uint16_t timeout = cI2cTimeout;
   // Address the status register and read one byte
-  while (Hardware::i2cTransfer(cChipAddress, &cControlRegister, 1, readBuffer, 2) == false);
+  while (Hardware::i2cTransfer(cChipAddress, &cControlRegister, 1, readBuffer, 2) != Hardware::HwReqAck::HwReqAckOk);
   while ((Hardware::i2cIsBusy() == true) && (--timeout > 0));
 
   if (timeout > 0)
@@ -191,7 +191,7 @@ void set32kHzOut(const bool isEnabled)
   writeBuffer[1] = ds3231Register[cStatusRegister];
 
   // Address the status register and read one byte
-  while (Hardware::i2cTransfer(cChipAddress, writeBuffer, 2, readBuffer, 0) == false);
+  while (Hardware::i2cTransfer(cChipAddress, writeBuffer, 2, readBuffer, 0) != Hardware::HwReqAck::HwReqAckOk);
 }
 
 
@@ -213,17 +213,17 @@ uint16_t getTemperatureFractionalPart()
 }
 
 
-bool refresh()
+Hardware::HwReqAck refresh()
 {
   // Address the seconds register, then read all the registers
   return Hardware::i2cTransfer(cChipAddress, &cSecondsRegister, 1, ds3231Register, cNumberOfRegisters);
 }
 
 
-bool refreshTimeDateTemp()
+Hardware::HwReqAck refreshTimeDateTemp()
 {
   // Address the seconds register, then read all the registers
-  bool result = Hardware::i2cTransfer(cChipAddress, &cTemperatureMSBRegister, 1, readBuffer, 9);
+  Hardware::HwReqAck result = Hardware::i2cTransfer(cChipAddress, &cTemperatureMSBRegister, 1, readBuffer, 9);
 
   ds3231Register[cTemperatureMSBRegister] = readBuffer[0];
   ds3231Register[cTemperatureLSBRegister] = readBuffer[1];
@@ -239,7 +239,7 @@ bool refreshTimeDateTemp()
 }
 
 
-bool refreshTimeDate()
+Hardware::HwReqAck refreshTimeDate()
 {
   // Address the seconds register, then read all the registers
   return Hardware::i2cTransfer(cChipAddress, &cSecondsRegister, 1, ds3231Register, 7);

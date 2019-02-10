@@ -61,7 +61,7 @@ bool isConnected()
   uint16_t timeout = cI2cTimeout;
   lm75Register[cConfigurationRegister + 1] = 0xff;  // foolproofing
   // Address the config register and read one byte
-  while (Hardware::i2cTransfer(cChipAddress, &cConfigurationRegister, 1, readBuffer, 1) == false);
+  while (Hardware::i2cTransfer(cChipAddress, &cConfigurationRegister, 1, readBuffer, 1) != Hardware::HwReqAck::HwReqAckOk);
   while ((Hardware::i2cIsBusy() == true) && (--timeout > 0));
 
   if (timeout > 0)
@@ -96,14 +96,14 @@ uint16_t getTemperatureFractionalPart()
 }
 
 
-bool refresh()
+Hardware::HwReqAck refresh()
 {
   // Address the first (temperature) register, then read all the registers
   return Hardware::i2cTransfer(cChipAddress, &cTemperatureRegister, 1, lm75Register, cNumberOfRegisters);
 }
 
 
-bool refreshTemp()
+Hardware::HwReqAck refreshTemp()
 {
   // Address the temperature register
   return Hardware::i2cTransfer(cChipAddress, &cTemperatureRegister, 1, lm75Register, 2);

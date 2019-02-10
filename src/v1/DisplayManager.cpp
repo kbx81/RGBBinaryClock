@@ -154,7 +154,7 @@ void initialize()
     // Initialize the display drivers' dot correction ranges
     setDotCorrectionRange(true);
     // Write the BC, DC, FC, and UD to the drivers
-    while (Hardware::spiTransfer(Hardware::SpiPeripheral::LedDriversOther, (uint8_t*)_displayBufferIn.getDcBcFcUdBufferPtrForWrite(), (uint8_t*)_displayBufferOut.getDcBcFcUdBufferPtrForWrite(), TLC59xx::cTLC5951ShiftRegSize * cPwmNumberOfDevices, false) == false);
+    while (Hardware::spiTransfer(Hardware::SpiPeripheral::LedDriversOther, (uint8_t*)_displayBufferIn.getDcBcFcUdBufferPtrForWrite(), (uint8_t*)_displayBufferOut.getDcBcFcUdBufferPtrForWrite(), TLC59xx::cTLC5951ShiftRegSize * cPwmNumberOfDevices, false) != Hardware::HwReqAck::HwReqAckOk);
   }
   else
   {
@@ -162,7 +162,7 @@ void initialize()
     _displayBufferOut.setReversingMode(TLC59xx::ReversingMode::ReverseAcrossBuffer);
   }
   // Write the GS data to the drivers
-  while (Hardware::spiTransfer(Hardware::SpiPeripheral::LedDriversGs, (uint8_t*)_displayBufferIn.getPwmBufferPtrForWrite(), (uint8_t*)_displayBufferOut.getPwmBufferPtrForWrite(), TLC59xx::cTLC5951PwmChannelsPerDevice * cPwmNumberOfDevices, true) == false);
+  while (Hardware::spiTransfer(Hardware::SpiPeripheral::LedDriversGs, (uint8_t*)_displayBufferIn.getPwmBufferPtrForWrite(), (uint8_t*)_displayBufferOut.getPwmBufferPtrForWrite(), TLC59xx::cTLC5951PwmChannelsPerDevice * cPwmNumberOfDevices, true) != Hardware::HwReqAck::HwReqAckOk);
 }
 
 
@@ -209,7 +209,7 @@ void refresh()
         && (_displayBufferOut.dcBcFcUdHwRefreshRequired(false) == true))
     {
       if ((_lastRefreshWasGs == true) &&
-          (Hardware::spiTransfer(Hardware::SpiPeripheral::LedDriversOther, (uint8_t*)_displayBufferIn.getDcBcFcUdBufferPtrForWrite(), (uint8_t*)_displayBufferOut.getDcBcFcUdBufferPtrForWrite(), TLC59xx::cTLC5951ShiftRegSize * cPwmNumberOfDevices, false) == true))
+          (Hardware::spiTransfer(Hardware::SpiPeripheral::LedDriversOther, (uint8_t*)_displayBufferIn.getDcBcFcUdBufferPtrForWrite(), (uint8_t*)_displayBufferOut.getDcBcFcUdBufferPtrForWrite(), TLC59xx::cTLC5951ShiftRegSize * cPwmNumberOfDevices, false) == Hardware::HwReqAck::HwReqAckOk))
       {
         _displayBufferOut.dcBcFcUdHwRefreshRequired(true);
 
@@ -225,7 +225,7 @@ void refresh()
     if (_displayBufferOut.gsHwRefreshRequired(false) == true)
     {
       if ((_lastRefreshWasGs == false) &&
-          (Hardware::spiTransfer(Hardware::SpiPeripheral::LedDriversGs, (uint8_t*)_displayBufferIn.getPwmBufferPtrForWrite(), (uint8_t*)_displayBufferOut.getPwmBufferPtrForWrite(), TLC59xx::cTLC5951PwmChannelsPerDevice * cPwmNumberOfDevices, true) == true))
+          (Hardware::spiTransfer(Hardware::SpiPeripheral::LedDriversGs, (uint8_t*)_displayBufferIn.getPwmBufferPtrForWrite(), (uint8_t*)_displayBufferOut.getPwmBufferPtrForWrite(), TLC59xx::cTLC5951PwmChannelsPerDevice * cPwmNumberOfDevices, true) == Hardware::HwReqAck::HwReqAckOk))
       {
         _displayBufferOut.gsHwRefreshRequired(true);
 
